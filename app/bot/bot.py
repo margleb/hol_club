@@ -13,6 +13,7 @@ from fluentogram import TranslatorHub
 from app.bot.dialogs.settings.dialogs import settings_dialog
 from app.bot.dialogs.start.dialogs import start_dialog
 from app.bot.handlers.commands import commands_router
+from app.bot.handlers.partner_requests import partner_requests_router
 from app.bot.handlers.errors import on_unknown_intent, on_unknown_state
 from app.bot.i18n.translator_hub import create_translator_hub
 from app.bot.middlewares.database import DataBaseMiddleware
@@ -77,7 +78,7 @@ async def main():
     )
 
     logger.info("Including routers")
-    dp.include_routers(commands_router, start_dialog, settings_dialog)
+    dp.include_routers(commands_router, partner_requests_router, start_dialog, settings_dialog)
 
     logger.info("Including middlewares")
     dp.update.middleware(DataBaseMiddleware())

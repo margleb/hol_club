@@ -34,3 +34,6 @@
     
     [development.cache]
         USE_CACHE = false
+    [development.partner]
+        CHANNEL = ""
+

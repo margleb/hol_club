@@ -40,6 +40,12 @@ help-command = The following commands are available as a mini-demonstration of t
                /start - Restart the bot
                /help - View this help
 
+               <b>Partnership:</b>
+
+               /partner_request - Submit a partnership request
+               /partner_approve &lt;user_id&gt; - Approve a request (admins only)
+               /partner_post - Post the request button in the channel (admins only)
+
 simple-task = Simple task
 
 task-soon = The task will be completed soon!
@@ -83,3 +89,49 @@ fr-lang = 🇫🇷 Franch
 de-lang = 🇩🇪 German
 
 lang-saved = ✅ The language settings have been saved successfully!
+
+partner-request-forbidden = You already have partner or admin permissions.
+
+partner-request-sent = Your partnership request has been sent. An admin will review it.
+
+partner-request-pending = Your request is already under review.
+
+partner-request-approved = Your request is already approved. Partner role is active.
+
+partner-approve-forbidden = You do not have permission to approve requests.
+
+partner-approve-usage = Usage: /partner_approve &lt;user_id&gt;
+
+partner-approve-missing = Partnership request not found.
+
+partner-approve-already = This request is already approved.
+
+partner-approve-user-missing = User not found.
+
+partner-approve-success = Request approved. User { $user_id } is now a partner.
+
+partner-request-button = Partnership request
+
+partner-request-channel-text = Want to become a partner? Tap the button below.
+
+partner-request-channel-posted = The request button was posted to the channel.
+
+partner-request-channel-failed = Could not send the message to the channel.
+
+partner-request-admin-notify = Partnership request from { $username } (id: { $user_id }).
+
+partner-request-approve-button = Approve
+
+partner-request-reject-button = Reject
+
+partner-request-rejected = Your partnership request was rejected.
+
+partner-request-already-rejected = This request is already rejected.
+
+partner-request-invalid = Invalid request data.
+
+partner-decision-approved = Request approved.
+
+partner-decision-rejected = Request rejected.
+
+partner-request-channel-missing = Partner channel is not set. Add PARTNER_CHANNEL to .env.

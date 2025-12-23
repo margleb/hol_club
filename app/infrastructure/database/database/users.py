@@ -81,3 +81,20 @@ class _UsersDB:
             "User updated. db='%s', user_id=%d, language=%s",
             self.__tablename__, user_id, user_lang
         )
+
+    async def update_role(self, *, user_id: int, role: UserRole) -> None:
+        stmt = (
+            update(UsersModel)
+            .where(UsersModel.user_id == user_id)
+            .values(role=role)
+        )
+        await self.session.execute(stmt)
+        logger.info(
+            "User updated. db='%s', user_id=%d, role=%s",
+            self.__tablename__, user_id, role.value
+        )
+
+    async def get_admin_user_ids(self) -> list[int]:
+        stmt = select(UsersModel.user_id).where(UsersModel.role == UserRole.ADMIN)
+        result = await self.session.execute(stmt)
+        return [row[0] for row in result.all()]
