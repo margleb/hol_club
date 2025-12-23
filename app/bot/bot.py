@@ -1,7 +1,6 @@
 import asyncio
 import logging
 
-import psycopg_pool
 import redis
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -57,7 +56,7 @@ async def main():
         )
         dp.workflow_data.update(_cache_pool=cache_pool)
 
-    db_pool: psycopg_pool.AsyncConnectionPool = await get_pg_pool(
+    db_engine, db_session_maker = await get_pg_pool(
         db_name=settings.postgres.db,
         host=settings.postgres.host,
         port=settings.postgres.port,
@@ -103,7 +102,7 @@ async def main():
                 redis_source=redis_source,
                 bot_locales=sorted(settings.i18n.locales),
                 translator_hub=translator_hub,
-                _db_pool=db_pool
+                _db_sessionmaker=db_session_maker
             ), 
             start_delayed_consumer(
                 nc=nc, 
@@ -119,7 +118,7 @@ async def main():
     finally:
         await nc.close()
         logger.info('Connection to NATS closed')
-        await db_pool.close()
+        await db_engine.dispose()
         logger.info('Connection to Postgres closed')
         await broker.shutdown()
         logger.info('Connection to taskiq-broker closed')

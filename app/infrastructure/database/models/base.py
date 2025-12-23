@@ -1,5 +1,5 @@
-from abc import ABC
+from sqlalchemy.orm import DeclarativeBase
 
 
-class BaseModel(ABC):
+class BaseModel(DeclarativeBase):
     pass

@@ -3,8 +3,8 @@ from typing import Awaitable, Callable
 
 from aiogram import BaseMiddleware
 from aiogram.types import Update
-from psycopg import Error
-from psycopg_pool import AsyncConnectionPool
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.infrastructure.database.database.db import DB
 
@@ -18,15 +18,15 @@ class DataBaseMiddleware(BaseMiddleware):
         event: Update,
         data: dict[str, any]
     ) -> any:
-        db_pool: AsyncConnectionPool = data.get('_db_pool')
+        session_maker: async_sessionmaker = data.get('_db_sessionmaker')
 
-        async with db_pool.connection() as connection:
-            async with connection.transaction():
-                try:
-                    data['db'] = DB(connection)
-                    result = await handler(event, data)
-                except Error as e:
-                    logger.exception('Transaction rolled back due to error: %s', e)
-                    result = await handler(event, data)
-
-        return result
+        async with session_maker() as session:
+            try:
+                data['db'] = DB(session)
+                result = await handler(event, data)
+                await session.commit()
+                return result
+            except SQLAlchemyError as e:
+                await session.rollback()
+                logger.exception('Transaction rolled back due to error: %s', e)
+                raise

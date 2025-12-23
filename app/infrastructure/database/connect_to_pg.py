@@ -1,6 +1,7 @@
 import logging
 
-from psycopg_pool import AsyncConnectionPool
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
 logger = logging.getLogger(__name__)
 
@@ -11,24 +12,25 @@ async def get_pg_pool(
     port: int,
     user: str,
     password: str,
-) -> AsyncConnectionPool:
+) -> tuple[AsyncEngine, async_sessionmaker]:
 
     try:
-        db_pool = AsyncConnectionPool(
-            conninfo=f'postgresql://{user}:{password}@{host}:{port}/{db_name}',
-            min_size=1,
-            max_size=3,
-            open=False
+        database_url = f'postgresql+psycopg://{user}:{password}@{host}:{port}/{db_name}'
+        engine = create_async_engine(
+            database_url,
+            pool_size=1,
+            max_overflow=2,
+            pool_pre_ping=True,
         )
-        
-        await db_pool.open()
 
-        async with db_pool.connection() as connection:
-            async with connection.cursor() as cursor:
-                await cursor.execute("SELECT version();")
-                db_version = await cursor.fetchone()
-                logger.info(f"Connected to {db_version[0]}")
-        return db_pool
+        async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+        async with engine.connect() as connection:
+            result = await connection.execute(text("SELECT version();"))
+            db_version = result.scalar_one()
+            logger.info("Connected to %s", db_version)
+
+        return engine, async_session_maker
     except Exception as e:
         logger.exception('Something went wrong while connecting to the database with exception: %s', e)
         raise

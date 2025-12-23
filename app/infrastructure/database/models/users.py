@@ -1,23 +1,34 @@
-from dataclasses import dataclass
 from datetime import datetime
+
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, String, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.models.base import BaseModel
 
 
-@dataclass
 class UsersModel(BaseModel):
-    id: int
-    user_id: int
-    created: datetime
-    tz_region: str | None
-    tz_offset: str | None
-    longitude: float | None
-    latitude: float | None
-    language: str
-    role: UserRole
-    is_alive: bool
-    is_blocked: bool
+    __tablename__ = "users"
 
-    def __post_init__(self):
-        self.role = UserRole(self.role)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    created: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    tz_region: Mapped[str | None] = mapped_column(String(50))
+    tz_offset: Mapped[str | None] = mapped_column(String(10))
+    longitude: Mapped[float | None] = mapped_column(Float)
+    latitude: Mapped[float | None] = mapped_column(Float)
+    language: Mapped[str | None] = mapped_column(String(10))
+    role: Mapped[UserRole] = mapped_column(
+        Enum(
+            UserRole,
+            values_callable=lambda enum: [item.value for item in enum],
+            native_enum=False,
+        ),
+        nullable=False,
+    )
+    is_alive: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False)

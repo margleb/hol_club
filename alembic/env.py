@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 from alembic import context
 from config.config import settings
+from app.infrastructure.database.models.base import BaseModel
 
 # Alembic Config object
 config = context.config
@@ -15,8 +16,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Metadata object for autogenerate support (if needed, otherwise None)
-target_metadata = None
+# Metadata object for autogenerate support
+target_metadata = BaseModel.metadata
 
 # Database URL for SQLAlchemy
 url = f"postgresql+psycopg://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres.host}:{settings.postgres.port}/{settings.postgres.db}"
