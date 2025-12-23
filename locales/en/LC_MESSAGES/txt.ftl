@@ -1,6 +1,18 @@
 start-hello = Hello, { $username }!
-              
-              /help
+
+              Welcome to the Singles Club ✨
+
+              If you are here, it means you are open to meeting people and socializing
+
+              This bot will help you:
+
+                • sign up for club events
+                • keep track of your registrations
+                • get closer to people with similar goals
+
+              📢 <b>Our main channel</b> — @hol_club
+
+              Ready to start? Then choose an action 👇
 
 will-delete = This message will be deleted after { $delay ->
                 [one] { $delay } second
