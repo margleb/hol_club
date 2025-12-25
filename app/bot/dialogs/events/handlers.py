@@ -106,11 +106,12 @@ async def ensure_partner_access(_, dialog_manager: DialogManager) -> None:
 
 async def on_event_name_input(
     message: Message,
-    widget=None,
+    widget,
     dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
+    data: str,
 ) -> None:
-    name = (message.text or "").strip()
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    name = (data or "").strip()
     if not (EVENT_NAME_MIN <= len(name) <= EVENT_NAME_MAX):
         await message.answer(
             i18n.partner.event.name.invalid(min=EVENT_NAME_MIN, max=EVENT_NAME_MAX)
@@ -126,7 +127,7 @@ async def on_event_name_input(
 
 async def on_event_photo_input(
     message: Message,
-    widget=None,
+    widget,
     dialog_manager: DialogManager,
 ) -> None:
     if not message.photo:
@@ -152,11 +153,12 @@ async def skip_event_photo(
 
 async def on_event_datetime_input(
     message: Message,
-    widget=None,
+    widget,
     dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
+    data: str,
 ) -> None:
-    value = (message.text or "").strip()
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    value = (data or "").strip()
     try:
         datetime.strptime(value, "%d.%m.%Y %H:%M")
     except ValueError:
@@ -172,11 +174,12 @@ async def on_event_datetime_input(
 
 async def on_event_address_input(
     message: Message,
-    widget=None,
+    widget,
     dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
+    data: str,
 ) -> None:
-    query = (message.text or "").strip()
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    query = (data or "").strip()
     if len(query) < ADDRESS_QUERY_MIN:
         await message.answer(i18n.partner.event.address.short(min=ADDRESS_QUERY_MIN))
         return
@@ -197,8 +200,8 @@ async def on_event_address_selected(
     widget: Select,
     dialog_manager: DialogManager,
     item_id: str,
-    i18n: TranslatorRunner,
 ) -> None:
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     suggestions = dialog_manager.dialog_data.get("address_suggestions") or []
     try:
         address = suggestions[int(item_id)]
@@ -225,11 +228,12 @@ async def back_to_address_query(
 
 async def on_event_description_input(
     message: Message,
-    widget=None,
+    widget,
     dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
+    data: str,
 ) -> None:
-    description = (message.text or "").strip()
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    description = (data or "").strip()
     if not (EVENT_DESC_MIN <= len(description) <= EVENT_DESC_MAX):
         await message.answer(
             i18n.partner.event.description.invalid(
@@ -267,11 +271,12 @@ async def on_event_participation_selected(
 
 async def on_event_price_input(
     message: Message,
-    widget=None,
+    widget,
     dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
+    data: str,
 ) -> None:
-    price = (message.text or "").strip()
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    price = (data or "").strip()
     if not price or len(price) > PRICE_MAX_LEN:
         await message.answer(i18n.partner.event.price.invalid(max=PRICE_MAX_LEN))
         return
@@ -285,11 +290,12 @@ async def on_event_price_input(
 
 async def on_event_age_input(
     message: Message,
-    widget=None,
+    widget,
     dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
+    data: str,
 ) -> None:
-    age_group = (message.text or "").strip()
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    age_group = (data or "").strip()
     if not age_group or len(age_group) > AGE_MAX_LEN:
         await message.answer(i18n.partner.event.age.invalid(max=AGE_MAX_LEN))
         return
