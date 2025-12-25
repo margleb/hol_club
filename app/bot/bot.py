@@ -10,6 +10,7 @@ from aiogram_dialog import setup_dialogs
 from aiogram_dialog.api.exceptions import UnknownIntent, UnknownState
 from fluentogram import TranslatorHub
 
+from app.bot.dialogs.events.dialogs import events_dialog
 from app.bot.dialogs.settings.dialogs import settings_dialog
 from app.bot.dialogs.start.dialogs import start_dialog
 from app.bot.handlers.commands import commands_router
@@ -78,7 +79,13 @@ async def main():
     )
 
     logger.info("Including routers")
-    dp.include_routers(commands_router, partner_requests_router, start_dialog, settings_dialog)
+    dp.include_routers(
+        commands_router,
+        partner_requests_router,
+        start_dialog,
+        settings_dialog,
+        events_dialog,
+    )
 
     logger.info("Including middlewares")
     dp.update.middleware(DataBaseMiddleware())

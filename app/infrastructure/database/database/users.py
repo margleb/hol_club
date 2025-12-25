@@ -98,3 +98,12 @@ class _UsersDB:
         stmt = select(UsersModel.user_id).where(UsersModel.role == UserRole.ADMIN)
         result = await self.session.execute(stmt)
         return [row[0] for row in result.all()]
+
+    async def get_active_user_ids(self) -> list[int]:
+        stmt = (
+            select(UsersModel.user_id)
+            .where(UsersModel.is_alive.is_(True))
+            .where(UsersModel.is_blocked.is_(False))
+        )
+        result = await self.session.execute(stmt)
+        return [row[0] for row in result.all()]

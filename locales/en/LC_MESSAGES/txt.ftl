@@ -135,3 +135,99 @@ partner-decision-approved = Request approved.
 partner-decision-rejected = Request rejected.
 
 partner-request-channel-missing = Partner channel is not set. Add PARTNER_CHANNEL to .env.
+
+partner-event-create-button = Create event
+
+partner-event-forbidden = You don't have permission to create events.
+
+partner-event-name-prompt = Enter the event title ({ $min } to { $max } characters).
+
+partner-event-name-invalid = The title must be between { $min } and { $max } characters.
+
+partner-event-image-prompt = Send an event image or skip this step.
+
+partner-event-skip-button = Skip
+
+partner-event-datetime-prompt = Enter date and time (format: dd.mm.yyyy hh:mm).
+
+partner-event-datetime-invalid = Invalid date/time format. Use dd.mm.yyyy hh:mm.
+
+partner-event-address-prompt = Enter the address (at least { $min } characters).
+
+partner-event-address-short = Address is too short. Minimum { $min } characters.
+
+partner-event-address-empty = No addresses found. Try refining the query.
+
+partner-event-address-select-prompt = Choose an address from the suggestions.
+
+partner-event-address-invalid = Invalid address selection. Please try again.
+
+partner-event-description-prompt = Enter the description ({ $min } to { $max } characters).
+
+partner-event-description-invalid = The description must be between { $min } and { $max } characters.
+
+partner-event-participation-prompt = Choose the participation type.
+
+partner-event-participation-free = Free
+
+partner-event-participation-paid = Paid
+
+partner-event-price-prompt = Enter the price (up to { $max } characters).
+
+partner-event-price-invalid = Invalid price. Maximum { $max } characters.
+
+partner-event-age-prompt = Enter the age group (up to { $max } characters) or skip.
+
+partner-event-age-invalid = Invalid age group. Maximum { $max } characters.
+
+partner-event-notify-prompt = Notify bot users?
+
+partner-event-notify-yes = Yes
+
+partner-event-notify-no = No
+
+partner-event-preview-title = Event preview:
+
+partner-event-preview-photo-attached = A photo will be attached.
+
+partner-event-preview-trimmed = The text was shortened to fit the caption limit.
+
+partner-event-publish-button = Publish
+
+partner-event-edit-name-button = Edit title
+
+partner-event-edit-image-button = Edit image
+
+partner-event-edit-datetime-button = Edit date/time
+
+partner-event-edit-address-button = Edit address
+
+partner-event-edit-description-button = Edit description
+
+partner-event-edit-participation-button = Edit participation
+
+partner-event-edit-price-button = Edit price
+
+partner-event-edit-age-button = Edit age group
+
+partner-event-edit-notify-button = Edit notifications
+
+partner-event-publish-success = Event published.
+
+partner-event-publish-failed = Failed to publish the event.
+
+partner-event-channel-missing = Event channel is not set. Add EVENTS_CHANNEL to .env.
+
+partner-event-notify-users = New event: { $name }. Details in { $channel }.
+
+partner-event-notify-sent = Notifications sent: { $count }.
+
+partner-event-label-datetime = 📅 Date and time: { $value }
+
+partner-event-label-address = 📍 Address: { $value }
+
+partner-event-label-participation = 👥 Participation: { $value }
+
+partner-event-label-price = 💳 Price: { $value }
+
+partner-event-label-age = 🎯 Age group: { $value }

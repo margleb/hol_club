@@ -2,12 +2,23 @@ from aiogram.types import User
 from aiogram_dialog import DialogManager
 from fluentogram import TranslatorRunner
 
+from app.bot.enums.roles import UserRole
+from app.infrastructure.database.database.db import DB
 
 async def get_hello(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
     event_from_user: User,
+    db: DB,
     **kwargs,
 ) -> dict[str, str]:
     username = event_from_user.full_name or event_from_user.username or i18n.stranger()
-    return {"hello": i18n.start.hello(username=username)}
+    user_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_partner = bool(
+        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
+    )
+    return {
+        "hello": i18n.start.hello(username=username),
+        "create_event_button": i18n.partner.event.create.button(),
+        "can_create_event": is_partner,
+    }

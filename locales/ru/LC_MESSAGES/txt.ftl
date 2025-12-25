@@ -136,3 +136,99 @@ partner-decision-approved = Заявка одобрена.
 partner-decision-rejected = Заявка отклонена.
 
 partner-request-channel-missing = Не указан канал для заявок. Добавьте PARTNER_CHANNEL в .env.
+
+partner-event-create-button = Создать событие
+
+partner-event-forbidden = У вас нет прав для создания событий.
+
+partner-event-name-prompt = Введите название события (от { $min } до { $max } символов).
+
+partner-event-name-invalid = Название должно быть от { $min } до { $max } символов.
+
+partner-event-image-prompt = Пришлите изображение события или пропустите этот шаг.
+
+partner-event-skip-button = Пропустить
+
+partner-event-datetime-prompt = Введите дату и время (формат: dd.mm.yyyy hh:mm).
+
+partner-event-datetime-invalid = Некорректный формат даты и времени. Используйте dd.mm.yyyy hh:mm.
+
+partner-event-address-prompt = Введите адрес (минимум { $min } символов).
+
+partner-event-address-short = Адрес слишком короткий. Минимум { $min } символов.
+
+partner-event-address-empty = Не удалось найти адреса. Попробуйте уточнить запрос.
+
+partner-event-address-select-prompt = Выберите адрес из подсказок.
+
+partner-event-address-invalid = Некорректный выбор адреса. Попробуйте снова.
+
+partner-event-description-prompt = Введите описание (от { $min } до { $max } символов).
+
+partner-event-description-invalid = Описание должно быть от { $min } до { $max } символов.
+
+partner-event-participation-prompt = Выберите тип участия.
+
+partner-event-participation-free = Бесплатно
+
+partner-event-participation-paid = Платно
+
+partner-event-price-prompt = Введите стоимость (до { $max } символов).
+
+partner-event-price-invalid = Некорректная стоимость. Максимум { $max } символов.
+
+partner-event-age-prompt = Введите возрастную группу (до { $max } символов) или пропустите.
+
+partner-event-age-invalid = Некорректная возрастная группа. Максимум { $max } символов.
+
+partner-event-notify-prompt = Отправлять уведомление пользователям бота?
+
+partner-event-notify-yes = Да
+
+partner-event-notify-no = Нет
+
+partner-event-preview-title = Превью события:
+
+partner-event-preview-photo-attached = Фото будет прикреплено.
+
+partner-event-preview-trimmed = Текст был сокращен из-за лимита подписи.
+
+partner-event-publish-button = Опубликовать
+
+partner-event-edit-name-button = Редактировать название
+
+partner-event-edit-image-button = Редактировать изображение
+
+partner-event-edit-datetime-button = Редактировать дату и время
+
+partner-event-edit-address-button = Редактировать адрес
+
+partner-event-edit-description-button = Редактировать описание
+
+partner-event-edit-participation-button = Редактировать тип участия
+
+partner-event-edit-price-button = Редактировать стоимость
+
+partner-event-edit-age-button = Редактировать возраст
+
+partner-event-edit-notify-button = Редактировать уведомления
+
+partner-event-publish-success = Событие опубликовано.
+
+partner-event-publish-failed = Не удалось опубликовать событие.
+
+partner-event-channel-missing = Не указан канал для событий. Добавьте EVENTS_CHANNEL в .env.
+
+partner-event-notify-users = Новое событие: { $name }. Подробности в { $channel }.
+
+partner-event-notify-sent = Уведомления отправлены: { $count }.
+
+partner-event-label-datetime = 📅 Дата и время: { $value }
+
+partner-event-label-address = 📍 Адрес: { $value }
+
+partner-event-label-participation = 👥 Участие: { $value }
+
+partner-event-label-price = 💳 Стоимость: { $value }
+
+partner-event-label-age = 🎯 Возраст: { $value }
