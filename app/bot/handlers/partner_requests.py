@@ -30,14 +30,9 @@ PARTNER_DECISION_CALLBACK = "partner_decision"
 AnswerFunc = Callable[[str], Awaitable[None]]
 
 
-def _get_partner_channel() -> str | None:
-    """Берет канал партнерских заявок из настроек (ENV через Dynaconf)."""
-    partner_cfg = settings.get("partner")
-    if not partner_cfg:
-        return None
-    if isinstance(partner_cfg, dict):
-        return partner_cfg.get("channel") or None
-    return getattr(partner_cfg, "channel", None)
+def _get_events_channel() -> str | None:
+    """Берет общий канал публикации заявок/событий из ENV через Dynaconf."""
+    return settings.get("events_channel")
 
 
 def _build_partner_request_keyboard(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
@@ -279,7 +274,7 @@ async def process_partner_post_command(
         await message.answer(text=i18n.partner.approve.forbidden())
         return
 
-    channel = _get_partner_channel()
+    channel = _get_events_channel()
     if not channel:
         await message.answer(text=i18n.partner.request.channel.missing())
         return

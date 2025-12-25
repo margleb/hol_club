@@ -134,7 +134,7 @@ partner-decision-approved = Request approved.
 
 partner-decision-rejected = Request rejected.
 
-partner-request-channel-missing = Partner channel is not set. Add PARTNER_CHANNEL to .env.
+partner-request-channel-missing = Partner channel is not set. Add EVENTS_CHANNEL to .env.
 
 partner-event-create-button = Create event
 

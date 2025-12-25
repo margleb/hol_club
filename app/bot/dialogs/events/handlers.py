@@ -31,15 +31,7 @@ GEOCODER_USER_AGENT = "hol_club_bot"
 
 
 def _get_events_channel() -> str | None:
-    events_cfg = settings.get("events")
-    if events_cfg:
-        if isinstance(events_cfg, dict):
-            channel = events_cfg.get("channel")
-        else:
-            channel = getattr(events_cfg, "channel", None)
-        if channel:
-            return channel
-    return settings.get("events_channel") or settings.get("event_channel")
+    return settings.get("events_channel")
 
 
 async def _fetch_address_suggestions(

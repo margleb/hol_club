@@ -135,7 +135,7 @@ partner-decision-approved = Заявка одобрена.
 
 partner-decision-rejected = Заявка отклонена.
 
-partner-request-channel-missing = Не указан канал для заявок. Добавьте PARTNER_CHANNEL в .env.
+partner-request-channel-missing = Не указан канал для заявок. Добавьте EVENTS_CHANNEL в .env.
 
 partner-event-create-button = Создать событие
 
