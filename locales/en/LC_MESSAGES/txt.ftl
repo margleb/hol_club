@@ -164,6 +164,8 @@ partner-event-address-select-prompt = Choose an address from the suggestions.
 
 partner-event-address-invalid = Invalid address selection. Please try again.
 
+partner-event-address-house-missing = Please include the house number in the address.
+
 partner-event-description-prompt = Enter the description ({ $min } to { $max } characters).
 
 partner-event-description-invalid = The description must be between { $min } and { $max } characters.

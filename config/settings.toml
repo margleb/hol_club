@@ -5,6 +5,8 @@
     GEOCODER_LIMIT = 5
     GEOCODER_TIMEOUT = 7
     GEOCODER_USER_AGENT = "hol_club_bot"
+    GEOCODER_REGIONS = { moscow = "37.319,55.923,37.999,55.489" }
+    GEOCODER_BOUNDED = true
 
 [development]
 
@@ -38,5 +40,4 @@
     
     [development.cache]
         USE_CACHE = false
-
 

@@ -62,7 +62,14 @@ async def get_event_address_select(
     **kwargs,
 ) -> dict[str, list[tuple[str, str]] | str]:
     suggestions = dialog_manager.dialog_data.get("address_suggestions") or []
-    choices = [(item, str(index)) for index, item in enumerate(suggestions)]
+    choices = []
+    for index, item in enumerate(suggestions):
+        if isinstance(item, dict):
+            label = item.get("display_name")
+        else:
+            label = str(item)
+        if label:
+            choices.append((label, str(index)))
     return {
         "prompt": i18n.partner.event.address.select.prompt(),
         "address_choices": choices,
