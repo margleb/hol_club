@@ -1,6 +1,10 @@
 [default]
 
     LEVEL_NAME = "DEBUG"
+    GEOCODER_URL = "https://nominatim.openstreetmap.org/search"
+    GEOCODER_LIMIT = 5
+    GEOCODER_TIMEOUT = 7
+    GEOCODER_USER_AGENT = "hol_club_bot"
 
 [development]
 
@@ -35,6 +39,4 @@
     [development.cache]
         USE_CACHE = false
 
-    [development.partner]
-        CHANNEL = "@mediavaul"
 

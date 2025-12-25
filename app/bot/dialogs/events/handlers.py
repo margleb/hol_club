@@ -24,10 +24,10 @@ from app.bot.dialogs.events.utils import CAPTION_LIMIT, MESSAGE_LIMIT, build_eve
 
 logger = logging.getLogger(__name__)
 
-GEOCODER_URL = "https://nominatim.openstreetmap.org/search"
-GEOCODER_LIMIT = 5
-GEOCODER_TIMEOUT = 7
-GEOCODER_USER_AGENT = "hol_club_bot"
+GEOCODER_URL = settings.get("geocoder_url")
+GEOCODER_LIMIT = int(settings.get("geocoder_limit") or 5)
+GEOCODER_TIMEOUT = float(settings.get("geocoder_timeout") or 7)
+GEOCODER_USER_AGENT = settings.get("geocoder_user_agent") or "hol_club_bot"
 
 
 def _get_events_channel() -> str | None:
@@ -38,6 +38,10 @@ async def _fetch_address_suggestions(
     query: str,
     locale: str | None,
 ) -> list[str]:
+    if not GEOCODER_URL:
+        logger.warning("Geocoder URL is not set")
+        return []
+
     params = {
         "q": query,
         "format": "json",
@@ -160,9 +164,13 @@ async def on_event_datetime_input(
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     value = (data or "").strip()
     try:
-        datetime.strptime(value, "%d.%m.%Y %H:%M")
+        event_datetime = datetime.strptime(value, "%Y.%m.%d %H:%M")
     except ValueError:
         await message.answer(i18n.partner.event.datetime.invalid())
+        return
+
+    if event_datetime <= datetime.now():
+        await message.answer(i18n.partner.event.datetime.past())
         return
 
     dialog_manager.dialog_data["datetime"] = value

@@ -148,9 +148,11 @@ partner-event-image-prompt = Send an event image or skip this step.
 
 partner-event-skip-button = Skip
 
-partner-event-datetime-prompt = Enter date and time (format: dd.mm.yyyy hh:mm).
+partner-event-datetime-prompt = Enter date and time (e.g. 2026.01.01 00:00).
 
-partner-event-datetime-invalid = Invalid date/time format. Use dd.mm.yyyy hh:mm.
+partner-event-datetime-invalid = Invalid date/time format. Example: 2026.01.01 00:00.
+
+partner-event-datetime-past = Event date must be in the future. Example: 2026.01.01 00:00.
 
 partner-event-address-prompt = Enter the address (at least { $min } characters).
 
