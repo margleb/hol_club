@@ -218,6 +218,8 @@ partner-event-edit-age-button = Edit age group
 
 partner-event-edit-notify-button = Edit notifications
 
+partner-event-going-button = I'm in
+
 partner-event-publish-success = Event published.
 
 partner-event-publish-failed = Failed to publish the event.
@@ -237,3 +239,18 @@ partner-event-label-participation = 👥 Participation: { $value }
 partner-event-label-price = 💳 Price: { $value }
 
 partner-event-label-age = 🎯 Age group: { $value }
+
+partner-event-label-organizer = 🧑‍💼 Organizer: { $value }
+
+partner-event-text-template =
+    <b>{ $name }</b>
+    ────────────
+
+    { $datetime }
+    { $address }
+    { $participation }
+    { $age_block }
+
+    { $description_block }
+
+    { $organizer }

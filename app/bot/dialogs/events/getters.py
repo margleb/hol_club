@@ -85,21 +85,6 @@ async def get_event_description(
     }
 
 
-async def get_event_participation(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    **kwargs,
-) -> dict[str, list[tuple[str, str]] | str]:
-    choices = [
-        (i18n.partner.event.participation.free(), "free"),
-        (i18n.partner.event.participation.paid(), "paid"),
-    ]
-    return {
-        "prompt": i18n.partner.event.participation.prompt(),
-        "participation_choices": choices,
-    }
-
-
 async def get_event_price(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -109,6 +94,7 @@ async def get_event_price(
         "prompt": i18n.partner.event.price.prompt(
             max=settings.events.price_max,
         ),
+        "skip_button": i18n.partner.event.skip.button(),
     }
 
 
@@ -151,12 +137,11 @@ async def get_event_preview(
         max_length=max_length,
     )
 
-    lines = [i18n.partner.event.preview.title()]
-    if has_photo:
-        lines.append(i18n.partner.event.preview.photo.attached())
+    lines = []
     if trimmed:
         lines.append(i18n.partner.event.preview.trimmed())
-    lines.append("")
+    if trimmed:
+        lines.append("")
     lines.append(preview_text)
 
     return {
@@ -175,7 +160,6 @@ async def get_event_preview(
         "edit_datetime_button": i18n.partner.event.edit.datetime.button(),
         "edit_address_button": i18n.partner.event.edit.address.button(),
         "edit_description_button": i18n.partner.event.edit.description.button(),
-        "edit_participation_button": i18n.partner.event.edit.participation.button(),
         "edit_price_button": i18n.partner.event.edit.price.button(),
         "edit_age_button": i18n.partner.event.edit.age.button(),
         "edit_notify_button": i18n.partner.event.edit.notify.button(),

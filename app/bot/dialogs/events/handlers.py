@@ -2,7 +2,13 @@ import logging
 import re
 from datetime import datetime
 
-from aiogram.types import CallbackQuery, Message, User
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    User,
+)
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
@@ -16,6 +22,7 @@ from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
 _AGE_GROUP_RE = re.compile(r"^\s*(\d{1,2}\+|\d{1,2}\s*-\s*\d{1,2})\s*$")
+EVENT_GOING_CALLBACK = "event_going"
 
 
 def _is_valid_age_group(value: str) -> bool:
@@ -63,6 +70,13 @@ async def ensure_partner_access(_, dialog_manager: DialogManager) -> None:
         if isinstance(dialog_manager.event, CallbackQuery):
             await dialog_manager.event.answer()
         await dialog_manager.done()
+        return
+
+    if user.username:
+        organizer = f"@{user.username}"
+    else:
+        organizer = user.full_name or str(user.id)
+    dialog_manager.dialog_data["organizer"] = organizer
 
 
 async def on_event_name_input(
@@ -243,26 +257,6 @@ async def on_event_description_input(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.participation)
-
-
-async def on_event_participation_selected(
-    callback: CallbackQuery,
-    widget: Select,
-    dialog_manager: DialogManager,
-    item_id: str,
-) -> None:
-    is_paid = item_id == "paid"
-    dialog_manager.dialog_data["is_paid"] = is_paid
-
-    if not is_paid:
-        dialog_manager.dialog_data["price"] = None
-        if _is_edit_mode(dialog_manager):
-            await _return_to_preview(dialog_manager)
-            return
-        await dialog_manager.switch_to(EventsSG.age_group)
-        return
-
     await dialog_manager.switch_to(EventsSG.price)
 
 
@@ -288,6 +282,20 @@ async def on_event_price_input(
         return
 
     dialog_manager.dialog_data["price"] = price
+    dialog_manager.dialog_data["is_paid"] = True
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.age_group)
+
+
+async def skip_event_price(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data["price"] = None
+    dialog_manager.dialog_data["is_paid"] = False
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
@@ -387,15 +395,6 @@ async def edit_event_description(
     await dialog_manager.switch_to(EventsSG.description)
 
 
-async def edit_event_participation(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    dialog_manager.dialog_data["edit_mode"] = True
-    await dialog_manager.switch_to(EventsSG.participation)
-
-
 async def edit_event_price(
     callback: CallbackQuery,
     button: Button,
@@ -463,12 +462,31 @@ async def publish_event(
     photo_id = data.get("photo_file_id")
     max_length = CAPTION_LIMIT if photo_id else MESSAGE_LIMIT
     text, _ = build_event_text(data, i18n, max_length=max_length)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.going.button(),
+                    callback_data=EVENT_GOING_CALLBACK,
+                )
+            ]
+        ]
+    )
 
     try:
         if photo_id:
-            await callback.bot.send_photo(channel, photo=photo_id, caption=text)
+            await callback.bot.send_photo(
+                channel,
+                photo=photo_id,
+                caption=text,
+                reply_markup=keyboard,
+            )
         else:
-            await callback.bot.send_message(channel, text=text)
+            await callback.bot.send_message(
+                channel,
+                text=text,
+                reply_markup=keyboard,
+            )
     except Exception as exc:
         logger.warning("Failed to publish event: %s", exc)
         await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)

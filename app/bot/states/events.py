@@ -8,7 +8,6 @@ class EventsSG(StatesGroup):
     address_query = State()
     address_select = State()
     description = State()
-    participation = State()
     price = State()
     age_group = State()
     notify = State()

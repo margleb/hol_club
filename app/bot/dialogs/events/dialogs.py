@@ -14,7 +14,6 @@ from app.bot.dialogs.events.getters import (
     get_event_image,
     get_event_name,
     get_event_notify,
-    get_event_participation,
     get_event_preview,
     get_event_price,
 )
@@ -27,7 +26,6 @@ from app.bot.dialogs.events.handlers import (
     edit_event_image,
     edit_event_name,
     edit_event_notify,
-    edit_event_participation,
     edit_event_price,
     ensure_partner_access,
     on_event_address_input,
@@ -37,11 +35,11 @@ from app.bot.dialogs.events.handlers import (
     on_event_description_input,
     on_event_name_input,
     on_event_notify_selected,
-    on_event_participation_selected,
     on_event_photo_input,
     on_event_price_input,
     publish_event,
     skip_event_age,
+    skip_event_price,
     skip_event_photo,
 )
 from app.bot.states.events import EventsSG
@@ -126,21 +124,16 @@ events_dialog = Dialog(
     ),
     Window(
         Format("{prompt}"),
-        Select(
-            Format("{item[0]}"),
-            id="participation_select",
-            item_id_getter=lambda item: item[1],
-            items="participation_choices",
-            on_click=on_event_participation_selected,
-        ),
-        state=EventsSG.participation,
-        getter=get_event_participation,
-    ),
-    Window(
-        Format("{prompt}"),
         TextInput(
             id="event_price_input",
             on_success=on_event_price_input,
+        ),
+        Row(
+            Button(
+                text=Format("{skip_button}"),
+                id="skip_event_price",
+                on_click=skip_event_price,
+            ),
         ),
         state=EventsSG.price,
         getter=get_event_price,
@@ -201,11 +194,6 @@ events_dialog = Dialog(
                 text=Format("{edit_description_button}"),
                 id="edit_event_description",
                 on_click=edit_event_description,
-            ),
-            Button(
-                text=Format("{edit_participation_button}"),
-                id="edit_event_participation",
-                on_click=edit_event_participation,
             ),
             Button(
                 text=Format("{edit_price_button}"),
