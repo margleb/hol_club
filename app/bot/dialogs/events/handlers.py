@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 
-import aiohttp
 from aiogram.types import CallbackQuery, Message, User
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button, Select
@@ -21,157 +20,13 @@ from app.bot.dialogs.events.constants import (
     PRICE_MAX_LEN,
 )
 from app.bot.dialogs.events.utils import CAPTION_LIMIT, MESSAGE_LIMIT, build_event_text
+from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
-
-GEOCODER_URL = settings.get("geocoder_url")
-GEOCODER_LIMIT = int(settings.get("geocoder_limit") or 5)
-GEOCODER_TIMEOUT = float(settings.get("geocoder_timeout") or 7)
-GEOCODER_USER_AGENT = settings.get("geocoder_user_agent") or "hol_club_bot"
-GEOCODER_REGIONS = settings.get("geocoder_regions") or {}
-GEOCODER_BOUNDED = settings.get("geocoder_bounded")
 
 
 def _get_events_channel() -> str | None:
     return settings.get("events_channel")
-
-
-def _normalize_viewbox(viewbox: object) -> str | None:
-    if isinstance(viewbox, (list, tuple)):
-        return ",".join(str(value) for value in viewbox)
-    if viewbox is None:
-        return None
-    viewbox = str(viewbox).strip()
-    return viewbox or None
-
-
-def _build_suggestion(item: dict) -> dict[str, str | bool] | None:
-    display_name = item.get("display_name")
-    if not display_name:
-        return None
-
-    address = item.get("address")
-    has_house_number = bool(
-        isinstance(address, dict) and address.get("house_number")
-    )
-    return {
-        "display_name": display_name,
-        "has_house_number": has_house_number,
-    }
-
-
-def _add_suggestion(
-    item: dict,
-    suggestions: list[dict[str, str | bool]],
-    index_by_name: dict[str, int],
-) -> None:
-    suggestion = _build_suggestion(item)
-    if not suggestion:
-        return
-
-    display_name = suggestion["display_name"]
-    existing_index = index_by_name.get(display_name)
-    if existing_index is None:
-        suggestions.append(suggestion)
-        index_by_name[display_name] = len(suggestions) - 1
-        return
-
-    if suggestion["has_house_number"] and not suggestions[existing_index][
-        "has_house_number"
-    ]:
-        suggestions[existing_index]["has_house_number"] = True
-
-
-def _get_geocoder_viewboxes() -> list[str]:
-    if not GEOCODER_REGIONS:
-        return []
-
-    region_map = GEOCODER_REGIONS
-    if isinstance(region_map, dict):
-        candidates = region_map.values()
-    elif isinstance(region_map, (list, tuple)):
-        candidates = region_map
-    else:
-        candidates = [region_map]
-
-    viewboxes = []
-    for candidate in candidates:
-        viewbox = _normalize_viewbox(candidate)
-        if viewbox:
-            viewboxes.append(viewbox)
-
-    if not viewboxes:
-        logger.warning("Geocoder regions are configured but no valid viewboxes found")
-    return viewboxes
-
-
-async def _request_geocoder(
-    session: aiohttp.ClientSession,
-    params: dict,
-    headers: dict[str, str],
-) -> list[dict]:
-    try:
-        async with session.get(
-            GEOCODER_URL,
-            params=params,
-            headers=headers,
-            timeout=GEOCODER_TIMEOUT,
-        ) as response:
-            if response.status != 200:
-                return []
-            data = await response.json()
-    except Exception as exc:
-        logger.warning("Geocoder request failed: %s", exc)
-        return []
-
-    if not isinstance(data, list):
-        return []
-    return data
-
-
-async def _fetch_address_suggestions(
-    query: str,
-    locale: str | None,
-) -> list[dict[str, str | bool]]:
-    if not GEOCODER_URL:
-        logger.warning("Geocoder URL is not set")
-        return []
-
-    params = {
-        "q": query,
-        "format": "json",
-        "limit": GEOCODER_LIMIT,
-        "addressdetails": 1,
-    }
-    if locale:
-        params["accept-language"] = locale
-
-    headers = {"User-Agent": GEOCODER_USER_AGENT}
-
-    suggestions: list[dict[str, str | bool]] = []
-    index_by_name: dict[str, int] = {}
-    viewboxes = _get_geocoder_viewboxes()
-    async with aiohttp.ClientSession() as session:
-        if viewboxes:
-            for viewbox in viewboxes:
-                regional_params = dict(params)
-                regional_params["viewbox"] = viewbox
-                if GEOCODER_BOUNDED:
-                    regional_params["bounded"] = 1
-                data = await _request_geocoder(session, regional_params, headers)
-                for item in data:
-                    _add_suggestion(item, suggestions, index_by_name)
-                    if len(suggestions) >= GEOCODER_LIMIT:
-                        return suggestions
-        else:
-            data = await _request_geocoder(session, params, headers)
-            for item in data:
-                _add_suggestion(item, suggestions, index_by_name)
-                if len(suggestions) >= GEOCODER_LIMIT:
-                    return suggestions
-
-    return suggestions
-
 
 def _is_edit_mode(dialog_manager: DialogManager) -> bool:
     return bool(dialog_manager.dialog_data.get("edit_mode"))
@@ -290,8 +145,10 @@ async def on_event_address_input(
         await message.answer(i18n.partner.event.address.house.missing())
         return
 
-    suggestions = await _fetch_address_suggestions(
-        query, message.from_user.language_code
+    suggestions = await fetch_address_suggestions(
+        query,
+        message.from_user.language_code,
+        settings,
     )
     if not suggestions:
         await message.answer(i18n.partner.event.address.empty())

@@ -1,12 +1,20 @@
 [default]
 
     LEVEL_NAME = "DEBUG"
-    GEOCODER_URL = "https://nominatim.openstreetmap.org/search"
-    GEOCODER_LIMIT = 5
-    GEOCODER_TIMEOUT = 7
-    GEOCODER_USER_AGENT = "hol_club_bot"
-    GEOCODER_REGIONS = { moscow = "37.319,55.923,37.999,55.489" }
-    GEOCODER_BOUNDED = true
+    GEOCODER_PROVIDER = "yandex"
+
+[default.nominatim]
+    url = "https://nominatim.openstreetmap.org/search"
+    limit = 5
+    timeout = 7
+    user_agent = "hol_club_bot"
+    regions = { moscow = "37.319,55.923,37.999,55.489" }
+    bounded = true
+
+[default.yandex]
+    geocoder_api_key = "7fd21d1b-dd9e-4004-a4bb-9126489f1f14"
+    geocoder_results_limit = 5
+    geocoder_timeout_seconds = 10
 
 [development]
 
@@ -40,4 +48,3 @@
     
     [development.cache]
         USE_CACHE = false
-
