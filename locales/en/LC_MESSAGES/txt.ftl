@@ -234,7 +234,7 @@ partner-event-label-datetime = 📅 Date and time: { $value }
 
 partner-event-label-address = 📍 Address: { $value }
 
-partner-event-label-participation = 👥 Participation: { $value }
+partner-event-label-participation = 👥 Participation: { $value } $
 
 partner-event-label-price = 💳 Price: { $value }
 

@@ -231,7 +231,7 @@ partner-event-label-datetime = <b>Дата и время:</b> { $value }
 
 partner-event-label-address = <b>Адрес:</b> { $value }
 
-partner-event-label-participation = <b>Участие:</b> { $value }
+partner-event-label-participation = <b>Участие:</b> { $value } ₽
 
 partner-event-label-age = <b>Возраст:</b> { $value }
 
