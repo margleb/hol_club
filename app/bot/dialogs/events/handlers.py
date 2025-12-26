@@ -10,15 +10,6 @@ from app.bot.enums.roles import UserRole
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
-from app.bot.dialogs.events.constants import (
-    ADDRESS_QUERY_MIN,
-    AGE_MAX_LEN,
-    EVENT_DESC_MAX,
-    EVENT_DESC_MIN,
-    EVENT_NAME_MAX,
-    EVENT_NAME_MIN,
-    PRICE_MAX_LEN,
-)
 from app.bot.dialogs.events.utils import CAPTION_LIMIT, MESSAGE_LIMIT, build_event_text
 from app.services.geocoders.geocoder import fetch_address_suggestions
 
@@ -66,9 +57,16 @@ async def on_event_name_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     name = (data or "").strip()
-    if not (EVENT_NAME_MIN <= len(name) <= EVENT_NAME_MAX):
+    if not (
+        settings.events.event_name_min
+        <= len(name)
+        <= settings.events.event_name_max
+    ):
         await message.answer(
-            i18n.partner.event.name.invalid(min=EVENT_NAME_MIN, max=EVENT_NAME_MAX)
+            i18n.partner.event.name.invalid(
+                min=settings.events.event_name_min,
+                max=settings.events.event_name_max,
+            )
         )
         return
 
@@ -138,8 +136,12 @@ async def on_event_address_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     query = (data or "").strip()
-    if len(query) < ADDRESS_QUERY_MIN:
-        await message.answer(i18n.partner.event.address.short(min=ADDRESS_QUERY_MIN))
+    if len(query) < settings.events.address_query_min:
+        await message.answer(
+            i18n.partner.event.address.short(
+                min=settings.events.address_query_min,
+            )
+        )
         return
     if not any(char.isdigit() for char in query):
         await message.answer(i18n.partner.event.address.house.missing())
@@ -215,10 +217,15 @@ async def on_event_description_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     description = (data or "").strip()
-    if not (EVENT_DESC_MIN <= len(description) <= EVENT_DESC_MAX):
+    if not (
+        settings.events.event_desc_min
+        <= len(description)
+        <= settings.events.event_desc_max
+    ):
         await message.answer(
             i18n.partner.event.description.invalid(
-                min=EVENT_DESC_MIN, max=EVENT_DESC_MAX
+                min=settings.events.event_desc_min,
+                max=settings.events.event_desc_max,
             )
         )
         return
@@ -258,8 +265,12 @@ async def on_event_price_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     price = (data or "").strip()
-    if not price or len(price) > PRICE_MAX_LEN:
-        await message.answer(i18n.partner.event.price.invalid(max=PRICE_MAX_LEN))
+    if not price or len(price) > settings.events.price_max_len:
+        await message.answer(
+            i18n.partner.event.price.invalid(
+                max=settings.events.price_max_len,
+            )
+        )
         return
 
     dialog_manager.dialog_data["price"] = price
@@ -277,8 +288,12 @@ async def on_event_age_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     age_group = (data or "").strip()
-    if not age_group or len(age_group) > AGE_MAX_LEN:
-        await message.answer(i18n.partner.event.age.invalid(max=AGE_MAX_LEN))
+    if not age_group or len(age_group) > settings.events.age_max_len:
+        await message.answer(
+            i18n.partner.event.age.invalid(
+                max=settings.events.age_max_len,
+            )
+        )
         return
 
     dialog_manager.dialog_data["age_group"] = age_group

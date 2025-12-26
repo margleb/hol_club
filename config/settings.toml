@@ -3,6 +3,15 @@
     LEVEL_NAME = "DEBUG"
     GEOCODER_PROVIDER = "yandex"
 
+[default.events]
+    event_name_min = 10
+    event_name_max = 20
+    event_desc_min = 30
+    event_desc_max = 50
+    address_query_min = 5
+    price_max_len = 15
+    age_max_len = 30
+
 [default.nominatim]
     url = "https://nominatim.openstreetmap.org/search"
     limit = 5

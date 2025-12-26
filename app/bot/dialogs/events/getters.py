@@ -1,15 +1,7 @@
 from aiogram_dialog import DialogManager
 from fluentogram import TranslatorRunner
 
-from app.bot.dialogs.events.constants import (
-    ADDRESS_QUERY_MIN,
-    AGE_MAX_LEN,
-    EVENT_DESC_MAX,
-    EVENT_DESC_MIN,
-    EVENT_NAME_MAX,
-    EVENT_NAME_MIN,
-    PRICE_MAX_LEN,
-)
+from config.config import settings
 from app.bot.dialogs.events.utils import CAPTION_LIMIT, build_event_text
 
 
@@ -20,7 +12,8 @@ async def get_event_name(
 ) -> dict[str, str]:
     return {
         "prompt": i18n.partner.event.name.prompt(
-            min=EVENT_NAME_MIN, max=EVENT_NAME_MAX
+            min=settings.events.event_name_min,
+            max=settings.events.event_name_max,
         ),
     }
 
@@ -52,7 +45,9 @@ async def get_event_address_query(
     **kwargs,
 ) -> dict[str, str]:
     return {
-        "prompt": i18n.partner.event.address.prompt(min=ADDRESS_QUERY_MIN),
+        "prompt": i18n.partner.event.address.prompt(
+            min=settings.events.address_query_min,
+        ),
     }
 
 
@@ -84,7 +79,8 @@ async def get_event_description(
 ) -> dict[str, str]:
     return {
         "prompt": i18n.partner.event.description.prompt(
-            min=EVENT_DESC_MIN, max=EVENT_DESC_MAX
+            min=settings.events.event_desc_min,
+            max=settings.events.event_desc_max,
         ),
     }
 
@@ -110,7 +106,9 @@ async def get_event_price(
     **kwargs,
 ) -> dict[str, str]:
     return {
-        "prompt": i18n.partner.event.price.prompt(max=PRICE_MAX_LEN),
+        "prompt": i18n.partner.event.price.prompt(
+            max=settings.events.price_max_len,
+        ),
     }
 
 
@@ -120,7 +118,9 @@ async def get_event_age_group(
     **kwargs,
 ) -> dict[str, str]:
     return {
-        "prompt": i18n.partner.event.age.prompt(max=AGE_MAX_LEN),
+        "prompt": i18n.partner.event.age.prompt(
+            max=settings.events.age_max_len,
+        ),
         "skip_button": i18n.partner.event.skip.button(),
     }
 
