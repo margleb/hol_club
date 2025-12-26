@@ -274,10 +274,15 @@ async def on_event_price_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     price = (data or "").strip()
-    if not price or len(price) > settings.events.price_max_len:
+    normalized_price = price.replace(" ", "")
+    if (
+        not normalized_price
+        or not normalized_price.isdigit()
+        or int(normalized_price) > settings.events.price_max
+    ):
         await message.answer(
             i18n.partner.event.price.invalid(
-                max=settings.events.price_max_len,
+                max=settings.events.price_max,
             )
         )
         return

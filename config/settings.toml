@@ -8,18 +8,16 @@
 
 [default.events]
     event_name_min = 10
-    event_name_max = 20
+    event_name_max = 30
     event_desc_min = 30
     event_desc_max = 50
-    price_max_len = 15
+    price_max = 50000
 
 [default.nominatim]
     url = "https://nominatim.openstreetmap.org/search"
     limit = 5
     timeout = 7
     user_agent = "hol_club_bot"
-    regions = { moscow = "37.319,55.923,37.999,55.489" }
-    bounded = true
 
 [default.yandex]
     geocoder_api_key = "7fd21d1b-dd9e-4004-a4bb-9126489f1f14"

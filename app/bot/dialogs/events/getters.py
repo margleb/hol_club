@@ -107,7 +107,7 @@ async def get_event_price(
 ) -> dict[str, str]:
     return {
         "prompt": i18n.partner.event.price.prompt(
-            max=settings.events.price_max_len,
+            max=settings.events.price_max,
         ),
     }
 

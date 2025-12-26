@@ -178,9 +178,9 @@ partner-event-participation-free = Free
 
 partner-event-participation-paid = Paid
 
-partner-event-price-prompt = Enter the price (up to { $max } characters).
+partner-event-price-prompt = Enter the price (up to <b>{ $max }</b> RUB).
 
-partner-event-price-invalid = Invalid price. Maximum { $max } characters.
+partner-event-price-invalid = Invalid price. Maximum <b>{ $max }</b> RUB.
 
 partner-event-age-prompt = Enter the age group (e.g., <b>18+</b> or <b>35-45</b>) or skip.
 
