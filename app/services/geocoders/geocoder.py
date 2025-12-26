@@ -34,6 +34,8 @@ async def _fetch_yandex_suggestions(
     query: str,
     settings: Any,
 ) -> list[dict[str, str | bool]]:
+    geocoding = getattr(settings, "geocoding", None)
+    allowed_cities = getattr(geocoding, "allowed_cities", None) if geocoding else None
     results_limit = getattr(settings.yandex, "geocoder_results_limit", 5)
     timeout_seconds = getattr(settings.yandex, "geocoder_timeout_seconds", 10)
     try:
@@ -49,6 +51,7 @@ async def _fetch_yandex_suggestions(
         api_key=getattr(settings.yandex, "geocoder_api_key", ""),
         results_limit=results_limit,
         timeout_seconds=timeout_seconds,
+        allowed_cities=allowed_cities,
     )
 
     try:

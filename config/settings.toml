@@ -3,6 +3,9 @@
     LEVEL_NAME = "DEBUG"
     GEOCODER_PROVIDER = "yandex"
 
+[default.geocoding]
+    allowed_cities = ["Москва", "Moscow", "Moskva"]
+
 [default.events]
     event_name_min = 10
     event_name_max = 20

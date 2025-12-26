@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import aiohttp
@@ -16,6 +17,7 @@ class NominatimGeocoder:
         user_agent: str = "hol_club_bot",
         regions: object | None = None,
         bounded: object | None = None,
+        allowed_cities: object | None = None,
     ) -> None:
         self.base_url = base_url
         self.limit = limit
@@ -23,6 +25,7 @@ class NominatimGeocoder:
         self.user_agent = user_agent
         self.regions = regions or {}
         self.bounded = bounded
+        self.allowed_cities = self._normalize_allowed_cities(allowed_cities)
 
     @classmethod
     def from_settings(cls, settings: Any) -> "NominatimGeocoder":
@@ -36,6 +39,8 @@ class NominatimGeocoder:
             user_agent=getattr(nominatim, "user_agent", None) or "hol_club_bot",
             regions=getattr(nominatim, "regions", None) or {},
             bounded=getattr(nominatim, "bounded", None),
+            allowed_cities=getattr(settings, "geocoding", None)
+            and getattr(settings.geocoding, "allowed_cities", None),
         )
 
     async def search(
@@ -80,7 +85,9 @@ class NominatimGeocoder:
                     if len(suggestions) >= self.limit:
                         return suggestions
 
-        return suggestions
+        if not self.allowed_cities:
+            return suggestions
+        return [item for item in suggestions if item.get("is_moscow")]
 
     def _get_viewboxes(self) -> list[str]:
         if not self.regions:
@@ -148,7 +155,60 @@ class NominatimGeocoder:
         return {
             "display_name": display_name,
             "has_house_number": has_house_number,
+            "is_moscow": self._is_moscow(address, display_name),
         }
+
+    def _is_moscow(self, address: dict[str, Any] | None, display_name: str) -> bool:
+        if not self.allowed_cities:
+            return True
+        if isinstance(address, dict):
+            for key in (
+                "city",
+                "town",
+                "village",
+                "municipality",
+                "state",
+                "county",
+                "region",
+            ):
+                value = address.get(key)
+                if value and self._text_mentions_city(str(value)):
+                    return True
+        return self._text_mentions_city(display_name)
+
+    def _text_mentions_city(self, text: str) -> bool:
+        tokens = self._tokenize(text)
+        if not tokens:
+            return False
+
+        if {"область", "oblast", "obl"}.intersection(tokens):
+            return False
+
+        for city_tokens in self.allowed_cities:
+            if city_tokens and city_tokens.issubset(tokens):
+                return True
+        return False
+
+    def _tokenize(self, text: str) -> set[str]:
+        cleaned = text.replace("ё", "е").lower()
+        return {token for token in re.split(r"[^a-zа-я0-9]+", cleaned) if token}
+
+    def _normalize_allowed_cities(
+        self,
+        allowed_cities: object | None,
+    ) -> list[set[str]]:
+        if not allowed_cities:
+            return []
+        if isinstance(allowed_cities, (list, tuple, set)):
+            candidates = allowed_cities
+        else:
+            candidates = [allowed_cities]
+
+        return [
+            tokens
+            for city in candidates
+            if (tokens := self._tokenize(str(city)))
+        ]
 
     def _add_suggestion(
         self,

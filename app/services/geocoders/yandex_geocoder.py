@@ -27,10 +27,16 @@ class YandexGeocoder:
         *,
         results_limit: int = 5,
         timeout_seconds: int = 10,
+        allowed_cities: Iterable[str] | None = None,
     ) -> None:
         self.api_key = api_key
         self.results_limit = results_limit
         self.timeout_seconds = timeout_seconds
+        self.allowed_cities = [
+            str(city).strip()
+            for city in (allowed_cities or [])
+            if str(city).strip()
+        ]
 
     async def search(self, query: str) -> list[GeocodeSuggestion]:
         if not self.api_key:
@@ -55,6 +61,8 @@ class YandexGeocoder:
                 payload = await response.json()
 
         suggestions = list(self._parse_response(payload))
+        if not self.allowed_cities:
+            return suggestions
         return [item for item in suggestions if item.is_moscow]
 
     def _parse_response(self, payload: dict[str, Any]) -> Iterable[GeocodeSuggestion]:
@@ -87,18 +95,21 @@ class YandexGeocoder:
                 address=address,
                 lat=lat,
                 lon=lon,
-                is_moscow=self._is_moscow(metadata),
+                is_moscow=self._is_allowed_city(metadata),
                 has_house_number=self._has_house_number(metadata),
             )
 
-    def _is_moscow(self, metadata: dict[str, Any]) -> bool:
+    def _is_allowed_city(self, metadata: dict[str, Any]) -> bool:
+        if not self.allowed_cities:
+            return True
+
         address_meta = metadata.get("Address") or {}
         components = address_meta.get("Components") or []
 
         for component in components:
             name = str(component.get("name") or "")
             kind = str(component.get("kind") or "")
-            if self._is_moscow_component(name=name, kind=kind):
+            if self._is_allowed_city_component(name=name, kind=kind):
                 return True
 
         formatted = str(
@@ -106,44 +117,37 @@ class YandexGeocoder:
             or metadata.get("text")
             or ""
         )
-        return self._text_mentions_moscow(formatted)
+        return self._text_mentions_city(formatted)
 
-    def _is_moscow_component(self, *, name: str, kind: str) -> bool:
+    def _is_allowed_city_component(self, *, name: str, kind: str) -> bool:
         normalized_name = name.replace("ё", "е").lower().strip()
         if kind not in {"locality", "province"}:
             return False
+        return self._text_mentions_city(normalized_name)
 
-        exact_matches = {
-            "москва",
-            "город москва",
-            "город федерального значения москва",
-            "moscow",
-            "moskva",
-        }
-        if normalized_name in exact_matches:
-            return True
-
-        if normalized_name.endswith(" москва"):
-            return True
-
-        if normalized_name.endswith(" moscow") or normalized_name.endswith(" moskva"):
-            return True
-
-        return False
-
-    def _text_mentions_moscow(self, text: str) -> bool:
-        cleaned = text.replace("ё", "е").lower()
-        if not cleaned:
-            return False
-
-        tokens = {token for token in re.split(r"[^a-zа-я0-9]+", cleaned) if token}
-        if not ({"москва", "moscow", "moskva"} & tokens):
+    def _text_mentions_city(self, text: str) -> bool:
+        tokens = self._tokenize(text)
+        if not tokens:
             return False
 
         if {"область", "oblast", "obl"}.intersection(tokens):
             return False
 
-        return True
+        for city_tokens in self._allowed_city_tokens():
+            if city_tokens and city_tokens.issubset(tokens):
+                return True
+        return False
+
+    def _allowed_city_tokens(self) -> list[set[str]]:
+        return [
+            self._tokenize(city)
+            for city in self.allowed_cities
+            if self._tokenize(city)
+        ]
+
+    def _tokenize(self, text: str) -> set[str]:
+        cleaned = text.replace("ё", "е").lower()
+        return {token for token in re.split(r"[^a-zа-я0-9]+", cleaned) if token}
 
     def _has_house_number(self, metadata: dict[str, Any]) -> bool:
         kind = str(metadata.get("kind") or "").lower().strip()
