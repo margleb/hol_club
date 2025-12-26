@@ -138,25 +138,26 @@ partner-request-channel-missing = Partner channel is not set. Add EVENTS_CHANNEL
 
 partner-event-create-button = Create event
 
+partner-event-create-button = Create event
+
 partner-event-forbidden = You don't have permission to create events.
 
-partner-event-name-prompt = Enter the event title ({ $min } to { $max } characters).
+partner-event-name-prompt = Enter the event title (from <b>{ $min }</b> to <b>{ $max }</b> characters).
 
-partner-event-name-invalid = The title must be between { $min } and { $max } characters.
+partner-event-name-invalid = The title must be from <b>{ $min }</b> to <b>{ $max }</b> characters.
 
 partner-event-image-prompt = Send an event image or skip this step.
 
 partner-event-skip-button = Skip
 
-partner-event-datetime-prompt = Enter date and time (e.g. 2026.01.01 00:00).
+partner-event-datetime-prompt = Enter date and time (e.g. <b>2026.01.01 00:00</b>).
 
-partner-event-datetime-invalid = Invalid date/time format. Example: 2026.01.01 00:00.
+partner-event-datetime-invalid = Invalid date/time format. Example: <b>2026.01.01 00:00</b>.
 
-partner-event-datetime-past = Event date must be in the future. Example: 2026.01.01 00:00.
+partner-event-datetime-past = The date must be in the future. Example: <b>2026.01.01 00:00</b>.
 
-partner-event-address-prompt = Enter the address (at least { $min } characters).
+partner-event-address-prompt = Enter the address in <b>Moscow</b> with exact details up to the house number.
 
-partner-event-address-short = Address is too short. Minimum { $min } characters.
 
 partner-event-address-empty = No addresses found. Try refining the query.
 
@@ -165,10 +166,11 @@ partner-event-address-select-prompt = Choose an address from the suggestions.
 partner-event-address-invalid = Invalid address selection. Please try again.
 
 partner-event-address-house-missing = Please include the house number in the address.
+partner-event-address-city-moscow = The address must be in <b>Moscow</b>.
 
-partner-event-description-prompt = Enter the description ({ $min } to { $max } characters).
+partner-event-description-prompt = Enter the description (from { $min } to { $max } characters).
 
-partner-event-description-invalid = The description must be between { $min } and { $max } characters.
+partner-event-description-invalid = The description must be from { $min } to { $max } characters.
 
 partner-event-participation-prompt = Choose the participation type.
 
@@ -180,9 +182,9 @@ partner-event-price-prompt = Enter the price (up to { $max } characters).
 
 partner-event-price-invalid = Invalid price. Maximum { $max } characters.
 
-partner-event-age-prompt = Enter the age group (up to { $max } characters) or skip.
+partner-event-age-prompt = Enter the age group (e.g., <b>18+</b> or <b>35-45</b>) or skip.
 
-partner-event-age-invalid = Invalid age group. Maximum { $max } characters.
+partner-event-age-invalid = Invalid age group. Use the <b>18+</b> or <b>35-45</b> format.
 
 partner-event-notify-prompt = Notify bot users?
 

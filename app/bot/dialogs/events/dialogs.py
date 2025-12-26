@@ -2,6 +2,7 @@ from aiogram.enums import ContentType
 from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.input import MessageInput, TextInput
 from aiogram_dialog.widgets.kbd import Button, Group, Row, ScrollingGroup, Select
+from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.events.getters import (
@@ -173,6 +174,7 @@ events_dialog = Dialog(
         getter=get_event_notify,
     ),
     Window(
+        DynamicMedia("preview_media"),
         Format("{preview}"),
         Group(
             Button(

@@ -8,9 +8,7 @@
     event_name_max = 20
     event_desc_min = 30
     event_desc_max = 50
-    address_query_min = 5
     price_max_len = 15
-    age_max_len = 30
 
 [default.nominatim]
     url = "https://nominatim.openstreetmap.org/search"

@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 
 from aiogram.types import CallbackQuery, Message, User
@@ -14,6 +15,21 @@ from app.bot.dialogs.events.utils import CAPTION_LIMIT, MESSAGE_LIMIT, build_eve
 from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
+_AGE_GROUP_RE = re.compile(r"^\s*(\d{1,2}\+|\d{1,2}\s*-\s*\d{1,2})\s*$")
+
+
+def _is_valid_age_group(value: str) -> bool:
+    match = _AGE_GROUP_RE.match(value)
+    if not match:
+        return False
+    if "-" in value:
+        parts = re.split(r"\s*-\s*", value.strip())
+        try:
+            start, end = (int(part) for part in parts)
+        except ValueError:
+            return False
+        return start < end
+    return True
 
 
 def _get_events_channel() -> str | None:
@@ -136,13 +152,6 @@ async def on_event_address_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     query = (data or "").strip()
-    if len(query) < settings.events.address_query_min:
-        await message.answer(
-            i18n.partner.event.address.short(
-                min=settings.events.address_query_min,
-            )
-        )
-        return
     if not any(char.isdigit() for char in query):
         await message.answer(i18n.partner.event.address.house.missing())
         return
@@ -288,11 +297,14 @@ async def on_event_age_input(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     age_group = (data or "").strip()
-    if not age_group or len(age_group) > settings.events.age_max_len:
+    if not age_group:
         await message.answer(
-            i18n.partner.event.age.invalid(
-                max=settings.events.age_max_len,
-            )
+            i18n.partner.event.age.invalid()
+        )
+        return
+    if not _is_valid_age_group(age_group):
+        await message.answer(
+            i18n.partner.event.age.invalid()
         )
         return
 

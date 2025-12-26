@@ -1,4 +1,6 @@
+from aiogram.types import ContentType
 from aiogram_dialog import DialogManager
+from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
 from config.config import settings
@@ -45,9 +47,7 @@ async def get_event_address_query(
     **kwargs,
 ) -> dict[str, str]:
     return {
-        "prompt": i18n.partner.event.address.prompt(
-            min=settings.events.address_query_min,
-        ),
+        "prompt": i18n.partner.event.address.prompt(),
     }
 
 
@@ -118,9 +118,7 @@ async def get_event_age_group(
     **kwargs,
 ) -> dict[str, str]:
     return {
-        "prompt": i18n.partner.event.age.prompt(
-            max=settings.events.age_max_len,
-        ),
+        "prompt": i18n.partner.event.age.prompt(),
         "skip_button": i18n.partner.event.skip.button(),
     }
 
@@ -163,6 +161,14 @@ async def get_event_preview(
 
     return {
         "preview": "\n".join(lines).strip(),
+        "preview_media": (
+            MediaAttachment(
+                type=ContentType.PHOTO,
+                file_id=MediaId(dialog_manager.dialog_data["photo_file_id"]),
+            )
+            if has_photo
+            else None
+        ),
         "publish_button": i18n.partner.event.publish.button(),
         "edit_name_button": i18n.partner.event.edit.name.button(),
         "edit_image_button": i18n.partner.event.edit.image.button(),
