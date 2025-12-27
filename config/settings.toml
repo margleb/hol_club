@@ -10,7 +10,7 @@
     event_name_min = 10
     event_name_max = 30
     event_desc_min = 30
-    event_desc_max = 50
+    event_desc_max = 500
     price_max = 50000
 
 [default.nominatim]

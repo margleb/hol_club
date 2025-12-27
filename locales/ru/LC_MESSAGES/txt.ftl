@@ -217,6 +217,8 @@ partner-event-edit-notify-button = Редактировать уведомлен
 
 partner-event-going-button = Я пойду
 
+partner-event-view-post-button = Смотреть пост
+
 partner-event-publish-success = Событие опубликовано.
 
 partner-event-publish-failed = Не удалось опубликовать событие.
@@ -235,8 +237,6 @@ partner-event-label-participation = <b>Участие:</b> { $value } ₽
 
 partner-event-label-age = <b>Возраст:</b> { $value }
 
-partner-event-label-organizer = <b>Организатор:</b> { $value }
-
 partner-event-text-template =
 
     <b>{ $name }</b>
@@ -248,4 +248,3 @@ partner-event-text-template =
     { $age_block }
 
     { $description_block }
-    { $organizer }

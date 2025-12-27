@@ -72,11 +72,6 @@ async def ensure_partner_access(_, dialog_manager: DialogManager) -> None:
         await dialog_manager.done()
         return
 
-    if user.username:
-        organizer = f"@{user.username}"
-    else:
-        organizer = user.full_name or str(user.id)
-    dialog_manager.dialog_data["organizer"] = organizer
 
 
 async def on_event_name_input(
@@ -427,22 +422,68 @@ async def _notify_users(
     db: DB,
     bot,
     i18n: TranslatorRunner,
-    channel: str,
-    event_name: str,
+    post_link: str | None,
+    text: str,
+    photo_id: str | None,
 ) -> int:
-    user_ids = await db.users.get_active_user_ids()
+    user_ids = await db.users.get_active_user_ids_by_role(role=UserRole.USER)
     if not user_ids:
         return 0
 
-    text = i18n.partner.event.notify.users(channel=channel, name=event_name)
+    keyboard_buttons = []
+    if post_link:
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.view.post.button(),
+                    url=post_link,
+                )
+            ]
+        )
+    keyboard_buttons.append(
+        [
+            InlineKeyboardButton(
+                text=i18n.partner.event.going.button(),
+                callback_data=EVENT_GOING_CALLBACK,
+            )
+        ]
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     sent = 0
     for user_id in user_ids:
         try:
-            await bot.send_message(user_id, text=text)
+            if photo_id:
+                await bot.send_photo(
+                    user_id,
+                    photo=photo_id,
+                    caption=text,
+                    reply_markup=keyboard,
+                )
+            else:
+                await bot.send_message(
+                    user_id,
+                    text=text,
+                    reply_markup=keyboard,
+                )
             sent += 1
         except Exception as exc:
             logger.info("Failed to notify user %s: %s", user_id, exc)
     return sent
+
+
+def _build_channel_post_link(chat, message_id: int) -> str | None:
+    username = getattr(chat, "username", None)
+    if username:
+        return f"https://t.me/{username}/{message_id}"
+    chat_id = getattr(chat, "id", None)
+    if isinstance(chat_id, int):
+        chat_id_str = str(chat_id)
+        if chat_id_str.startswith("-100"):
+            channel_id = chat_id_str[4:]
+        else:
+            channel_id = str(abs(chat_id))
+        return f"https://t.me/c/{channel_id}/{message_id}"
+    return None
 
 
 async def publish_event(
@@ -475,14 +516,14 @@ async def publish_event(
 
     try:
         if photo_id:
-            await callback.bot.send_photo(
+            channel_message = await callback.bot.send_photo(
                 channel,
                 photo=photo_id,
                 caption=text,
                 reply_markup=keyboard,
             )
         else:
-            await callback.bot.send_message(
+            channel_message = await callback.bot.send_message(
                 channel,
                 text=text,
                 reply_markup=keyboard,
@@ -494,14 +535,18 @@ async def publish_event(
 
     message_text = i18n.partner.event.publish.success()
     if data.get("notify_users") and db:
-        sent = await _notify_users(
+        post_link = _build_channel_post_link(
+            channel_message.chat,
+            channel_message.message_id,
+        )
+        await _notify_users(
             db=db,
             bot=callback.bot,
             i18n=i18n,
-            channel=channel,
-            event_name=data.get("name") or "",
+            post_link=post_link,
+            text=text,
+            photo_id=photo_id,
         )
-        message_text = f"{message_text}\n{i18n.partner.event.notify.sent(count=sent)}"
 
     await callback.message.answer(message_text)
     await dialog_manager.done()

@@ -220,6 +220,8 @@ partner-event-edit-notify-button = Edit notifications
 
 partner-event-going-button = I'm in
 
+partner-event-view-post-button = View post
+
 partner-event-publish-success = Event published.
 
 partner-event-publish-failed = Failed to publish the event.
@@ -240,8 +242,6 @@ partner-event-label-price = 💳 Price: { $value }
 
 partner-event-label-age = 🎯 Age group: { $value }
 
-partner-event-label-organizer = 🧑‍💼 Organizer: { $value }
-
 partner-event-text-template =
     <b>{ $name }</b>
     ────────────
@@ -252,5 +252,3 @@ partner-event-text-template =
     { $age_block }
 
     { $description_block }
-
-    { $organizer }

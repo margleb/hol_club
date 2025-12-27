@@ -33,7 +33,6 @@ def _render_event_text(
     date_time: str,
     address: str,
     description: str,
-    organizer: str,
     is_paid: bool,
     price: str | None,
     age_group: str | None,
@@ -49,7 +48,6 @@ def _render_event_text(
     participation_line = i18n.partner.event.label.participation(
         value=participation_value
     )
-    organizer_line = i18n.partner.event.label.organizer(value=organizer)
     age_block = (
         f"{i18n.partner.event.label.age(value=age_group)}"
         if age_group
@@ -64,7 +62,6 @@ def _render_event_text(
         participation=participation_line,
         description_block=description_block,
         age_block=age_block,
-        organizer=organizer_line,
     )
 
 
@@ -78,7 +75,6 @@ def build_event_text(
     raw_date_time = data.get("datetime") or ""
     raw_address = data.get("address") or ""
     raw_description = data.get("description") or ""
-    raw_organizer = data.get("organizer") or ""
     is_paid = bool(data.get("is_paid"))
     raw_price = data.get("price")
     raw_age_group = data.get("age_group")
@@ -89,7 +85,6 @@ def build_event_text(
             date_time=_escape_html(raw_date_time),
             address=_escape_html(address),
             description=_escape_html(description),
-            organizer=_escape_html(raw_organizer),
             is_paid=is_paid,
             price=_escape_html(raw_price) if raw_price else None,
             age_group=_escape_html(raw_age_group) if raw_age_group else None,
