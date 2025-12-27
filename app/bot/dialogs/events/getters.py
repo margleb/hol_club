@@ -167,4 +167,5 @@ async def get_event_preview(
         "edit_notify_button": i18n.partner.event.edit.notify.button(),
         "is_paid": bool(dialog_manager.dialog_data.get("is_paid")),
         "back_button": i18n.back.button(),
+        "can_edit_notify": settings.events.notify_users_enabled,
     }

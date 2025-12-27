@@ -269,6 +269,7 @@ events_dialog = Dialog(
                 text=Format("{edit_notify_button}"),
                 id="edit_event_notify",
                 on_click=edit_event_notify,
+                when="can_edit_notify",
             ),
             width=2,
         ),

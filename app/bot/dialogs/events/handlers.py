@@ -321,7 +321,10 @@ async def back_from_event_preview(
     button: Button,
     dialog_manager: DialogManager,
 ) -> None:
-    await dialog_manager.switch_to(EventsSG.notify)
+    if settings.events.notify_users_enabled:
+        await dialog_manager.switch_to(EventsSG.notify)
+        return
+    await dialog_manager.switch_to(EventsSG.age_group)
 
 
 async def on_event_description_input(
@@ -417,7 +420,11 @@ async def on_event_age_input(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.notify)
+    if settings.events.notify_users_enabled:
+        await dialog_manager.switch_to(EventsSG.notify)
+        return
+    dialog_manager.dialog_data["notify_users"] = False
+    await dialog_manager.switch_to(EventsSG.preview)
 
 
 async def skip_event_age(
@@ -429,7 +436,11 @@ async def skip_event_age(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.notify)
+    if settings.events.notify_users_enabled:
+        await dialog_manager.switch_to(EventsSG.notify)
+        return
+    dialog_manager.dialog_data["notify_users"] = False
+    await dialog_manager.switch_to(EventsSG.preview)
 
 
 async def on_event_notify_selected(
@@ -510,6 +521,9 @@ async def edit_event_notify(
     button: Button,
     dialog_manager: DialogManager,
 ) -> None:
+    if not settings.events.notify_users_enabled:
+        await _return_to_preview(dialog_manager)
+        return
     dialog_manager.dialog_data["edit_mode"] = True
     await dialog_manager.switch_to(EventsSG.notify)
 
@@ -629,6 +643,11 @@ async def publish_event(
     )
     fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
 
+    notify_users = (
+        bool(data.get("notify_users"))
+        if settings.events.notify_users_enabled
+        else False
+    )
     event_id = await db.events.create_event(
         partner_user_id=user.id,
         name=data.get("name") or "",
@@ -638,7 +657,7 @@ async def publish_event(
         is_paid=bool(data.get("is_paid")),
         price=data.get("price"),
         age_group=data.get("age_group"),
-        notify_users=bool(data.get("notify_users")),
+        notify_users=notify_users,
         photo_file_id=photo_id,
         fingerprint=fingerprint,
     )
@@ -676,7 +695,7 @@ async def publish_event(
     )
 
     message_text = i18n.partner.event.publish.success()
-    if data.get("notify_users"):
+    if notify_users:
         post_link = _build_channel_post_link(
             channel_message.chat,
             channel_message.message_id,
