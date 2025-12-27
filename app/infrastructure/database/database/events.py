@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -93,3 +93,22 @@ class _EventsDB:
             self.__tablename__,
             event_id,
         )
+
+    async def get_event_by_id(self, *, event_id: int) -> EventsModel | None:
+        stmt = select(EventsModel).where(EventsModel.id == event_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_event_by_channel_message(
+        self,
+        *,
+        channel_id: int,
+        message_id: int,
+    ) -> EventsModel | None:
+        stmt = (
+            select(EventsModel)
+            .where(EventsModel.channel_id == channel_id)
+            .where(EventsModel.channel_message_id == message_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

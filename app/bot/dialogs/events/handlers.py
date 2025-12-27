@@ -533,6 +533,7 @@ async def _notify_users(
     db: DB,
     bot,
     i18n: TranslatorRunner,
+    event_id: int,
     post_link: str | None,
     text: str,
     photo_id: str | None,
@@ -555,7 +556,7 @@ async def _notify_users(
         [
             InlineKeyboardButton(
                 text=i18n.partner.event.going.button(),
-                callback_data=EVENT_GOING_CALLBACK,
+                callback_data=f"{EVENT_GOING_CALLBACK}:{event_id}",
             )
         ]
     )
@@ -623,7 +624,7 @@ async def publish_event(
             [
                 InlineKeyboardButton(
                     text=i18n.partner.event.going.button(),
-                    callback_data=EVENT_GOING_CALLBACK,
+                    callback_data=f"{EVENT_GOING_CALLBACK}:{event_id}",
                 )
             ]
         ]
@@ -716,6 +717,7 @@ async def publish_event(
             db=db,
             bot=callback.bot,
             i18n=i18n,
+            event_id=event_id,
             post_link=post_link,
             text=text,
             photo_id=photo_id,

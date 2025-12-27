@@ -221,6 +221,20 @@ partner-event-edit-age-button = Edit age group
 partner-event-edit-notify-button = Edit notifications
 
 partner-event-going-button = I'm in
+partner-event-going-forbidden = Only users with the user status can register.
+partner-event-going-missing = Could not find the event for registration.
+partner-event-going-already = You are already registered for this event.
+partner-event-going-done = You are registered.
+partner-event-going-thanks =
+    Thanks for registering for the event “{ $event_name }”!
+
+    If you have any questions, please contact the organizer: { $partner_username }.
+
+    If you have already paid, please <b>don’t forget to tap the “I have paid” button</b> at the bottom of the registration form.
+partner-event-going-notify-partner = User { $username } (id: { $user_id }) registered for “{ $event_name }”.
+partner-event-going-contact-user-button = Contact the user
+partner-event-going-contact-partner-button = Ask about the event
+partner-event-going-paid-button = I have paid
 
 partner-event-view-post-button = View post
 

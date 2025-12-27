@@ -218,6 +218,20 @@ partner-event-edit-age-button = Редактировать возраст
 partner-event-edit-notify-button = Редактировать уведомления
 
 partner-event-going-button = Я пойду
+partner-event-going-forbidden = Записаться могут только пользователи со статусом user.
+partner-event-going-missing = Не удалось найти событие для регистрации.
+partner-event-going-already = Вы уже зарегистрированы на это событие.
+partner-event-going-done = Вы зарегистрированы.
+partner-event-going-thanks =
+    Спасибо за регистрацию на мероприятие «{ $event_name }»!
+
+    Если у вас возникнут вопросы, обращайтесь к организатору: { $partner_username }.
+
+    Если вы уже оплатили участие, пожалуйста, <b>не забудьте нажать кнопку «Я оплатил(а)»</b> внизу форме регистрации.
+partner-event-going-notify-partner = Пользователь { $username } (id: { $user_id }) зарегистрировался на событие «{ $event_name }».
+partner-event-going-contact-user-button = Связаться с пользователем
+partner-event-going-contact-partner-button = Задать вопрос по мероприятию
+partner-event-going-paid-button = Я оплатил(а)
 
 partner-event-view-post-button = Смотреть пост
 
