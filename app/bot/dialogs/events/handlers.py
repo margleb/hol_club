@@ -17,7 +17,7 @@ from app.bot.enums.roles import UserRole
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
-from app.bot.dialogs.events.utils import CAPTION_LIMIT, MESSAGE_LIMIT, build_event_text
+from app.bot.dialogs.events.utils import build_event_text
 from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
@@ -501,8 +501,7 @@ async def publish_event(
 
     data = dialog_manager.dialog_data
     photo_id = data.get("photo_file_id")
-    max_length = CAPTION_LIMIT if photo_id else MESSAGE_LIMIT
-    text, _ = build_event_text(data, i18n, max_length=max_length)
+    text = build_event_text(data, i18n)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [

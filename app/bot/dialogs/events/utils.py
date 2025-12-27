@@ -2,20 +2,6 @@ from urllib.parse import quote_plus
 
 from fluentogram import TranslatorRunner
 
-CAPTION_LIMIT = 1024
-MESSAGE_LIMIT = 4096
-
-
-def _truncate_text(value: str, max_len: int) -> str:
-    if max_len <= 0:
-        return ""
-    if len(value) <= max_len:
-        return value
-    if max_len <= 3:
-        return value[:max_len]
-    return value[: max_len - 3].rstrip() + "..."
-
-
 def _escape_html(value: str) -> str:
     return (
         value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -68,9 +54,7 @@ def _render_event_text(
 def build_event_text(
     data: dict,
     i18n: TranslatorRunner,
-    *,
-    max_length: int | None = None,
-) -> tuple[str, bool]:
+) -> str:
     raw_name = data.get("name") or ""
     raw_date_time = data.get("datetime") or ""
     raw_address = data.get("address") or ""
@@ -91,23 +75,4 @@ def build_event_text(
             i18n=i18n,
         )
 
-    text = render(raw_description, raw_address)
-
-    if not max_length or len(text) <= max_length:
-        return text, False
-
-    trimmed = True
-    over_by = len(text) - max_length
-    raw_description = _truncate_text(raw_description, len(raw_description) - over_by)
-
-    text = render(raw_description, raw_address)
-
-    if len(text) > max_length and raw_address:
-        over_by = len(text) - max_length
-        raw_address = _truncate_text(raw_address, len(raw_address) - over_by)
-        text = render(raw_description, raw_address)
-
-    if len(text) > max_length:
-        text = text[:max_length].rstrip()
-
-    return text, trimmed
+    return render(raw_description, raw_address)

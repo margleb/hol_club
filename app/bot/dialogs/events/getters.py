@@ -4,7 +4,7 @@ from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
 from config.config import settings
-from app.bot.dialogs.events.utils import CAPTION_LIMIT, build_event_text
+from app.bot.dialogs.events.utils import build_event_text
 
 
 async def get_event_name(
@@ -130,18 +130,12 @@ async def get_event_preview(
     **kwargs,
 ) -> dict[str, str | bool]:
     has_photo = bool(dialog_manager.dialog_data.get("photo_file_id"))
-    max_length = CAPTION_LIMIT if has_photo else None
-    preview_text, trimmed = build_event_text(
+    preview_text = build_event_text(
         dialog_manager.dialog_data,
         i18n,
-        max_length=max_length,
     )
 
     lines = []
-    if trimmed:
-        lines.append(i18n.partner.event.preview.trimmed())
-    if trimmed:
-        lines.append("")
     lines.append(preview_text)
 
     return {
