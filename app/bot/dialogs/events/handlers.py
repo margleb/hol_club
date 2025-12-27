@@ -694,12 +694,24 @@ async def publish_event(
         channel_message_id=channel_message.message_id,
     )
 
+    post_link = _build_channel_post_link(
+        channel_message.chat,
+        channel_message.message_id,
+    )
     message_text = i18n.partner.event.publish.success()
-    if notify_users:
-        post_link = _build_channel_post_link(
-            channel_message.chat,
-            channel_message.message_id,
+    partner_keyboard = None
+    if post_link:
+        partner_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.view.post.button(),
+                        url=post_link,
+                    )
+                ]
+            ]
         )
+    if notify_users and post_link:
         await _notify_users(
             db=db,
             bot=callback.bot,
@@ -709,5 +721,5 @@ async def publish_event(
             photo_id=photo_id,
         )
 
-    await callback.message.answer(message_text)
+    await callback.message.answer(message_text, reply_markup=partner_keyboard)
     await dialog_manager.done()
