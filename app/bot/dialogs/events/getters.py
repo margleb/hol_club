@@ -17,6 +17,7 @@ async def get_event_name(
             min=settings.events.event_name_min,
             max=settings.events.event_name_max,
         ),
+        "back_button": i18n.back.button(),
     }
 
 
@@ -28,6 +29,7 @@ async def get_event_image(
     return {
         "prompt": i18n.partner.event.image.prompt(),
         "skip_button": i18n.partner.event.skip.button(),
+        "back_button": i18n.back.button(),
     }
 
 
@@ -38,6 +40,7 @@ async def get_event_datetime(
 ) -> dict[str, str]:
     return {
         "prompt": i18n.partner.event.datetime.prompt(),
+        "back_button": i18n.back.button(),
     }
 
 
@@ -48,6 +51,7 @@ async def get_event_address_query(
 ) -> dict[str, str]:
     return {
         "prompt": i18n.partner.event.address.prompt(),
+        "back_button": i18n.back.button(),
     }
 
 
@@ -82,6 +86,7 @@ async def get_event_description(
             min=settings.events.event_desc_min,
             max=settings.events.event_desc_max,
         ),
+        "back_button": i18n.back.button(),
     }
 
 
@@ -95,6 +100,7 @@ async def get_event_price(
             max=settings.events.price_max,
         ),
         "skip_button": i18n.partner.event.skip.button(),
+        "back_button": i18n.back.button(),
     }
 
 
@@ -106,6 +112,7 @@ async def get_event_age_group(
     return {
         "prompt": i18n.partner.event.age.prompt(),
         "skip_button": i18n.partner.event.skip.button(),
+        "back_button": i18n.back.button(),
     }
 
 
@@ -121,6 +128,7 @@ async def get_event_notify(
     return {
         "prompt": i18n.partner.event.notify.prompt(),
         "notify_choices": choices,
+        "back_button": i18n.back.button(),
     }
 
 
@@ -158,4 +166,5 @@ async def get_event_preview(
         "edit_age_button": i18n.partner.event.edit.age.button(),
         "edit_notify_button": i18n.partner.event.edit.notify.button(),
         "is_paid": bool(dialog_manager.dialog_data.get("is_paid")),
+        "back_button": i18n.back.button(),
     }

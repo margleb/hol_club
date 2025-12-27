@@ -18,6 +18,15 @@ from app.bot.dialogs.events.getters import (
     get_event_price,
 )
 from app.bot.dialogs.events.handlers import (
+    back_from_event_address_query,
+    back_from_event_age_group,
+    back_from_event_datetime,
+    back_from_event_description,
+    back_from_event_image,
+    back_from_event_name,
+    back_from_event_notify,
+    back_from_event_preview,
+    back_from_event_price,
     back_to_address_query,
     edit_event_address,
     edit_event_age,
@@ -51,6 +60,13 @@ events_dialog = Dialog(
             id="event_name_input",
             on_success=on_event_name_input,
         ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_name",
+                on_click=back_from_event_name,
+            ),
+        ),
         state=EventsSG.name,
         getter=get_event_name,
     ),
@@ -61,6 +77,11 @@ events_dialog = Dialog(
             content_types=[ContentType.PHOTO],
         ),
         Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_image",
+                on_click=back_from_event_image,
+            ),
             Button(
                 text=Format("{skip_button}"),
                 id="skip_event_photo",
@@ -76,6 +97,13 @@ events_dialog = Dialog(
             id="event_datetime_input",
             on_success=on_event_datetime_input,
         ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_datetime",
+                on_click=back_from_event_datetime,
+            ),
+        ),
         state=EventsSG.datetime,
         getter=get_event_datetime,
     ),
@@ -84,6 +112,13 @@ events_dialog = Dialog(
         TextInput(
             id="event_address_input",
             on_success=on_event_address_input,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_address_query",
+                on_click=back_from_event_address_query,
+            ),
         ),
         state=EventsSG.address_query,
         getter=get_event_address_query,
@@ -119,6 +154,13 @@ events_dialog = Dialog(
             id="event_description_input",
             on_success=on_event_description_input,
         ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_description",
+                on_click=back_from_event_description,
+            ),
+        ),
         state=EventsSG.description,
         getter=get_event_description,
     ),
@@ -129,6 +171,11 @@ events_dialog = Dialog(
             on_success=on_event_price_input,
         ),
         Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_price",
+                on_click=back_from_event_price,
+            ),
             Button(
                 text=Format("{skip_button}"),
                 id="skip_event_price",
@@ -146,6 +193,11 @@ events_dialog = Dialog(
         ),
         Row(
             Button(
+                text=Format("{back_button}"),
+                id="back_from_event_age_group",
+                on_click=back_from_event_age_group,
+            ),
+            Button(
                 text=Format("{skip_button}"),
                 id="skip_event_age",
                 on_click=skip_event_age,
@@ -162,6 +214,13 @@ events_dialog = Dialog(
             item_id_getter=lambda item: item[1],
             items="notify_choices",
             on_click=on_event_notify_selected,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_notify",
+                on_click=back_from_event_notify,
+            ),
         ),
         state=EventsSG.notify,
         getter=get_event_notify,
@@ -218,6 +277,13 @@ events_dialog = Dialog(
                 text=Format("{publish_button}"),
                 id="publish_event",
                 on_click=publish_event,
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_preview",
+                on_click=back_from_event_preview,
             ),
         ),
         state=EventsSG.preview,

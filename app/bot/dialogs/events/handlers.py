@@ -228,6 +228,102 @@ async def back_to_address_query(
     await dialog_manager.switch_to(EventsSG.address_query)
 
 
+async def back_from_event_name(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.done()
+
+
+async def back_from_event_image(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.name)
+
+
+async def back_from_event_datetime(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.image)
+
+
+async def back_from_event_address_query(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.datetime)
+
+
+async def back_from_event_description(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.address_query)
+
+
+async def back_from_event_price(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.description)
+
+
+async def back_from_event_age_group(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.price)
+
+
+async def back_from_event_notify(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.age_group)
+
+
+async def back_from_event_preview(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await dialog_manager.switch_to(EventsSG.notify)
+
+
 async def on_event_description_input(
     message: Message,
     widget,
