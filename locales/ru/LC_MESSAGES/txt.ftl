@@ -223,6 +223,10 @@ partner-event-publish-success = Событие опубликовано.
 
 partner-event-publish-failed = Не удалось опубликовать событие.
 
+partner-event-publish-already = Событие уже опубликовано.
+
+partner-event-publish-in-progress = Публикация уже выполняется.
+
 partner-event-channel-missing = Не указан канал для событий. Добавьте EVENTS_CHANNEL в .env.
 
 partner-event-notify-users = Новое событие: { $name }. Подробности в { $channel }.

@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import re
 from datetime import datetime
@@ -493,10 +494,15 @@ async def publish_event(
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     db: DB | None = dialog_manager.middleware_data.get("db")
+    user: User | None = dialog_manager.middleware_data.get("event_from_user")
     channel = _get_events_channel()
 
     if not channel:
         await callback.answer(i18n.partner.event.channel.missing(), show_alert=True)
+        return
+
+    if not db or not user:
+        await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
         return
 
     data = dialog_manager.dialog_data
@@ -512,6 +518,40 @@ async def publish_event(
             ]
         ]
     )
+
+    fingerprint_source = "\n".join(
+        [
+            str(user.id),
+            data.get("name") or "",
+            data.get("datetime") or "",
+            data.get("address") or "",
+            data.get("description") or "",
+            "1" if data.get("is_paid") else "0",
+            data.get("price") or "",
+            data.get("age_group") or "",
+        ]
+    )
+    fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
+
+    event_id = await db.events.create_event(
+        partner_user_id=user.id,
+        name=data.get("name") or "",
+        event_datetime=data.get("datetime") or "",
+        address=data.get("address") or "",
+        description=data.get("description") or "",
+        is_paid=bool(data.get("is_paid")),
+        price=data.get("price"),
+        age_group=data.get("age_group"),
+        notify_users=bool(data.get("notify_users")),
+        photo_file_id=photo_id,
+        fingerprint=fingerprint,
+    )
+    if event_id is None:
+        await callback.answer(
+            i18n.partner.event.publish.already(),
+            show_alert=True,
+        )
+        return
 
     try:
         if photo_id:
@@ -529,11 +569,18 @@ async def publish_event(
             )
     except Exception as exc:
         logger.warning("Failed to publish event: %s", exc)
+        await db.events.delete_event(event_id=event_id)
         await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
         return
 
+    await db.events.mark_event_published(
+        event_id=event_id,
+        channel_id=channel_message.chat.id,
+        channel_message_id=channel_message.message_id,
+    )
+
     message_text = i18n.partner.event.publish.success()
-    if data.get("notify_users") and db:
+    if data.get("notify_users"):
         post_link = _build_channel_post_link(
             channel_message.chat,
             channel_message.message_id,

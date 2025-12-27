@@ -226,6 +226,10 @@ partner-event-publish-success = Event published.
 
 partner-event-publish-failed = Failed to publish the event.
 
+partner-event-publish-already = The event is already published.
+
+partner-event-publish-in-progress = Publishing is already in progress.
+
 partner-event-channel-missing = Event channel is not set. Add EVENTS_CHANNEL to .env.
 
 partner-event-notify-users = New event: { $name }. Details in { $channel }.
