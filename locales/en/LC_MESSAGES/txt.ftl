@@ -43,7 +43,6 @@ help-command = The following commands are available as a mini-demonstration of t
                <b>Partnership:</b>
 
                /partner_request - Submit a partnership request
-               /partner_post - Post the request button in the channel (admins only)
 
 simple-task = Simple task
 

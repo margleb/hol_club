@@ -14,7 +14,6 @@ from aiogram.types import (
 )
 from fluentogram import TranslatorHub, TranslatorRunner
 
-from config.config import settings
 from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
@@ -28,11 +27,6 @@ PARTNER_REQUEST_CALLBACK = "partner_request"
 PARTNER_DECISION_CALLBACK = "partner_decision"
 
 AnswerFunc = Callable[[str], Awaitable[None]]
-
-
-def _get_events_channel() -> str | None:
-    """Берет общий канал публикации заявок/событий из ENV через Dynaconf."""
-    return settings.get("events_channel")
 
 
 def _build_partner_request_keyboard(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
@@ -335,38 +329,6 @@ async def send_partner_requests_list(
         )
 
 
-@partner_requests_router.message(Command("partner_post"))
-async def process_partner_post_command(
-    message: Message,
-    i18n: TranslatorRunner,
-    db: DB,
-    bot: Bot,
-) -> None:
-    """Публикация сообщения с кнопкой заявки в канале (только админ)."""
-    admin_record = await db.users.get_user_record(user_id=message.from_user.id)
-    if admin_record is None or admin_record.role != UserRole.ADMIN:
-        await message.answer(text=i18n.partner.approve.forbidden())
-        return
-
-    channel = _get_events_channel()
-    if not channel:
-        await message.answer(text=i18n.partner.request.channel.missing())
-        return
-
-    try:
-        await bot.send_message(
-            chat_id=channel,
-            text=i18n.partner.request.channel.text(),
-            reply_markup=_build_partner_request_keyboard(i18n),
-        )
-    except Exception as exc:
-        logger.warning("Failed to post partner request message: %s", exc)
-        await message.answer(text=i18n.partner.request.channel.failed())
-        return
-
-    await message.answer(text=i18n.partner.request.channel.posted())
-
-
 @partner_requests_router.message(Command("partner_request"))
 async def process_partner_request_command(
     message: Message,
@@ -447,4 +409,3 @@ async def process_partner_decision_callback(
             await callback.message.edit_reply_markup(reply_markup=None)
         except Exception as exc:
             logger.warning("Failed to update admin message: %s", exc)
-
