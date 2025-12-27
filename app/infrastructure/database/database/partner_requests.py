@@ -39,6 +39,15 @@ class _PartnerRequestsDB:
             datetime.now(timezone.utc),
         )
 
+    async def list_pending_requests(self) -> list[PartnerRequestsModel]:
+        stmt = (
+            select(PartnerRequestsModel)
+            .where(PartnerRequestsModel.status == PartnerRequestStatus.PENDING)
+            .order_by(PartnerRequestsModel.created.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def set_pending(self, *, user_id: int) -> None:
         stmt = (
             update(PartnerRequestsModel)

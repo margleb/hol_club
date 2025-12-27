@@ -17,8 +17,11 @@ async def get_hello(
     is_partner = bool(
         user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
     )
+    is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
     return {
         "hello": i18n.start.hello(username=username),
         "create_event_button": i18n.partner.event.create.button(),
         "can_create_event": is_partner,
+        "partner_requests_button": i18n.partner.request.list.button(),
+        "can_manage_partner_requests": is_admin,
     }

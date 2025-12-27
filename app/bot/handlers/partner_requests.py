@@ -70,6 +70,54 @@ def _build_partner_decision_keyboard(
     )
 
 
+def _build_partner_admin_notification_keyboard(
+    i18n: TranslatorRunner,
+    user_id: int,
+) -> InlineKeyboardMarkup:
+    """Кнопки для админа в уведомлении о заявке."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.request.approve.button(),
+                    callback_data=f"{PARTNER_DECISION_CALLBACK}:approve:{user_id}",
+                ),
+                InlineKeyboardButton(
+                    text=i18n.partner.request.reject.button(),
+                    callback_data=f"{PARTNER_DECISION_CALLBACK}:reject:{user_id}",
+                ),
+            ],
+        ]
+    )
+
+
+def _build_partner_request_list_item_keyboard(
+    i18n: TranslatorRunner,
+    user_id: int,
+) -> InlineKeyboardMarkup:
+    """Кнопки для списка заявок: принять/отклонить + ссылка на пользователя."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.request.approve.button(),
+                    callback_data=f"{PARTNER_DECISION_CALLBACK}:approve:{user_id}",
+                ),
+                InlineKeyboardButton(
+                    text=i18n.partner.request.reject.button(),
+                    callback_data=f"{PARTNER_DECISION_CALLBACK}:reject:{user_id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.request.contact.button(),
+                    url=f"tg://user?id={user_id}",
+                )
+            ],
+        ]
+    )
+
+
 def _format_partner_username(user: User) -> str:
     """Показываем @username, иначе имя пользователя."""
     if user.username:
@@ -116,7 +164,7 @@ async def _notify_admins(
         return
 
     text = i18n.partner.request.admin.notify(username=username, user_id=user_id)
-    keyboard = _build_partner_decision_keyboard(i18n, user_id)
+    keyboard = _build_partner_admin_notification_keyboard(i18n, user_id)
     for admin_id in admin_ids:
         try:
             await bot.send_message(admin_id, text=text, reply_markup=keyboard)
@@ -261,6 +309,32 @@ async def _decide_partner_request(
     return False
 
 
+async def send_partner_requests_list(
+    *,
+    admin_id: int,
+    i18n: TranslatorRunner,
+    db: DB,
+    bot: Bot,
+) -> None:
+    pending_requests = await db.partner_requests.list_pending_requests()
+    if not pending_requests:
+        await bot.send_message(admin_id, text=i18n.partner.request.list.empty())
+        return
+
+    await bot.send_message(
+        admin_id,
+        text=i18n.partner.request.list.header(count=len(pending_requests)),
+    )
+    for request in pending_requests:
+        await bot.send_message(
+            admin_id,
+            text=i18n.partner.request.list.item(user_id=request.user_id),
+            reply_markup=_build_partner_request_list_item_keyboard(
+                i18n, request.user_id
+            ),
+        )
+
+
 @partner_requests_router.message(Command("partner_post"))
 async def process_partner_post_command(
     message: Message,
@@ -374,43 +448,3 @@ async def process_partner_decision_callback(
         except Exception as exc:
             logger.warning("Failed to update admin message: %s", exc)
 
-
-@partner_requests_router.message(Command("partner_approve"))
-async def process_partner_approve_command(
-    message: Message,
-    i18n: TranslatorRunner,
-    db: DB,
-    bot: Bot,
-    translator_hub: TranslatorHub,
-) -> None:
-    """Резервная команда одобрения по user_id."""
-    admin_record = await db.users.get_user_record(user_id=message.from_user.id)
-    if admin_record is None or admin_record.role != UserRole.ADMIN:
-        await message.answer(text=i18n.partner.approve.forbidden())
-        return
-
-    if not message.text:
-        await message.answer(text=i18n.partner.approve.usage())
-        return
-
-    command_parts = message.text.split(maxsplit=1)
-    if len(command_parts) < 2:
-        await message.answer(text=i18n.partner.approve.usage())
-        return
-
-    try:
-        target_user_id = int(command_parts[1])
-    except ValueError:
-        await message.answer(text=i18n.partner.approve.usage())
-        return
-
-    await _decide_partner_request(
-        action="approve",
-        target_user_id=target_user_id,
-        admin_id=message.from_user.id,
-        i18n=i18n,
-        db=db,
-        bot=bot,
-        translator_hub=translator_hub,
-        answer=message.answer,
-    )

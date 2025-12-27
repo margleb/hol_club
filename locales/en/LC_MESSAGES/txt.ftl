@@ -43,7 +43,6 @@ help-command = The following commands are available as a mini-demonstration of t
                <b>Partnership:</b>
 
                /partner_request - Submit a partnership request
-               /partner_approve &lt;user_id&gt; - Approve a request (admins only)
                /partner_post - Post the request button in the channel (admins only)
 
 simple-task = Simple task
@@ -100,7 +99,6 @@ partner-request-approved = Your request is already approved. Partner role is act
 
 partner-approve-forbidden = You do not have permission to approve requests.
 
-partner-approve-usage = Usage: /partner_approve &lt;user_id&gt;
 
 partner-approve-missing = Partnership request not found.
 
@@ -119,6 +117,11 @@ partner-request-channel-posted = The request button was posted to the channel.
 partner-request-channel-failed = Could not send the message to the channel.
 
 partner-request-admin-notify = Partnership request from { $username } (id: { $user_id }).
+partner-request-list-header = Partnership requests: { $count }.
+partner-request-list-empty = No partnership requests found.
+partner-request-list-item = User { $user_id } wants to become a partner.
+partner-request-list-button = View requests
+partner-request-contact-button = Contact
 
 partner-request-approve-button = Approve
 
