@@ -1,4 +1,15 @@
 start-hello = Привет, { $username }!
+start-events-title = Ваши мероприятия
+start-events-empty = У вас пока нет записей на мероприятия.
+start-events-item = { $name } — { $datetime }{ $tags }
+start-events-page = Страница { $current } из { $total }
+start-events-prev-button = ◀️
+start-events-next-button = ▶️
+start-event-paid-tag = [оплачено]
+start-event-past-tag = [уже прошло]
+start-event-details-text = { $name }
+    { $datetime }{ $tags }
+start-event-details-missing = Не удалось найти мероприятие.
 
               Добро пожаловать в Клуб холостяков ✨
 

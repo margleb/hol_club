@@ -1,15 +1,54 @@
 from aiogram_dialog import Dialog, StartMode, Window
-from aiogram_dialog.widgets.kbd import Button, Start
+from aiogram_dialog.widgets.kbd import Button, Group, Row, ScrollingGroup, Select, Start, Url
 from aiogram_dialog.widgets.text import Format
 
-from app.bot.dialogs.start.getters import get_hello
-from app.bot.dialogs.start.handlers import show_partner_requests_list
+from app.bot.dialogs.start.getters import get_event_details, get_hello
+from app.bot.dialogs.start.handlers import (
+    back_to_start,
+    mark_user_event_paid,
+    show_next_events_page,
+    show_partner_requests_list,
+    show_prev_events_page,
+    show_user_event_details,
+)
 from app.bot.states.start import StartSG
 from app.bot.states.events import EventsSG
 
 start_dialog = Dialog(
     Window(
         Format('{hello}'),
+        Format("{subscriptions_title}", when="can_view_events"),
+        Format("{subscriptions_empty}", when="show_empty_events"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="user_events_select",
+                item_id_getter=lambda item: item[1],
+                items="event_items",
+                on_click=show_user_event_details,
+            ),
+            id="user_events_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_events",
+        ),
+        Format("{events_page_text}", when="show_events_page"),
+        Row(
+            Button(
+                text=Format("{events_prev_button}"),
+                id="events_prev_page",
+                on_click=show_prev_events_page,
+                when="has_prev_page",
+            ),
+            Button(
+                text=Format("{events_next_button}"),
+                id="events_next_page",
+                on_click=show_next_events_page,
+                when="has_next_page",
+            ),
+            when="show_events_page",
+        ),
         Start(
             text=Format("{create_event_button}"),
             id="start_event_creation",
@@ -25,5 +64,31 @@ start_dialog = Dialog(
         ),
         getter=get_hello,
         state=StartSG.start
+    ),
+    Window(
+        Format("{event_details_text}"),
+        Group(
+            Button(
+                text=Format("{mark_paid_button}"),
+                id="user_event_mark_paid",
+                on_click=mark_user_event_paid,
+                when="can_mark_paid",
+            ),
+            Url(
+                text=Format("{view_post_button}"),
+                url=Format("{event_post_url}"),
+                id="user_event_view_post",
+                when="has_post_url",
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="user_event_back",
+                on_click=back_to_start,
+            ),
+        ),
+        getter=get_event_details,
+        state=StartSG.event_details,
     ),
 )

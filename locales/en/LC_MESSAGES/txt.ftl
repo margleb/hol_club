@@ -1,4 +1,15 @@
 start-hello = Hello, { $username }!
+start-events-title = Your events
+start-events-empty = You are not signed up for any events yet.
+start-events-item = { $name } — { $datetime }{ $tags }
+start-events-page = Page { $current } of { $total }
+start-events-prev-button = ◀️
+start-events-next-button = ▶️
+start-event-paid-tag = [paid]
+start-event-past-tag = [already passed]
+start-event-details-text = { $name }
+    { $datetime }{ $tags }
+start-event-details-missing = Could not find the event.
 
               Welcome to the Singles Club ✨
 

@@ -1,14 +1,26 @@
 import logging
+from dataclasses import dataclass
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.event_registrations import (
     EventRegistrationsModel,
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class UserEventListItem:
+    event_id: int
+    name: str
+    event_datetime: str
+    is_paid: bool
+    channel_id: int | None
+    channel_message_id: int | None
 
 
 class _EventRegistrationsDB:
@@ -61,6 +73,40 @@ class _EventRegistrationsDB:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_user_event_list(
+        self,
+        *,
+        user_id: int,
+    ) -> list[UserEventListItem]:
+        stmt = (
+            select(
+                EventsModel.id,
+                EventsModel.name,
+                EventsModel.event_datetime,
+                EventsModel.channel_id,
+                EventsModel.channel_message_id,
+                EventRegistrationsModel.is_paid,
+            )
+            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+            .order_by(EventsModel.event_datetime.asc())
+        )
+        result = await self.session.execute(stmt)
+        items = []
+        for row in result.all():
+            mapping = row._mapping
+            items.append(
+                UserEventListItem(
+                    event_id=mapping[EventsModel.id],
+                    name=mapping[EventsModel.name],
+                    event_datetime=mapping[EventsModel.event_datetime],
+                    is_paid=mapping[EventRegistrationsModel.is_paid],
+                    channel_id=mapping[EventsModel.channel_id],
+                    channel_message_id=mapping[EventsModel.channel_message_id],
+                )
+            )
+        return items
 
     async def mark_paid(
         self,
