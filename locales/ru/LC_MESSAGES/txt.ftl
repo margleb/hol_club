@@ -232,6 +232,17 @@ partner-event-going-notify-partner = Пользователь { $username } (id:
 partner-event-going-contact-user-button = Связаться с пользователем
 partner-event-going-contact-partner-button = Задать вопрос по мероприятию
 partner-event-going-paid-button = Я оплатил(а)
+partner-event-paid-missing = Не удалось найти событие для оплаты.
+partner-event-paid-not-registered = Вы не зарегистрированы на это событие.
+partner-event-paid-already = Оплата уже отмечена.
+partner-event-paid-done = Спасибо! Мы уведомили организатора.
+partner-event-paid-notify-partner =
+    Пользователь { $username } (id: { $user_id }) сообщил об оплате участия в событии «{ $event_name }».
+
+    Пожалуйста, подтвердите оплату и отправьте чек, ответив на это сообщение.
+partner-event-paid-receipt-forbidden = Не удалось принять чек для этого события.
+partner-event-paid-receipt-saved = Чек сохранен.
+partner-event-paid-receipt-failed = Не удалось сохранить чек. Попробуйте еще раз.
 
 partner-event-view-post-button = Смотреть пост
 

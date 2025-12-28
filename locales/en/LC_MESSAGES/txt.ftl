@@ -235,6 +235,17 @@ partner-event-going-notify-partner = User { $username } (id: { $user_id }) regis
 partner-event-going-contact-user-button = Contact the user
 partner-event-going-contact-partner-button = Ask about the event
 partner-event-going-paid-button = I have paid
+partner-event-paid-missing = Could not find the event for payment.
+partner-event-paid-not-registered = You are not registered for this event.
+partner-event-paid-already = Payment is already marked.
+partner-event-paid-done = Thanks! We notified the organizer.
+partner-event-paid-notify-partner =
+    User { $username } (id: { $user_id }) reported payment for the event “{ $event_name }”.
+
+    Please confirm the payment and send the receipt by replying to this message.
+partner-event-paid-receipt-forbidden = Could not accept a receipt for this event.
+partner-event-paid-receipt-saved = Receipt saved.
+partner-event-paid-receipt-failed = Could not save the receipt. Please try again.
 
 partner-event-view-post-button = View post
 

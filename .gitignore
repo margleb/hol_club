@@ -149,6 +149,7 @@ dmypy.json
 /temp/
 /files/
 /local-storage/
+/upload/
 
 #pyro stuff
 *.session

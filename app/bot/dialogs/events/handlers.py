@@ -619,16 +619,6 @@ async def publish_event(
     data = dialog_manager.dialog_data
     photo_id = data.get("photo_file_id")
     text = build_event_text(data, i18n)
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=i18n.partner.event.going.button(),
-                    callback_data=f"{EVENT_GOING_CALLBACK}:{event_id}",
-                )
-            ]
-        ]
-    )
 
     fingerprint_source = "\n".join(
         [
@@ -668,6 +658,17 @@ async def publish_event(
             show_alert=True,
         )
         return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.going.button(),
+                    callback_data=f"{EVENT_GOING_CALLBACK}:{event_id}",
+                )
+            ]
+        ]
+    )
 
     try:
         if photo_id:
