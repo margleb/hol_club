@@ -77,7 +77,13 @@ class YandexGeocoder:
                 geo_object.get("metaDataProperty", {})
                 .get("GeocoderMetaData", {})
             )
-            address = metadata.get("text") or geo_object.get("name")
+            address = self._build_short_address(metadata)
+            if not address:
+                address = (
+                    (metadata.get("Address") or {}).get("formatted")
+                    or metadata.get("text")
+                    or geo_object.get("name")
+                )
             position = geo_object.get("Point", {}).get("pos")
             if not address or not position:
                 continue
@@ -98,6 +104,74 @@ class YandexGeocoder:
                 is_moscow=self._is_allowed_city(metadata),
                 has_house_number=self._has_house_number(metadata),
             )
+
+    def _build_short_address(self, metadata: dict[str, Any]) -> str:
+        address_meta = metadata.get("Address") or {}
+        components = address_meta.get("Components") or []
+        city = self._get_component_name(components, {"locality"})
+        street = self._get_component_name(components, {"street", "thoroughfare"})
+        house = self._get_component_name(components, {"house"})
+
+        address_details = metadata.get("AddressDetails") or {}
+        if not city:
+            city = self._get_address_details_locality(address_details)
+        if not street:
+            street = self._get_address_details_street(address_details)
+        if not house:
+            house = self._get_address_details_house(address_details)
+
+        parts = [city, street, house]
+        return ", ".join(part for part in parts if part)
+
+    def _get_component_name(
+        self,
+        components: Iterable[dict[str, Any]],
+        kinds: set[str],
+    ) -> str:
+        for component in components:
+            kind = str(component.get("kind") or "").lower().strip()
+            if kind not in kinds:
+                continue
+            name = str(component.get("name") or "").strip()
+            if name:
+                return name
+        return ""
+
+    def _get_address_details_locality(self, details: dict[str, Any]) -> str:
+        country = details.get("Country") or {}
+        admin_area = country.get("AdministrativeArea") or {}
+        locality = admin_area.get("Locality") or {}
+        if not locality:
+            locality = (
+                admin_area.get("SubAdministrativeArea", {})
+                .get("Locality", {})
+            ) or {}
+        return str(locality.get("LocalityName") or "").strip()
+
+    def _get_address_details_street(self, details: dict[str, Any]) -> str:
+        locality = self._get_address_details_locality_block(details)
+        thoroughfare = locality.get("Thoroughfare") or {}
+        return str(thoroughfare.get("ThoroughfareName") or "").strip()
+
+    def _get_address_details_house(self, details: dict[str, Any]) -> str:
+        locality = self._get_address_details_locality_block(details)
+        thoroughfare = locality.get("Thoroughfare") or {}
+        premise = thoroughfare.get("Premise") or {}
+        return str(premise.get("PremiseNumber") or "").strip()
+
+    def _get_address_details_locality_block(
+        self,
+        details: dict[str, Any],
+    ) -> dict[str, Any]:
+        country = details.get("Country") or {}
+        admin_area = country.get("AdministrativeArea") or {}
+        locality = admin_area.get("Locality") or {}
+        if not locality:
+            locality = (
+                admin_area.get("SubAdministrativeArea", {})
+                .get("Locality", {})
+            ) or {}
+        return locality
 
     def _is_allowed_city(self, metadata: dict[str, Any]) -> bool:
         if not self.allowed_cities:
