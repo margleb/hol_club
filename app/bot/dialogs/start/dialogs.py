@@ -1,14 +1,17 @@
 from aiogram_dialog import Dialog, StartMode, Window
 from aiogram_dialog.widgets.kbd import Button, Group, Row, ScrollingGroup, Select, Start, Url
+from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import get_event_details, get_hello
 from app.bot.dialogs.start.handlers import (
     back_to_start,
+    back_to_events_list,
     mark_user_event_paid,
     show_next_events_page,
     show_partner_requests_list,
     show_prev_events_page,
+    show_user_events_list,
     show_user_event_details,
 )
 from app.bot.states.start import StartSG
@@ -17,7 +20,30 @@ from app.bot.states.events import EventsSG
 start_dialog = Dialog(
     Window(
         Format('{hello}'),
-        Format("{subscriptions_title}", when="can_view_events"),
+        Button(
+            text=Format("{events_list_button}"),
+            id="start_events_list",
+            on_click=show_user_events_list,
+            when="can_view_events",
+        ),
+        Start(
+            text=Format("{create_event_button}"),
+            id="start_event_creation",
+            state=EventsSG.name,
+            mode=StartMode.NORMAL,
+            when="can_create_event",
+        ),
+        Button(
+            text=Format("{partner_requests_button}"),
+            id="partner_requests_list",
+            on_click=show_partner_requests_list,
+            when="can_manage_partner_requests",
+        ),
+        getter=get_hello,
+        state=StartSG.start
+    ),
+    Window(
+        Format("{subscriptions_title}"),
         Format("{subscriptions_empty}", when="show_empty_events"),
         ScrollingGroup(
             Select(
@@ -49,23 +75,18 @@ start_dialog = Dialog(
             ),
             when="show_events_page",
         ),
-        Start(
-            text=Format("{create_event_button}"),
-            id="start_event_creation",
-            state=EventsSG.name,
-            mode=StartMode.NORMAL,
-            when="can_create_event",
-        ),
-        Button(
-            text=Format("{partner_requests_button}"),
-            id="partner_requests_list",
-            on_click=show_partner_requests_list,
-            when="can_manage_partner_requests",
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="events_list_back",
+                on_click=back_to_start,
+            ),
         ),
         getter=get_hello,
-        state=StartSG.start
+        state=StartSG.events_list,
     ),
     Window(
+        DynamicMedia("event_media"),
         Format("{event_details_text}"),
         Group(
             Button(
@@ -85,7 +106,7 @@ start_dialog = Dialog(
             Button(
                 text=Format("{back_button}"),
                 id="user_event_back",
-                on_click=back_to_start,
+                on_click=back_to_events_list,
             ),
         ),
         getter=get_event_details,

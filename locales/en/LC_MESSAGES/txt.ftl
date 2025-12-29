@@ -1,5 +1,21 @@
-start-hello = Hello, { $username }!
+start-hello =
+    Hello, { $username }!
+
+    Welcome to the Bachelors Club ✨
+
+    If you’re here, it means you’re open to знакомства and общения
+
+    This bot will help you:
+
+    • sign up for club events
+    • track your registrations
+    • connect with people who share your goals
+
+    📢 Our main channel — @hol_club
+
+    Ready to start? Choose an action 👇
 start-events-title = Your events
+start-events-list-button = my registrations
 start-events-empty = You are not signed up for any events yet.
 start-events-item = { $name } — { $datetime }{ $tags }
 start-events-page = Page { $current } of { $total }

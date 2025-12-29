@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from aiogram.types import User
+from aiogram.types import ContentType, User
 from aiogram_dialog import DialogManager
+from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
+from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 
@@ -94,6 +96,7 @@ async def get_hello(
         "partner_requests_button": i18n.partner.request.list.button(),
         "can_manage_partner_requests": is_admin,
         "can_view_events": can_view_events,
+        "events_list_button": i18n.start.events.list.button(),
         "subscriptions_title": i18n.start.events.title(),
         "subscriptions_empty": i18n.start.events.empty(),
         "event_items": event_items,
@@ -107,6 +110,7 @@ async def get_hello(
         "events_next_button": i18n.start.events.next.button(),
         "has_prev_page": current_page > 0,
         "has_next_page": current_page < total_pages - 1,
+        "back_button": i18n.back.button(),
     }
 
 
@@ -139,16 +143,27 @@ async def get_event_details(
             "has_post_url": False,
         }
 
-    tags = _build_event_tags(
-        i18n=i18n,
-        is_paid=registration.is_paid,
-        is_past=_is_event_past(event.event_datetime),
+    event_text = build_event_text(
+        {
+            "name": event.name,
+            "datetime": event.event_datetime,
+            "address": event.address,
+            "description": event.description,
+            "is_paid": event.is_paid,
+            "price": event.price,
+            "age_group": event.age_group,
+        },
+        i18n,
     )
     return {
-        "event_details_text": i18n.start.event.details.text(
-            name=event.name,
-            datetime=event.event_datetime,
-            tags=tags,
+        "event_details_text": event_text,
+        "event_media": (
+            MediaAttachment(
+                type=ContentType.PHOTO,
+                file_id=MediaId(event.photo_file_id),
+            )
+            if event.photo_file_id
+            else None
         ),
         "back_button": i18n.back.button(),
         "mark_paid_button": i18n.partner.event.going.paid.button(),

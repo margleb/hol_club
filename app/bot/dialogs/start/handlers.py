@@ -54,6 +54,15 @@ async def show_user_event_details(
     await dialog_manager.switch_to(StartSG.event_details)
 
 
+async def show_user_events_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.events_list)
+
+
 async def back_to_start(
     callback: CallbackQuery,
     widget: Button,
@@ -61,6 +70,15 @@ async def back_to_start(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.start)
+
+
+async def back_to_events_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.events_list)
 
 
 async def mark_user_event_paid(
@@ -149,7 +167,7 @@ async def show_prev_events_page(
     current_page = int(dialog_manager.dialog_data.get("events_page", 0))
     dialog_manager.dialog_data["events_page"] = max(0, current_page - 1)
     await callback.answer()
-    await dialog_manager.switch_to(StartSG.start)
+    await dialog_manager.switch_to(StartSG.events_list)
 
 
 async def show_next_events_page(
@@ -160,4 +178,4 @@ async def show_next_events_page(
     current_page = int(dialog_manager.dialog_data.get("events_page", 0))
     dialog_manager.dialog_data["events_page"] = current_page + 1
     await callback.answer()
-    await dialog_manager.switch_to(StartSG.start)
+    await dialog_manager.switch_to(StartSG.events_list)
