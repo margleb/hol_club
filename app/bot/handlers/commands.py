@@ -5,7 +5,7 @@ from urllib.parse import unquote
 from aiogram import Bot, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram_dialog import DialogManager, StartMode
 from fluentogram import TranslatorRunner
 from taskiq import ScheduledTask
@@ -27,6 +27,7 @@ from app.bot.handlers.event_registrations import (
     build_partner_registration_notification,
     build_thanks_message,
 )
+from config.config import settings
 from nats.js.client import JetStreamContext
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,43 @@ async def _build_partner_label(bot: Bot, partner_user_id: int) -> str:
     return partner_label
 
 
+def _get_events_channel() -> str | None:
+    channel = settings.get("events_channel")
+    if channel is None:
+        return None
+    channel = str(channel).strip()
+    return channel or None
+
+
+def _build_events_channel_url(channel: str) -> str | None:
+    channel = channel.strip()
+    if not channel:
+        return None
+    if channel.startswith(("http://", "https://", "tg://")):
+        return channel
+    if channel.startswith("@"):
+        channel = channel[1:]
+    if channel.lstrip("-").isdigit():
+        numeric = channel.lstrip("-")
+        if numeric.startswith("100") and len(numeric) > 3:
+            numeric = numeric[3:]
+        return f"https://t.me/c/{numeric}"
+    return f"https://t.me/{channel}"
+
+
+def _build_events_channel_label(channel: str, channel_url: str | None) -> str:
+    channel = channel.strip()
+    if not channel:
+        return channel
+    if channel.startswith("@"):
+        return channel
+    if channel.startswith(("http://", "https://", "tg://")):
+        return channel
+    if channel.lstrip("-").isdigit():
+        return channel_url or channel
+    return f"@{channel}"
+
+
 @commands_router.message(CommandStart())
 async def process_start_command(
     message: Message,
@@ -175,6 +213,29 @@ async def process_start_command(
                 partner_user_id=partner_user_id,
                 event_id=event_id,
             )
+            events_channel = _get_events_channel()
+            if events_channel:
+                channel_url = _build_events_channel_url(events_channel)
+                channel_label = _build_events_channel_label(
+                    events_channel,
+                    channel_url,
+                )
+                thanks_text = (
+                    f"{thanks_text}\n\n"
+                    f"{i18n.partner.event.going.subscribe(channel=channel_label)}"
+                )
+                if channel_url:
+                    keyboard = InlineKeyboardMarkup(
+                        inline_keyboard=[
+                            [
+                                InlineKeyboardButton(
+                                    text=i18n.partner.event.going.channel.button(),
+                                    url=channel_url,
+                                )
+                            ],
+                            *keyboard.inline_keyboard,
+                        ]
+                    )
             await bot.send_message(
                 message.from_user.id,
                 text=thanks_text,

@@ -262,6 +262,8 @@ partner-event-going-thanks =
     Если у вас возникнут вопросы, обращайтесь к организатору: { $partner_username }.
 
     Если вы уже оплатили участие, пожалуйста, <b>не забудьте нажать кнопку «Я оплатил(а)»</b> внизу форме регистрации.
+partner-event-going-subscribe = Подпишитесь на канал { $channel }, чтобы не пропускать обновления.
+partner-event-going-channel-button = Перейти в канал
 partner-event-going-notify-partner = Пользователь { $username } (id: { $user_id }) зарегистрировался на событие «{ $event_name }».
 partner-event-going-contact-user-button = Связаться с пользователем
 partner-event-going-contact-partner-button = Задать вопрос по мероприятию
