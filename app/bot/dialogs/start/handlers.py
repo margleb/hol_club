@@ -126,12 +126,18 @@ async def request_pending_payment_receipt(
         return
 
     try:
+        contact_keyboard = _build_contact_keyboard(
+            i18n=i18n,
+            user_id=payer_user_id,
+            button_text=i18n.partner.event.going.contact.user.button(),
+        )
         sent = await bot.send_message(
             user.id,
             i18n.partner.event.registrations.pending.prompt(
                 event_name=event.name,
                 user_id=payer_user_id,
             ),
+            reply_markup=contact_keyboard,
         )
         key = _build_paid_receipt_key(sent.chat.id, sent.message_id)
         payload = _build_paid_receipt_payload(event.id, payer_user_id)
