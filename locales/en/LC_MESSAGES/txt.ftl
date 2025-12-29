@@ -24,7 +24,7 @@ start-events-next-button = ▶️
 start-event-paid-tag = [paid]
 start-event-past-tag = [already passed]
 partner-events-title = Your events
-partner-events-list-button = my events
+partner-events-list-button = Мy events
 partner-events-empty = You have no created events yet.
 partner-events-item = { $name } — { $datetime } ({ $paid }/{ $total })
 partner-events-page = Page { $current } of { $total }
@@ -285,7 +285,7 @@ partner-event-view-post-button = View post
 partner-event-registrations-title = Registrations: { $count }
 partner-event-registrations-button = Registrations: { $paid }/{ $total }
 partner-event-registrations-empty = No registrations yet.
-partner-event-registrations-item = { $user_label }{ $paid_tag }
+partner-event-registrations-item = { $user_label } { $paid_tag }
 partner-event-registrations-paid-tag = [paid]
 
 partner-event-publish-success = Event published.

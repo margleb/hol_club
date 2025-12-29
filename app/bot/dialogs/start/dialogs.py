@@ -33,6 +33,13 @@ from app.bot.states.events import EventsSG
 start_dialog = Dialog(
     Window(
         Format('{hello}'),
+        Start(
+            text=Format("{create_event_button}"),
+            id="start_event_creation",
+            state=EventsSG.name,
+            mode=StartMode.NORMAL,
+            when="can_create_event",
+        ),
         Button(
             text=Format("{events_list_button}"),
             id="start_events_list",
@@ -44,13 +51,6 @@ start_dialog = Dialog(
             id="partner_events_list",
             on_click=show_partner_events_list,
             when="can_view_partner_events",
-        ),
-        Start(
-            text=Format("{create_event_button}"),
-            id="start_event_creation",
-            state=EventsSG.name,
-            mode=StartMode.NORMAL,
-            when="can_create_event",
         ),
         Button(
             text=Format("{partner_requests_button}"),

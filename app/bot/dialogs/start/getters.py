@@ -323,7 +323,11 @@ async def get_partner_event_details(
     registrations = await db.event_registrations.get_event_registrations_list(
         event_id=event_id
     )
-    paid_count = sum(1 for registration in registrations if registration.is_paid)
+    paid_count = sum(
+        1
+        for registration in registrations
+        if registration.is_paid and registration.receipt
+    )
     total_count = len(registrations)
 
     return {
@@ -403,7 +407,7 @@ async def get_partner_event_registrations(
         )
         paid_tag = (
             i18n.partner.event.registrations.paid.tag()
-            if registration.is_paid
+            if registration.is_paid and registration.receipt
             else ""
         )
         registration_lines.append(

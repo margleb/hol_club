@@ -27,6 +27,7 @@ class UserEventListItem:
 class EventRegistrationListItem:
     user_id: int
     is_paid: bool
+    receipt: str | None
 
 
 class _EventRegistrationsDB:
@@ -123,6 +124,7 @@ class _EventRegistrationsDB:
             select(
                 EventRegistrationsModel.user_id,
                 EventRegistrationsModel.is_paid,
+                EventRegistrationsModel.receipt,
             )
             .where(EventRegistrationsModel.event_id == event_id)
             .order_by(EventRegistrationsModel.created.asc())
@@ -135,6 +137,7 @@ class _EventRegistrationsDB:
                 EventRegistrationListItem(
                     user_id=mapping[EventRegistrationsModel.user_id],
                     is_paid=mapping[EventRegistrationsModel.is_paid],
+                    receipt=mapping[EventRegistrationsModel.receipt],
                 )
             )
         return items
@@ -151,7 +154,14 @@ class _EventRegistrationsDB:
                 func.coalesce(
                     func.sum(
                         case(
-                            (EventRegistrationsModel.is_paid.is_(True), 1),
+                            (
+                                (
+                                    EventRegistrationsModel.is_paid.is_(True)
+                                    & EventRegistrationsModel.receipt.is_not(None)
+                                    & (EventRegistrationsModel.receipt != "")
+                                ),
+                                1,
+                            ),
                             else_=0,
                         )
                     ),
