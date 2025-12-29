@@ -5,6 +5,7 @@ from sqlalchemy import case, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infrastructure.database.database.adv_stats import _AdvStatsDB
 from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.event_registrations import (
     EventRegistrationsModel,
@@ -42,6 +43,9 @@ class _EventRegistrationsDB:
         event_id: int,
         user_id: int,
         source: str,
+        adv_placement_date: str | None = None,
+        adv_channel_username: str | None = None,
+        adv_placement_price: str | None = None,
     ) -> bool:
         stmt = (
             insert(EventRegistrationsModel)
@@ -49,6 +53,9 @@ class _EventRegistrationsDB:
                 event_id=event_id,
                 user_id=user_id,
                 source=source,
+                adv_placement_date=adv_placement_date,
+                adv_channel_username=adv_channel_username,
+                adv_placement_price=adv_placement_price,
                 is_paid=False,
             )
             .on_conflict_do_nothing(index_elements=["event_id", "user_id"])
@@ -64,6 +71,14 @@ class _EventRegistrationsDB:
                 event_id,
                 user_id,
             )
+            if adv_placement_date and adv_channel_username and adv_placement_price:
+                adv_stats = _AdvStatsDB(self.session)
+                await adv_stats.increment_registration(
+                    event_id=event_id,
+                    placement_date=adv_placement_date,
+                    channel_username=adv_channel_username,
+                    placement_price=adv_placement_price,
+                )
             return True
         return False
 
@@ -194,11 +209,18 @@ class _EventRegistrationsDB:
             .where(EventRegistrationsModel.user_id == user_id)
             .where(EventRegistrationsModel.is_paid.is_(False))
             .values(is_paid=True)
-            .returning(EventRegistrationsModel.id)
+            .returning(
+                EventRegistrationsModel.id,
+                EventRegistrationsModel.adv_placement_date,
+                EventRegistrationsModel.adv_channel_username,
+                EventRegistrationsModel.adv_placement_price,
+            )
         )
         result = await self.session.execute(stmt)
-        registration_id = result.scalar_one_or_none()
-        if registration_id is not None:
+        row = result.one_or_none()
+        if row is not None:
+            mapping = row._mapping
+            registration_id = mapping[EventRegistrationsModel.id]
             logger.info(
                 "Event registration marked paid. db='%s', id=%d, event_id=%d, user_id=%d",
                 self.__tablename__,
@@ -206,6 +228,17 @@ class _EventRegistrationsDB:
                 event_id,
                 user_id,
             )
+            adv_placement_date = mapping[EventRegistrationsModel.adv_placement_date]
+            adv_channel_username = mapping[EventRegistrationsModel.adv_channel_username]
+            adv_placement_price = mapping[EventRegistrationsModel.adv_placement_price]
+            if adv_placement_date and adv_channel_username and adv_placement_price:
+                adv_stats = _AdvStatsDB(self.session)
+                await adv_stats.increment_paid(
+                    event_id=event_id,
+                    placement_date=adv_placement_date,
+                    channel_username=adv_channel_username,
+                    placement_price=adv_placement_price,
+                )
             return True
         return False
 
@@ -216,6 +249,26 @@ class _EventRegistrationsDB:
         user_id: int,
         receipt: str,
     ) -> bool:
+        current_stmt = (
+            select(
+                EventRegistrationsModel.receipt,
+                EventRegistrationsModel.adv_placement_date,
+                EventRegistrationsModel.adv_channel_username,
+                EventRegistrationsModel.adv_placement_price,
+            )
+            .where(EventRegistrationsModel.event_id == event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+        )
+        current_result = await self.session.execute(current_stmt)
+        current_row = current_result.one_or_none()
+        if current_row is None:
+            return False
+        current_mapping = current_row._mapping
+        had_receipt = bool(current_mapping[EventRegistrationsModel.receipt])
+        adv_placement_date = current_mapping[EventRegistrationsModel.adv_placement_date]
+        adv_channel_username = current_mapping[EventRegistrationsModel.adv_channel_username]
+        adv_placement_price = current_mapping[EventRegistrationsModel.adv_placement_price]
+
         stmt = (
             update(EventRegistrationsModel)
             .where(EventRegistrationsModel.event_id == event_id)
@@ -233,5 +286,18 @@ class _EventRegistrationsDB:
                 event_id,
                 user_id,
             )
+            if (
+                not had_receipt
+                and adv_placement_date
+                and adv_channel_username
+                and adv_placement_price
+            ):
+                adv_stats = _AdvStatsDB(self.session)
+                await adv_stats.increment_confirmed(
+                    event_id=event_id,
+                    placement_date=adv_placement_date,
+                    channel_username=adv_channel_username,
+                    placement_price=adv_placement_price,
+                )
             return True
         return False
