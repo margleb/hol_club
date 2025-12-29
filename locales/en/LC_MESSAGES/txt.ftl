@@ -15,7 +15,7 @@ start-hello =
 
     Ready to start? Choose an action 👇
 start-events-title = Your events
-start-events-list-button = my registrations
+start-events-list-button = My registrations
 start-events-empty = You are not signed up for any events yet.
 start-events-item = { $name } — { $datetime }{ $tags }
 start-events-page = Page { $current } of { $total }

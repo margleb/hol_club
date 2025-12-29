@@ -15,7 +15,7 @@ start-hello =
 
     Готов(а) начать? Тогда выбирай действие 👇
 start-events-title = Ваши мероприятия
-start-events-list-button = мои регистрации
+start-events-list-button = Мои регистрации
 start-events-empty = У вас пока нет записей на мероприятия.
 start-events-item = { $name } — { $datetime }{ $tags }
 start-events-page = Страница { $current } из { $total }
