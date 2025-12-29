@@ -284,6 +284,16 @@ partner-event-paid-receipt-failed = Could not save the receipt. Please try again
 partner-event-view-post-button = View post
 partner-event-registrations-title = Registrations: { $count }
 partner-event-registrations-button = Registrations: { $paid }/{ $total }
+partner-event-registrations-pending-button = Awaiting payment confirmation: { $count }
+partner-event-registrations-pending-title = Awaiting payment confirmation: { $count }
+partner-event-registrations-pending-empty = No pending payment confirmations.
+partner-event-registrations-pending-item = { $user_label }
+partner-event-registrations-pending-prompt =
+    Reply to this message with a receipt to confirm payment for user { $user_id }
+    for the event “{ $event_name }”.
+partner-event-registrations-pending-sent = Payment confirmation message sent.
+partner-event-registrations-pending-failed = Could not prepare payment confirmation.
+partner-event-registrations-pending-missing = Could not find the registration to confirm.
 partner-event-registrations-empty = No registrations yet.
 partner-event-registrations-item = { $user_label } { $paid_tag }
 partner-event-registrations-paid-tag = [paid]

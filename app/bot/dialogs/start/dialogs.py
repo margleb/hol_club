@@ -7,6 +7,7 @@ from app.bot.dialogs.start.getters import (
     get_event_details,
     get_hello,
     get_partner_event_details,
+    get_partner_event_pending_payments,
     get_partner_event_registrations,
     get_partner_events,
 )
@@ -20,6 +21,8 @@ from app.bot.dialogs.start.handlers import (
     show_next_partner_events_page,
     show_partner_event_details,
     show_partner_event_registrations,
+    show_partner_event_pending_payments,
+    request_pending_payment_receipt,
     show_partner_events_list,
     show_partner_requests_list,
     show_prev_events_page,
@@ -184,6 +187,12 @@ start_dialog = Dialog(
                 on_click=show_partner_event_registrations,
                 when="can_view_registrations",
             ),
+            Button(
+                text=Format("{pending_payments_button}"),
+                id="partner_event_pending_payments",
+                on_click=show_partner_event_pending_payments,
+                when="show_pending_payments",
+            ),
             Url(
                 text=Format("{view_post_button}"),
                 url=Format("{event_post_url}"),
@@ -213,5 +222,33 @@ start_dialog = Dialog(
         ),
         getter=get_partner_event_registrations,
         state=StartSG.partner_event_registrations,
+    ),
+    Window(
+        Format("{pending_payments_title}"),
+        Format("{pending_payments_empty}", when="show_pending_payments_empty"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="pending_payments_select",
+                item_id_getter=lambda item: item[1],
+                # Clicking a user asks the bot to send a receipt request message.
+                on_click=request_pending_payment_receipt,
+                items="pending_items",
+            ),
+            id="pending_payments_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_pending_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="pending_payments_back",
+                on_click=back_to_partner_event_details,
+            ),
+        ),
+        getter=get_partner_event_pending_payments,
+        state=StartSG.partner_event_pending_payments,
     ),
 )

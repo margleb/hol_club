@@ -74,6 +74,74 @@ async def show_partner_event_registrations(
     await dialog_manager.switch_to(StartSG.partner_event_registrations)
 
 
+async def show_partner_event_pending_payments(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_event_pending_payments)
+
+
+async def request_pending_payment_receipt(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    bot = dialog_manager.middleware_data.get("bot")
+    cache_pool = dialog_manager.middleware_data.get("_cache_pool")
+    user = callback.from_user
+    if not user:
+        return
+
+    try:
+        payer_user_id = int(item_id)
+    except ValueError:
+        await callback.answer(i18n.partner.event.registrations.pending.missing())
+        return
+
+    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+    if not event_id:
+        await callback.answer(i18n.partner.event.registrations.pending.missing())
+        return
+
+    user_record = await db.users.get_user_record(user_id=user.id)
+    if not user_record or user_record.role not in {UserRole.PARTNER, UserRole.ADMIN}:
+        await callback.answer(i18n.partner.event.forbidden())
+        return
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await callback.answer(i18n.partner.event.registrations.pending.missing())
+        return
+    if user_record.role == UserRole.PARTNER and event.partner_user_id != user.id:
+        await callback.answer(i18n.partner.event.forbidden())
+        return
+
+    if not bot or not cache_pool:
+        await callback.answer(i18n.partner.event.registrations.pending.failed())
+        return
+
+    try:
+        sent = await bot.send_message(
+            user.id,
+            i18n.partner.event.registrations.pending.prompt(
+                event_name=event.name,
+                user_id=payer_user_id,
+            ),
+        )
+        key = _build_paid_receipt_key(sent.chat.id, sent.message_id)
+        payload = _build_paid_receipt_payload(event.id, payer_user_id)
+        await cache_pool.set(key, payload, ex=PAID_RECEIPT_TTL_SECONDS)
+    except Exception:
+        await callback.answer(i18n.partner.event.registrations.pending.failed())
+        return
+
+    await callback.answer(i18n.partner.event.registrations.pending.sent())
+
 async def show_user_events_list(
     callback: CallbackQuery,
     widget: Button,

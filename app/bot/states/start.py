@@ -8,3 +8,4 @@ class StartSG(StatesGroup):
     partner_events_list = State()
     partner_event_details = State()
     partner_event_registrations = State()
+    partner_event_pending_payments = State()

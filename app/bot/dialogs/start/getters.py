@@ -328,6 +328,11 @@ async def get_partner_event_details(
         for registration in registrations
         if registration.is_paid and registration.receipt
     )
+    pending_count = sum(
+        1
+        for registration in registrations
+        if registration.is_paid and not registration.receipt
+    )
     total_count = len(registrations)
 
     return {
@@ -344,6 +349,9 @@ async def get_partner_event_details(
             paid=paid_count,
             total=total_count,
         ),
+        "pending_payments_button": i18n.partner.event.registrations.pending.button(
+            count=pending_count
+        ),
         "back_button": i18n.back.button(),
         "view_post_button": i18n.partner.event.view.post.button(),
         "event_post_url": _build_channel_post_link(
@@ -352,6 +360,7 @@ async def get_partner_event_details(
         or "",
         "has_post_url": bool(event.channel_id and event.channel_message_id),
         "can_view_registrations": True,
+        "show_pending_payments": pending_count > 0,
     }
 
 
@@ -426,5 +435,97 @@ async def get_partner_event_registrations(
             count=len(registrations)
         ),
         "registrations_text": registrations_text,
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_partner_event_pending_payments(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, str | list[tuple[str, str]] | bool]:
+    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+    if not event_id:
+        return {
+            "pending_payments_title": i18n.partner.event.registrations.pending.title(
+                count=0
+            ),
+            "pending_payments_empty": i18n.partner.event.registrations.pending.empty(),
+            "pending_items": [],
+            "has_pending_items": False,
+            "show_pending_payments_empty": True,
+            "back_button": i18n.back.button(),
+        }
+
+    user_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_partner = bool(
+        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
+    )
+    if not is_partner:
+        return {
+            "pending_payments_title": i18n.partner.event.registrations.pending.title(
+                count=0
+            ),
+            "pending_payments_empty": i18n.partner.event.forbidden(),
+            "pending_items": [],
+            "has_pending_items": False,
+            "show_pending_payments_empty": True,
+            "back_button": i18n.back.button(),
+        }
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        return {
+            "pending_payments_title": i18n.partner.event.registrations.pending.title(
+                count=0
+            ),
+            "pending_payments_empty": i18n.start.event.details.missing(),
+            "pending_items": [],
+            "has_pending_items": False,
+            "show_pending_payments_empty": True,
+            "back_button": i18n.back.button(),
+        }
+    if user_record.role == UserRole.PARTNER and event.partner_user_id != event_from_user.id:
+        return {
+            "pending_payments_title": i18n.partner.event.registrations.pending.title(
+                count=0
+            ),
+            "pending_payments_empty": i18n.partner.event.forbidden(),
+            "pending_items": [],
+            "has_pending_items": False,
+            "show_pending_payments_empty": True,
+            "back_button": i18n.back.button(),
+        }
+
+    registrations = await db.event_registrations.get_event_registrations_list(
+        event_id=event_id
+    )
+    pending_registrations = [
+        registration
+        for registration in registrations
+        if registration.is_paid and not registration.receipt
+    ]
+    bot: Bot | None = dialog_manager.middleware_data.get("bot")
+    pending_items = []
+    for registration in pending_registrations:
+        user_label = await _format_registration_user_label(
+            bot=bot,
+            user_id=registration.user_id,
+        )
+        label = i18n.partner.event.registrations.pending.item(
+            user_label=user_label,
+        )
+        pending_items.append((label, str(registration.user_id)))
+
+    return {
+        "pending_payments_title": i18n.partner.event.registrations.pending.title(
+            count=len(pending_items)
+        ),
+        "pending_payments_empty": i18n.partner.event.registrations.pending.empty(),
+        "pending_items": pending_items,
+        "has_pending_items": bool(pending_items),
+        "show_pending_payments_empty": not pending_items,
         "back_button": i18n.back.button(),
     }
