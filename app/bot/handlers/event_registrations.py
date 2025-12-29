@@ -151,6 +151,45 @@ def _build_thanks_keyboard(
     )
 
 
+def build_partner_registration_notification(
+    *,
+    i18n: TranslatorRunner,
+    user: User,
+    event_name: str,
+) -> tuple[str, InlineKeyboardMarkup]:
+    text = i18n.partner.event.going.notify.partner(
+        username=_format_user_label(user),
+        user_id=user.id,
+        event_name=event_name,
+    )
+    keyboard = _build_contact_keyboard(
+        i18n=i18n,
+        user_id=user.id,
+        button_text=i18n.partner.event.going.contact.user.button(),
+    )
+    return text, keyboard
+
+
+def build_thanks_message(
+    *,
+    i18n: TranslatorRunner,
+    event_name: str,
+    partner_username: str,
+    partner_user_id: int,
+    event_id: int,
+) -> tuple[str, InlineKeyboardMarkup]:
+    text = i18n.partner.event.going.thanks(
+        event_name=event_name,
+        partner_username=partner_username,
+    )
+    keyboard = _build_thanks_keyboard(
+        i18n=i18n,
+        partner_user_id=partner_user_id,
+        event_id=event_id,
+    )
+    return text, keyboard
+
+
 @event_registrations_router.callback_query(
     lambda callback: callback.data and callback.data.startswith(EVENT_GOING_CALLBACK)
 )
@@ -200,15 +239,10 @@ async def process_event_going(
         await callback.answer(i18n.partner.event.going.already())
         return
 
-    partner_text = i18n.partner.event.going.notify.partner(
-        username=_format_user_label(user),
-        user_id=user.id,
-        event_name=event.name,
-    )
-    partner_keyboard = _build_contact_keyboard(
+    partner_text, partner_keyboard = build_partner_registration_notification(
         i18n=i18n,
-        user_id=user.id,
-        button_text=i18n.partner.event.going.contact.user.button(),
+        user=user,
+        event_name=event.name,
     )
     try:
         await bot.send_message(
@@ -229,12 +263,10 @@ async def process_event_going(
     except Exception as exc:
         logger.warning("Failed to resolve partner %s: %s", event.partner_user_id, exc)
 
-    thanks_text = i18n.partner.event.going.thanks(
+    thanks_text, thanks_keyboard = build_thanks_message(
+        i18n=i18n,
         event_name=event.name,
         partner_username=partner_label,
-    )
-    thanks_keyboard = _build_thanks_keyboard(
-        i18n=i18n,
         partner_user_id=event.partner_user_id,
         event_id=event.id,
     )

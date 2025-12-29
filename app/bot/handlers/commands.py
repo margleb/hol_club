@@ -1,7 +1,8 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from urllib.parse import unquote
 
-from aiogram import Router
+from aiogram import Bot, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
@@ -22,7 +23,13 @@ from app.services.scheduler.tasks import (
     scheduled_task,
     simple_task,
 )
+from app.bot.handlers.event_registrations import (
+    build_partner_registration_notification,
+    build_thanks_message,
+)
 from nats.js.client import JetStreamContext
+
+logger = logging.getLogger(__name__)
 
 commands_router = Router()
 
@@ -76,17 +83,17 @@ async def _maybe_register_outer_start(
     user_id: int,
     user_role: UserRole,
     message_text: str | None,
-) -> None:
+) -> tuple[bool, int | None, int | None, str | None] | None:
     if user_role != UserRole.USER:
-        return
+        return None
     payload = _parse_outer_start_payload(_extract_start_payload(message_text))
     if not payload:
-        return
+        return None
     event_id, placement_date, channel_username, placement_price = payload
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
-        return
-    await db.event_registrations.create_registration(
+        return None
+    created = await db.event_registrations.create_registration(
         event_id=event_id,
         user_id=user_id,
         source="outer",
@@ -94,6 +101,20 @@ async def _maybe_register_outer_start(
         adv_channel_username=channel_username,
         adv_placement_price=placement_price,
     )
+    return created, event.id, event.partner_user_id, event.name
+
+
+async def _build_partner_label(bot: Bot, partner_user_id: int) -> str:
+    partner_label = f"id:{partner_user_id}"
+    try:
+        partner_chat = await bot.get_chat(partner_user_id)
+        if partner_chat.username:
+            partner_label = f"@{partner_chat.username}"
+        else:
+            partner_label = partner_chat.full_name
+    except Exception:
+        return partner_label
+    return partner_label
 
 
 @commands_router.message(CommandStart())
@@ -101,7 +122,8 @@ async def process_start_command(
     message: Message,
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
-    db: DB
+    db: DB,
+    bot: Bot,
 ) -> None:
     if not message.from_user:
         return
@@ -115,12 +137,50 @@ async def process_start_command(
         user_role = UserRole.USER
     else:
         user_role = user_record.role
-    await _maybe_register_outer_start(
+    outer_result = await _maybe_register_outer_start(
         db=db,
         user_id=message.from_user.id,
         user_role=user_role,
         message_text=message.text,
     )
+    if outer_result:
+        created, event_id, partner_user_id, event_name = outer_result
+        if (
+            created
+            and event_id is not None
+            and partner_user_id is not None
+            and event_name
+        ):
+            partner_text, partner_keyboard = build_partner_registration_notification(
+                i18n=i18n,
+                user=message.from_user,
+                event_name=event_name,
+            )
+            try:
+                await bot.send_message(
+                    partner_user_id,
+                    text=partner_text,
+                    reply_markup=partner_keyboard,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to notify partner %s: %s", partner_user_id, exc
+                )
+
+            partner_label = await _build_partner_label(bot, partner_user_id)
+            thanks_text, keyboard = build_thanks_message(
+                i18n=i18n,
+                event_name=event_name,
+                partner_username=partner_label,
+                partner_user_id=partner_user_id,
+                event_id=event_id,
+            )
+            await bot.send_message(
+                message.from_user.id,
+                text=thanks_text,
+                reply_markup=keyboard,
+            )
+            return
     await dialog_manager.start(state=StartSG.start, mode=StartMode.RESET_STACK)
 
 
