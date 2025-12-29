@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, select, update
@@ -8,6 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.database.models.events import EventsModel
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PartnerEventListItem:
+    event_id: int
+    name: str
+    event_datetime: str
+    is_paid: bool
+    channel_id: int | None
+    channel_message_id: int | None
 
 
 class _EventsDB:
@@ -112,3 +123,36 @@ class _EventsDB:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_partner_event_list(
+        self,
+        *,
+        partner_user_id: int,
+    ) -> list[PartnerEventListItem]:
+        stmt = (
+            select(
+                EventsModel.id,
+                EventsModel.name,
+                EventsModel.event_datetime,
+                EventsModel.is_paid,
+                EventsModel.channel_id,
+                EventsModel.channel_message_id,
+            )
+            .where(EventsModel.partner_user_id == partner_user_id)
+            .order_by(EventsModel.event_datetime.asc())
+        )
+        result = await self.session.execute(stmt)
+        items = []
+        for row in result.all():
+            mapping = row._mapping
+            items.append(
+                PartnerEventListItem(
+                    event_id=mapping[EventsModel.id],
+                    name=mapping[EventsModel.name],
+                    event_datetime=mapping[EventsModel.event_datetime],
+                    is_paid=mapping[EventsModel.is_paid],
+                    channel_id=mapping[EventsModel.channel_id],
+                    channel_message_id=mapping[EventsModel.channel_message_id],
+                )
+            )
+        return items

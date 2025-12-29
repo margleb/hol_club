@@ -54,6 +54,26 @@ async def show_user_event_details(
     await dialog_manager.switch_to(StartSG.event_details)
 
 
+async def show_partner_event_details(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    dialog_manager.dialog_data["selected_partner_event_id"] = int(item_id)
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_event_details)
+
+
+async def show_partner_event_registrations(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_event_registrations)
+
+
 async def show_user_events_list(
     callback: CallbackQuery,
     widget: Button,
@@ -61,6 +81,15 @@ async def show_user_events_list(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.events_list)
+
+
+async def show_partner_events_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_events_list)
 
 
 async def back_to_start(
@@ -79,6 +108,24 @@ async def back_to_events_list(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.events_list)
+
+
+async def back_to_partner_events_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_events_list)
+
+
+async def back_to_partner_event_details(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_event_details)
 
 
 async def mark_user_event_paid(
@@ -179,3 +226,25 @@ async def show_next_events_page(
     dialog_manager.dialog_data["events_page"] = current_page + 1
     await callback.answer()
     await dialog_manager.switch_to(StartSG.events_list)
+
+
+async def show_prev_partner_events_page(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    current_page = int(dialog_manager.dialog_data.get("partner_events_page", 0))
+    dialog_manager.dialog_data["partner_events_page"] = max(0, current_page - 1)
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_events_list)
+
+
+async def show_next_partner_events_page(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    current_page = int(dialog_manager.dialog_data.get("partner_events_page", 0))
+    dialog_manager.dialog_data["partner_events_page"] = current_page + 1
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_events_list)

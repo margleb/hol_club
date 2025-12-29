@@ -5,3 +5,6 @@ class StartSG(StatesGroup):
     start = State()
     events_list = State()
     event_details = State()
+    partner_events_list = State()
+    partner_event_details = State()
+    partner_event_registrations = State()

@@ -23,6 +23,13 @@ start-events-prev-button = ◀️
 start-events-next-button = ▶️
 start-event-paid-tag = [оплачено]
 start-event-past-tag = [уже прошло]
+partner-events-title = Ваши мероприятия
+partner-events-list-button = мои мероприятия
+partner-events-empty = У вас пока нет созданных мероприятий.
+partner-events-item = { $name } — { $datetime } ({ $paid }/{ $total })
+partner-events-page = Страница { $current } из { $total }
+partner-events-prev-button = ◀️
+partner-events-next-button = ▶️
 start-event-details-text = { $name }
     { $datetime }{ $tags }
 start-event-details-missing = Не удалось найти мероприятие.
@@ -272,6 +279,11 @@ partner-event-paid-receipt-saved = Чек сохранен.
 partner-event-paid-receipt-failed = Не удалось сохранить чек. Попробуйте еще раз.
 
 partner-event-view-post-button = Смотреть пост
+partner-event-registrations-title = Регистрации: { $count }
+partner-event-registrations-button = Регистрации: { $paid }/{ $total }
+partner-event-registrations-empty = Пока нет регистраций.
+partner-event-registrations-item = { $user_label }{ $paid_tag }
+partner-event-registrations-paid-tag = [оплачено]
 
 partner-event-publish-success = Событие опубликовано.
 

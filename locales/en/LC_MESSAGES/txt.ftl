@@ -23,6 +23,13 @@ start-events-prev-button = ◀️
 start-events-next-button = ▶️
 start-event-paid-tag = [paid]
 start-event-past-tag = [already passed]
+partner-events-title = Your events
+partner-events-list-button = my events
+partner-events-empty = You have no created events yet.
+partner-events-item = { $name } — { $datetime } ({ $paid }/{ $total })
+partner-events-page = Page { $current } of { $total }
+partner-events-prev-button = ◀️
+partner-events-next-button = ▶️
 start-event-details-text = { $name }
     { $datetime }{ $tags }
 start-event-details-missing = Could not find the event.
@@ -275,6 +282,11 @@ partner-event-paid-receipt-saved = Receipt saved.
 partner-event-paid-receipt-failed = Could not save the receipt. Please try again.
 
 partner-event-view-post-button = View post
+partner-event-registrations-title = Registrations: { $count }
+partner-event-registrations-button = Registrations: { $paid }/{ $total }
+partner-event-registrations-empty = No registrations yet.
+partner-event-registrations-item = { $user_label }{ $paid_tag }
+partner-event-registrations-paid-tag = [paid]
 
 partner-event-publish-success = Event published.
 

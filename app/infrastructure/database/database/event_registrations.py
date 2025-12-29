@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 
-from sqlalchemy import select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,12 @@ class UserEventListItem:
     is_paid: bool
     channel_id: int | None
     channel_message_id: int | None
+
+
+@dataclass(frozen=True)
+class EventRegistrationListItem:
+    user_id: int
+    is_paid: bool
 
 
 class _EventRegistrationsDB:
@@ -107,6 +113,64 @@ class _EventRegistrationsDB:
                 )
             )
         return items
+
+    async def get_event_registrations_list(
+        self,
+        *,
+        event_id: int,
+    ) -> list[EventRegistrationListItem]:
+        stmt = (
+            select(
+                EventRegistrationsModel.user_id,
+                EventRegistrationsModel.is_paid,
+            )
+            .where(EventRegistrationsModel.event_id == event_id)
+            .order_by(EventRegistrationsModel.created.asc())
+        )
+        result = await self.session.execute(stmt)
+        items = []
+        for row in result.all():
+            mapping = row._mapping
+            items.append(
+                EventRegistrationListItem(
+                    user_id=mapping[EventRegistrationsModel.user_id],
+                    is_paid=mapping[EventRegistrationsModel.is_paid],
+                )
+            )
+        return items
+
+    async def get_partner_event_registration_counts(
+        self,
+        *,
+        partner_user_id: int,
+    ) -> dict[int, tuple[int, int]]:
+        stmt = (
+            select(
+                EventsModel.id.label("event_id"),
+                func.count(EventRegistrationsModel.id).label("total"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (EventRegistrationsModel.is_paid.is_(True), 1),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("paid"),
+            )
+            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .where(EventsModel.partner_user_id == partner_user_id)
+            .group_by(EventsModel.id)
+        )
+        result = await self.session.execute(stmt)
+        counts: dict[int, tuple[int, int]] = {}
+        for row in result.all():
+            mapping = row._mapping
+            counts[int(mapping["event_id"])] = (
+                int(mapping["paid"] or 0),
+                int(mapping["total"] or 0),
+            )
+        return counts
 
     async def mark_paid(
         self,
