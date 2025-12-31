@@ -25,6 +25,7 @@ event_registrations_router = Router()
 
 
 EVENT_PAID_CALLBACK = "event_paid"
+EVENT_REGISTER_CALLBACK = "event_register"
 PAID_EVENT_TAG = "event_id="
 PAID_RECEIPT_TTL_SECONDS = 7 * 24 * 3600
 
@@ -48,12 +49,40 @@ async def _ensure_user_record(db: DB, user: User) -> UsersModel:
     return await db.users.get_user_record(user_id=user.id)
 
 
+async def _build_partner_label(bot: Bot, partner_user_id: int) -> str:
+    partner_label = f"id:{partner_user_id}"
+    try:
+        partner_chat = await bot.get_chat(partner_user_id)
+        if partner_chat.username:
+            partner_label = f"@{partner_chat.username}"
+        else:
+            partner_label = partner_chat.full_name
+    except Exception:
+        return partner_label
+    return partner_label
+
+
 def _parse_event_id(data: str | None) -> int | None:
     if not data:
         return None
     if data == EVENT_GOING_CALLBACK:
         return None
     prefix = f"{EVENT_GOING_CALLBACK}:"
+    if not data.startswith(prefix):
+        return None
+    parts = data.split(":")
+    if len(parts) != 2:
+        return None
+    try:
+        return int(parts[1])
+    except ValueError:
+        return None
+
+
+def _parse_register_event_id(data: str | None) -> int | None:
+    if not data:
+        return None
+    prefix = f"{EVENT_REGISTER_CALLBACK}:"
     if not data.startswith(prefix):
         return None
     parts = data.split(":")
@@ -280,6 +309,53 @@ async def process_event_going(
         logger.warning("Failed to notify user %s: %s", user.id, exc)
 
     await callback.answer(i18n.partner.event.going.done())
+
+
+@event_registrations_router.callback_query(
+    lambda callback: callback.data and callback.data.startswith(EVENT_REGISTER_CALLBACK)
+)
+async def process_event_register(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    db: DB,
+    bot: Bot,
+) -> None:
+    user = callback.from_user
+    if not user:
+        return
+
+    user_record = await _ensure_user_record(db, user)
+    if not user_record or user_record.role != UserRole.USER:
+        await callback.answer(i18n.partner.event.going.forbidden())
+        return
+
+    event_id = _parse_register_event_id(callback.data)
+    if event_id is None:
+        await callback.answer(i18n.partner.event.going.missing())
+        return
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await callback.answer(i18n.partner.event.going.missing())
+        return
+
+    partner_label = await _build_partner_label(bot, event.partner_user_id)
+    thanks_text, thanks_keyboard = build_thanks_message(
+        i18n=i18n,
+        event_name=event.name,
+        partner_username=partner_label,
+        partner_user_id=event.partner_user_id,
+        event_id=event.id,
+    )
+    try:
+        await bot.send_message(
+            user.id,
+            text=thanks_text,
+            reply_markup=thanks_keyboard,
+        )
+    except Exception as exc:
+        logger.warning("Failed to notify user %s: %s", user.id, exc)
+    await callback.answer()
 
 
 @event_registrations_router.callback_query(

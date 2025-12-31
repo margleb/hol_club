@@ -257,7 +257,7 @@ partner-event-going-missing = Не удалось найти событие дл
 partner-event-going-already = Вы уже зарегистрированы на это событие.
 partner-event-going-done = Вы зарегистрированы.
 partner-event-going-thanks =
-    Спасибо за регистрацию на мероприятие «{ $event_name }»!
+    Спасибо за регистрацию на «{ $event_name }»!
 
     Если у вас возникнут вопросы, обращайтесь к организатору: { $partner_username }.
 
@@ -267,6 +267,7 @@ partner-event-going-channel-button = Перейти в канал
 partner-event-going-notify-partner = Пользователь { $username } (id: { $user_id }) зарегистрировался на событие «{ $event_name }».
 partner-event-going-contact-user-button = Связаться с пользователем
 partner-event-going-contact-partner-button = Задать вопрос по мероприятию
+partner-event-register-button = Зарегистрироваться
 partner-event-going-paid-button = Я оплатил(а)
 partner-event-paid-missing = Не удалось найти событие для оплаты.
 partner-event-paid-not-registered = Вы не зарегистрированы на это событие.

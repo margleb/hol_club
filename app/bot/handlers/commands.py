@@ -14,8 +14,10 @@ from taskiq_redis import RedisScheduleSource
 from app.bot.enums.roles import UserRole
 from app.bot.filters.dialog_filters import DialogStateFilter, DialogStateGroupFilter
 from app.bot.states.settings import SettingsSG
+from app.bot.dialogs.events.utils import build_event_text
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
+from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.users import UsersModel
 from app.services.delay_service.publisher import delay_message_deletion
 from app.services.scheduler.tasks import (
@@ -24,10 +26,10 @@ from app.services.scheduler.tasks import (
     simple_task,
 )
 from app.bot.handlers.event_registrations import (
+    EVENT_REGISTER_CALLBACK,
     build_partner_registration_notification,
     build_thanks_message,
 )
-from config.config import settings
 from nats.js.client import JetStreamContext
 
 logger = logging.getLogger(__name__)
@@ -84,7 +86,7 @@ async def _maybe_register_outer_start(
     user_id: int,
     user_role: UserRole,
     message_text: str | None,
-) -> tuple[bool, int | None, int | None, str | None] | None:
+) -> tuple[bool, EventsModel] | None:
     if user_role != UserRole.USER:
         return None
     payload = _parse_outer_start_payload(_extract_start_payload(message_text))
@@ -102,7 +104,7 @@ async def _maybe_register_outer_start(
         adv_channel_username=channel_username,
         adv_placement_price=placement_price,
     )
-    return created, event.id, event.partner_user_id, event.name
+    return created, event
 
 
 async def _build_partner_label(bot: Bot, partner_user_id: int) -> str:
@@ -118,41 +120,33 @@ async def _build_partner_label(bot: Bot, partner_user_id: int) -> str:
     return partner_label
 
 
-def _get_events_channel() -> str | None:
-    channel = settings.get("events_channel")
-    if channel is None:
-        return None
-    channel = str(channel).strip()
-    return channel or None
+def _build_outer_start_keyboard(
+    *,
+    i18n: TranslatorRunner,
+    event_id: int,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.register.button(),
+                    callback_data=f"{EVENT_REGISTER_CALLBACK}:{event_id}",
+                )
+            ]
+        ]
+    )
 
 
-def _build_events_channel_url(channel: str) -> str | None:
-    channel = channel.strip()
-    if not channel:
-        return None
-    if channel.startswith(("http://", "https://", "tg://")):
-        return channel
-    if channel.startswith("@"):
-        channel = channel[1:]
-    if channel.lstrip("-").isdigit():
-        numeric = channel.lstrip("-")
-        if numeric.startswith("100") and len(numeric) > 3:
-            numeric = numeric[3:]
-        return f"https://t.me/c/{numeric}"
-    return f"https://t.me/{channel}"
-
-
-def _build_events_channel_label(channel: str, channel_url: str | None) -> str:
-    channel = channel.strip()
-    if not channel:
-        return channel
-    if channel.startswith("@"):
-        return channel
-    if channel.startswith(("http://", "https://", "tg://")):
-        return channel
-    if channel.lstrip("-").isdigit():
-        return channel_url or channel
-    return f"@{channel}"
+def _build_event_payload(event: EventsModel) -> dict:
+    return {
+        "name": event.name,
+        "datetime": event.event_datetime,
+        "address": event.address,
+        "description": event.description,
+        "is_paid": event.is_paid,
+        "price": event.price,
+        "age_group": event.age_group,
+    }
 
 
 @commands_router.message(CommandStart())
@@ -182,65 +176,82 @@ async def process_start_command(
         message_text=message.text,
     )
     if outer_result:
-        created, event_id, partner_user_id, event_name = outer_result
-        if (
-            created
-            and event_id is not None
-            and partner_user_id is not None
-            and event_name
-        ):
+        created, event = outer_result
+        if created:
             partner_text, partner_keyboard = build_partner_registration_notification(
                 i18n=i18n,
                 user=message.from_user,
-                event_name=event_name,
+                event_name=event.name,
             )
             try:
                 await bot.send_message(
-                    partner_user_id,
+                    event.partner_user_id,
                     text=partner_text,
                     reply_markup=partner_keyboard,
                 )
             except Exception as exc:
                 logger.warning(
-                    "Failed to notify partner %s: %s", partner_user_id, exc
+                    "Failed to notify partner %s: %s",
+                    event.partner_user_id,
+                    exc,
                 )
 
-            partner_label = await _build_partner_label(bot, partner_user_id)
-            thanks_text, keyboard = build_thanks_message(
+            outer_keyboard = _build_outer_start_keyboard(
                 i18n=i18n,
-                event_name=event_name,
-                partner_username=partner_label,
-                partner_user_id=partner_user_id,
-                event_id=event_id,
+                event_id=event.id,
             )
-            events_channel = _get_events_channel()
-            if events_channel:
-                channel_url = _build_events_channel_url(events_channel)
-                channel_label = _build_events_channel_label(
-                    events_channel,
-                    channel_url,
-                )
-                thanks_text = (
-                    f"{thanks_text}\n\n"
-                    f"{i18n.partner.event.going.subscribe(channel=channel_label)}"
-                )
-                if channel_url:
-                    keyboard = InlineKeyboardMarkup(
-                        inline_keyboard=[
-                            [
-                                InlineKeyboardButton(
-                                    text=i18n.partner.event.going.channel.button(),
-                                    url=channel_url,
-                                )
-                            ],
-                            *keyboard.inline_keyboard,
-                        ]
+            if event.channel_id and event.channel_message_id:
+                try:
+                    await bot.copy_message(
+                        chat_id=message.from_user.id,
+                        from_chat_id=event.channel_id,
+                        message_id=event.channel_message_id,
+                        reply_markup=outer_keyboard,
                     )
-            await bot.send_message(
-                message.from_user.id,
-                text=thanks_text,
-                reply_markup=keyboard,
-            )
+                    return
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to copy event announcement to user %s: %s",
+                        message.from_user.id,
+                        exc,
+                    )
+            event_text = build_event_text(_build_event_payload(event), i18n)
+            try:
+                if event.photo_file_id:
+                    await bot.send_photo(
+                        message.from_user.id,
+                        photo=event.photo_file_id,
+                        caption=event_text,
+                        reply_markup=outer_keyboard,
+                    )
+                else:
+                    await bot.send_message(
+                        message.from_user.id,
+                        text=event_text,
+                        reply_markup=outer_keyboard,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to send event announcement to user %s: %s",
+                    message.from_user.id,
+                    exc,
+                )
+                partner_label = await _build_partner_label(
+                    bot,
+                    event.partner_user_id,
+                )
+                thanks_text, keyboard = build_thanks_message(
+                    i18n=i18n,
+                    event_name=event.name,
+                    partner_username=partner_label,
+                    partner_user_id=event.partner_user_id,
+                    event_id=event.id,
+                )
+                await bot.send_message(
+                    message.from_user.id,
+                    text=thanks_text,
+                    reply_markup=keyboard,
+                )
             return
     await dialog_manager.start(state=StartSG.start, mode=StartMode.RESET_STACK)
 

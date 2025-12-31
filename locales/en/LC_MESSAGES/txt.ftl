@@ -270,6 +270,7 @@ partner-event-going-channel-button = Go to channel
 partner-event-going-notify-partner = User { $username } (id: { $user_id }) registered for “{ $event_name }”.
 partner-event-going-contact-user-button = Contact the user
 partner-event-going-contact-partner-button = Ask about the event
+partner-event-register-button = Register
 partner-event-going-paid-button = I have paid
 partner-event-paid-missing = Could not find the event for payment.
 partner-event-paid-not-registered = You are not registered for this event.
