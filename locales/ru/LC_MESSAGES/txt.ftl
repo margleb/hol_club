@@ -26,7 +26,7 @@ start-event-past-tag = [уже прошло]
 partner-events-title = Ваши события
 partner-events-list-button = Мои события
 partner-events-empty = У вас пока нет созданных мероприятий.
-partner-events-item = { $name } — { $datetime } ({ $paid }/{ $total })
+partner-events-item = { $name } — { $datetime } ({ $registered }/{ $paid })
 partner-events-page = Страница { $current } из { $total }
 partner-events-prev-button = ◀️
 partner-events-next-button = ▶️
@@ -283,7 +283,7 @@ partner-event-paid-receipt-failed = Не удалось сохранить че�
 
 partner-event-view-post-button = Смотреть пост
 partner-event-registrations-title = Регистрации: { $count }
-partner-event-registrations-button = Регистрации: { $paid }/{ $total }
+partner-event-registrations-button = Регистрации: { $registered }/{ $paid }
 partner-event-registrations-pending-button = Ожидают подтверждения оплаты: { $count }
 partner-event-registrations-pending-title = Ожидают подтверждения оплаты: { $count }
 partner-event-registrations-pending-empty = Нет ожидающих подтверждения оплаты.

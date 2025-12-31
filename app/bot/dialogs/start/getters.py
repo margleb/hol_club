@@ -171,12 +171,12 @@ async def get_partner_events(
 
     event_items = []
     for item in page_items:
-        paid_count, total_count = registration_counts.get(item.event_id, (0, 0))
+        registered_count, paid_count = registration_counts.get(item.event_id, (0, 0))
         label = i18n.partner.events.item(
             name=item.name,
             datetime=item.event_datetime,
+            registered=registered_count,
             paid=paid_count,
-            total=total_count,
         )
         event_items.append((label, str(item.event_id)))
 
@@ -346,8 +346,8 @@ async def get_partner_event_details(
             else None
         ),
         "registrations_button": i18n.partner.event.registrations.button(
+            registered=total_count,
             paid=paid_count,
-            total=total_count,
         ),
         "pending_payments_button": i18n.partner.event.registrations.pending.button(
             count=pending_count

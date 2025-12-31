@@ -243,8 +243,8 @@ class _EventRegistrationsDB:
         for row in result.all():
             mapping = row._mapping
             counts[int(mapping["event_id"])] = (
-                int(mapping["paid"] or 0),
                 int(mapping["total"] or 0),
+                int(mapping["paid"] or 0),
             )
         return counts
 
@@ -317,7 +317,7 @@ class _EventRegistrationsDB:
         event_id: int,
         user_id: int,
         receipt: str,
-    ) -> bool:
+    ) -> tuple[bool, bool]:
         current_stmt = (
             select(
                 EventRegistrationsModel.receipt,
@@ -329,8 +329,9 @@ class _EventRegistrationsDB:
         current_result = await self.session.execute(current_stmt)
         current_row = current_result.one_or_none()
         if current_row is None:
-            return False
+            return False, False
         current_mapping = current_row._mapping
+        had_receipt = bool(current_mapping[EventRegistrationsModel.receipt])
 
         stmt = (
             update(EventRegistrationsModel)
@@ -349,5 +350,5 @@ class _EventRegistrationsDB:
                 event_id,
                 user_id,
             )
-            return True
-        return False
+            return True, not had_receipt
+        return False, False

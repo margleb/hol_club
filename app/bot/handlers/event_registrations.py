@@ -475,6 +475,18 @@ async def process_event_paid(
         await callback.answer(i18n.partner.event.paid.already())
         return
 
+    source_info = await db.event_registrations.get_interest_source(
+        event_id=event_id,
+        user_id=user.id,
+    )
+    if source_info is not None:
+        await db.adv_stats.increment_paid(
+            event_id=event_id,
+            placement_date=source_info.placement_date,
+            channel_username=source_info.channel_username,
+            placement_price=source_info.placement_price,
+        )
+
     partner_text = i18n.partner.event.paid.notify.partner(
         username=_format_user_label(user),
         user_id=user.id,
@@ -563,7 +575,7 @@ async def process_paid_receipt(
         await message.answer(i18n.partner.event.paid.receipt.failed())
         return
 
-    updated = await db.event_registrations.set_receipt(
+    updated, is_new_receipt = await db.event_registrations.set_receipt(
         event_id=event_id,
         user_id=payer_user_id,
         receipt=target_path.name,
@@ -574,6 +586,18 @@ async def process_paid_receipt(
             event_id,
             payer_user_id,
         )
+    if updated and is_new_receipt:
+        source_info = await db.event_registrations.get_interest_source(
+            event_id=event_id,
+            user_id=payer_user_id,
+        )
+        if source_info is not None:
+            await db.adv_stats.increment_confirmed(
+                event_id=event_id,
+                placement_date=source_info.placement_date,
+                channel_username=source_info.channel_username,
+                placement_price=source_info.placement_price,
+            )
 
     if _cache_pool and cache_key:
         await _cache_pool.delete(cache_key)

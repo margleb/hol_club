@@ -26,7 +26,7 @@ start-event-past-tag = [already passed]
 partner-events-title = Your events
 partner-events-list-button = Мy events
 partner-events-empty = You have no created events yet.
-partner-events-item = { $name } — { $datetime } ({ $paid }/{ $total })
+partner-events-item = { $name } — { $datetime } ({ $registered }/{ $paid })
 partner-events-page = Page { $current } of { $total }
 partner-events-prev-button = ◀️
 partner-events-next-button = ▶️
@@ -286,7 +286,7 @@ partner-event-paid-receipt-failed = Could not save the receipt. Please try again
 
 partner-event-view-post-button = View post
 partner-event-registrations-title = Registrations: { $count }
-partner-event-registrations-button = Registrations: { $paid }/{ $total }
+partner-event-registrations-button = Registrations: { $registered }/{ $paid }
 partner-event-registrations-pending-button = Awaiting payment confirmation: { $count }
 partner-event-registrations-pending-title = Awaiting payment confirmation: { $count }
 partner-event-registrations-pending-empty = No pending payment confirmations.
