@@ -25,11 +25,7 @@ from app.services.scheduler.tasks import (
     scheduled_task,
     simple_task,
 )
-from app.bot.handlers.event_registrations import (
-    EVENT_REGISTER_CALLBACK,
-    build_partner_registration_notification,
-    build_thanks_message,
-)
+from app.bot.handlers.event_registrations import EVENT_REGISTER_CALLBACK
 from nats.js.client import JetStreamContext
 
 logger = logging.getLogger(__name__)
@@ -100,24 +96,23 @@ async def _maybe_register_outer_start(
         event_id=event_id,
         user_id=user_id,
         source="outer",
-        adv_placement_date=placement_date,
-        adv_channel_username=channel_username,
-        adv_placement_price=placement_price,
+        is_registered=False,
     )
+    if created:
+        await db.event_registrations.store_interest_source(
+            event_id=event_id,
+            user_id=user_id,
+            placement_date=placement_date,
+            channel_username=channel_username,
+            placement_price=placement_price,
+        )
+        await db.adv_stats.increment_interesting(
+            event_id=event_id,
+            placement_date=placement_date,
+            channel_username=channel_username,
+            placement_price=placement_price,
+        )
     return created, event
-
-
-async def _build_partner_label(bot: Bot, partner_user_id: int) -> str:
-    partner_label = f"id:{partner_user_id}"
-    try:
-        partner_chat = await bot.get_chat(partner_user_id)
-        if partner_chat.username:
-            partner_label = f"@{partner_chat.username}"
-        else:
-            partner_label = partner_chat.full_name
-    except Exception:
-        return partner_label
-    return partner_label
 
 
 def _build_outer_start_keyboard(
@@ -178,24 +173,6 @@ async def process_start_command(
     if outer_result:
         created, event = outer_result
         if created:
-            partner_text, partner_keyboard = build_partner_registration_notification(
-                i18n=i18n,
-                user=message.from_user,
-                event_name=event.name,
-            )
-            try:
-                await bot.send_message(
-                    event.partner_user_id,
-                    text=partner_text,
-                    reply_markup=partner_keyboard,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Failed to notify partner %s: %s",
-                    event.partner_user_id,
-                    exc,
-                )
-
             outer_keyboard = _build_outer_start_keyboard(
                 i18n=i18n,
                 event_id=event.id,
@@ -235,22 +212,6 @@ async def process_start_command(
                     "Failed to send event announcement to user %s: %s",
                     message.from_user.id,
                     exc,
-                )
-                partner_label = await _build_partner_label(
-                    bot,
-                    event.partner_user_id,
-                )
-                thanks_text, keyboard = build_thanks_message(
-                    i18n=i18n,
-                    event_name=event.name,
-                    partner_username=partner_label,
-                    partner_user_id=event.partner_user_id,
-                    event_id=event.id,
-                )
-                await bot.send_message(
-                    message.from_user.id,
-                    text=thanks_text,
-                    reply_markup=keyboard,
                 )
             return
     await dialog_manager.start(state=StartSG.start, mode=StartMode.RESET_STACK)

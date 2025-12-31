@@ -23,7 +23,13 @@ class AdvStatsModel(BaseModel):
     placement_date: Mapped[str] = mapped_column(String(32), nullable=False)
     channel_username: Mapped[str] = mapped_column(String(64), nullable=False)
     placement_price: Mapped[str] = mapped_column(String(32), nullable=False)
-    registrations_count: Mapped[int] = mapped_column(
+    interesting_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    register_count: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,

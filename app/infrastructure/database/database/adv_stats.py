@@ -15,7 +15,7 @@ class _AdvStatsDB:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def increment_registration(
+    async def increment_interesting(
         self,
         *,
         event_id: int,
@@ -30,7 +30,8 @@ class _AdvStatsDB:
                 placement_date=placement_date,
                 channel_username=channel_username,
                 placement_price=placement_price,
-                registrations_count=1,
+                interesting_count=1,
+                register_count=0,
                 paid_count=0,
                 confirmed_count=0,
             )
@@ -42,7 +43,7 @@ class _AdvStatsDB:
                     "placement_price",
                 ],
                 set_={
-                    "registrations_count": AdvStatsModel.registrations_count + 1,
+                    "interesting_count": AdvStatsModel.interesting_count + 1,
                 },
             )
             .returning(AdvStatsModel.id)
@@ -51,7 +52,50 @@ class _AdvStatsDB:
         stat_id = result.scalar_one_or_none()
         if stat_id is not None:
             logger.info(
-                "Adv stats registration updated. db='%s', id=%d, event_id=%d",
+                "Adv stats interesting updated. db='%s', id=%d, event_id=%d",
+                self.__tablename__,
+                stat_id,
+                event_id,
+            )
+
+    async def increment_registered(
+        self,
+        *,
+        event_id: int,
+        placement_date: str,
+        channel_username: str,
+        placement_price: str,
+    ) -> None:
+        stmt = (
+            insert(AdvStatsModel)
+            .values(
+                event_id=event_id,
+                placement_date=placement_date,
+                channel_username=channel_username,
+                placement_price=placement_price,
+                interesting_count=0,
+                register_count=1,
+                paid_count=0,
+                confirmed_count=0,
+            )
+            .on_conflict_do_update(
+                index_elements=[
+                    "event_id",
+                    "placement_date",
+                    "channel_username",
+                    "placement_price",
+                ],
+                set_={
+                    "register_count": AdvStatsModel.register_count + 1,
+                },
+            )
+            .returning(AdvStatsModel.id)
+        )
+        result = await self.session.execute(stmt)
+        stat_id = result.scalar_one_or_none()
+        if stat_id is not None:
+            logger.info(
+                "Adv stats registered updated. db='%s', id=%d, event_id=%d",
                 self.__tablename__,
                 stat_id,
                 event_id,

@@ -263,24 +263,48 @@ async def process_event_going(
         event_id=event.id,
         user_id=user.id,
         source=source,
+        is_registered=True,
     )
+    registered_now = created
     if not created:
-        await callback.answer(i18n.partner.event.going.already())
-        return
-
-    partner_text, partner_keyboard = build_partner_registration_notification(
-        i18n=i18n,
-        user=user,
-        event_name=event.name,
-    )
-    try:
-        await bot.send_message(
-            event.partner_user_id,
-            text=partner_text,
-            reply_markup=partner_keyboard,
+        registered_now = await db.event_registrations.mark_registered(
+            event_id=event.id,
+            user_id=user.id,
         )
-    except Exception as exc:
-        logger.warning("Failed to notify partner %s: %s", event.partner_user_id, exc)
+        if not registered_now:
+            await callback.answer(i18n.partner.event.going.already())
+            return
+    if registered_now:
+        source_info = await db.event_registrations.get_interest_source(
+            event_id=event.id,
+            user_id=user.id,
+        )
+        if source_info is not None:
+            await db.adv_stats.increment_registered(
+                event_id=event.id,
+                placement_date=source_info.placement_date,
+                channel_username=source_info.channel_username,
+                placement_price=source_info.placement_price,
+            )
+
+    if registered_now:
+        partner_text, partner_keyboard = build_partner_registration_notification(
+            i18n=i18n,
+            user=user,
+            event_name=event.name,
+        )
+        try:
+            await bot.send_message(
+                event.partner_user_id,
+                text=partner_text,
+                reply_markup=partner_keyboard,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to notify partner %s: %s",
+                event.partner_user_id,
+                exc,
+            )
 
     partner_label = f"id:{event.partner_user_id}"
     try:
@@ -339,6 +363,51 @@ async def process_event_register(
         await callback.answer(i18n.partner.event.going.missing())
         return
 
+    registered = await db.event_registrations.mark_registered(
+        event_id=event.id,
+        user_id=user.id,
+    )
+    if not registered:
+        existing = await db.event_registrations.get_registration(
+            event_id=event.id,
+            user_id=user.id,
+        )
+        if existing is not None:
+            await callback.answer(i18n.partner.event.going.already())
+            return
+        await callback.answer(i18n.partner.event.going.missing())
+        return
+
+    source_info = await db.event_registrations.get_interest_source(
+        event_id=event.id,
+        user_id=user.id,
+    )
+    if source_info is not None:
+        await db.adv_stats.increment_registered(
+            event_id=event.id,
+            placement_date=source_info.placement_date,
+            channel_username=source_info.channel_username,
+            placement_price=source_info.placement_price,
+        )
+
+    partner_text, partner_keyboard = build_partner_registration_notification(
+        i18n=i18n,
+        user=user,
+        event_name=event.name,
+    )
+    try:
+        await bot.send_message(
+            event.partner_user_id,
+            text=partner_text,
+            reply_markup=partner_keyboard,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to notify partner %s: %s",
+            event.partner_user_id,
+            exc,
+        )
+
     partner_label = await _build_partner_label(bot, event.partner_user_id)
     thanks_text, thanks_keyboard = build_thanks_message(
         i18n=i18n,
@@ -355,7 +424,7 @@ async def process_event_register(
         )
     except Exception as exc:
         logger.warning("Failed to notify user %s: %s", user.id, exc)
-    await callback.answer()
+    await callback.answer(i18n.partner.event.going.done())
 
 
 @event_registrations_router.callback_query(
