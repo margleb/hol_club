@@ -6,14 +6,14 @@ from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
 from app.bot.enums.roles import UserRole
-from app.bot.handlers.event_registrations import (
+from app.bot.services.event_registrations import (
     PAID_RECEIPT_TTL_SECONDS,
     _build_contact_keyboard,
     _build_paid_receipt_key,
     _build_paid_receipt_payload,
     _format_user_label,
 )
-from app.bot.handlers.partner_requests import send_partner_requests_list
+from app.bot.services.partner_requests import send_partner_requests_list
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 
