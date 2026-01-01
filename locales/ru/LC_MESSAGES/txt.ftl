@@ -251,7 +251,7 @@ partner-event-edit-age-button = Редактировать возраст
 
 partner-event-edit-notify-button = Редактировать уведомления
 
-partner-event-going-button = Я пойду
+partner-event-going-button = Зарегистрироваться
 partner-event-going-forbidden = Записаться могут только пользователи со статусом user.
 partner-event-going-missing = Не удалось найти событие для регистрации.
 partner-event-going-already = Вы уже зарегистрированы на это событие.

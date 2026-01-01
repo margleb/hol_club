@@ -254,7 +254,7 @@ partner-event-edit-age-button = Edit age group
 
 partner-event-edit-notify-button = Edit notifications
 
-partner-event-going-button = I'm in
+partner-event-going-button = Register
 partner-event-going-forbidden = Only users with the user status can register.
 partner-event-going-missing = Could not find the event for registration.
 partner-event-going-already = You are already registered for this event.
