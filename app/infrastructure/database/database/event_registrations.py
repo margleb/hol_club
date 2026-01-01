@@ -9,9 +9,6 @@ from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.event_registrations import (
     EventInterestingModel,
 )
-from app.infrastructure.database.models.event_interesting_sources import (
-    EventInterestingSourcesModel,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -89,16 +86,16 @@ class _EventInterestingDB:
         placement_price: str,
     ) -> bool:
         stmt = (
-            insert(EventInterestingSourcesModel)
+            update(EventInterestingModel)
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.user_id == user_id)
             .values(
-                event_id=event_id,
-                user_id=user_id,
-                placement_date=placement_date,
-                channel_username=channel_username,
-                placement_price=placement_price,
+                adv_placement_date=placement_date,
+                adv_channel_username=channel_username,
+                adv_placement_price=placement_price,
+                adv_created=func.now(),
             )
-            .on_conflict_do_nothing(index_elements=["event_id", "user_id"])
-            .returning(EventInterestingSourcesModel.id)
+            .returning(EventInterestingModel.id)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none() is not None
@@ -111,22 +108,27 @@ class _EventInterestingDB:
     ) -> EventInterestingSource | None:
         stmt = (
             select(
-                EventInterestingSourcesModel.placement_date,
-                EventInterestingSourcesModel.channel_username,
-                EventInterestingSourcesModel.placement_price,
+                EventInterestingModel.adv_placement_date,
+                EventInterestingModel.adv_channel_username,
+                EventInterestingModel.adv_placement_price,
             )
-            .where(EventInterestingSourcesModel.event_id == event_id)
-            .where(EventInterestingSourcesModel.user_id == user_id)
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.user_id == user_id)
         )
         result = await self.session.execute(stmt)
         row = result.one_or_none()
         if row is None:
             return None
         mapping = row._mapping
+        placement_date = mapping[EventInterestingModel.adv_placement_date]
+        channel_username = mapping[EventInterestingModel.adv_channel_username]
+        placement_price = mapping[EventInterestingModel.adv_placement_price]
+        if not placement_date or not channel_username or not placement_price:
+            return None
         return EventInterestingSource(
-            placement_date=mapping[EventInterestingSourcesModel.placement_date],
-            channel_username=mapping[EventInterestingSourcesModel.channel_username],
-            placement_price=mapping[EventInterestingSourcesModel.placement_price],
+            placement_date=placement_date,
+            channel_username=channel_username,
+            placement_price=placement_price,
         )
 
     async def get_registration(
