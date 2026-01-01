@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.event_registrations import (
-    EventRegistrationsModel,
+    EventInterestingModel,
 )
 from app.infrastructure.database.models.event_interesting_sources import (
     EventInterestingSourcesModel,
@@ -40,13 +40,13 @@ class EventInterestingSource:
     placement_price: str
 
 
-class _EventRegistrationsDB:
+class _EventInterestingDB:
     __tablename__ = "event_interesting"
 
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_registration(
+    async def create_interesting(
         self,
         *,
         event_id: int,
@@ -55,7 +55,7 @@ class _EventRegistrationsDB:
         is_registered: bool = True,
     ) -> bool:
         stmt = (
-            insert(EventRegistrationsModel)
+            insert(EventInterestingModel)
             .values(
                 event_id=event_id,
                 user_id=user_id,
@@ -64,13 +64,13 @@ class _EventRegistrationsDB:
                 is_paid=False,
             )
             .on_conflict_do_nothing(index_elements=["event_id", "user_id"])
-            .returning(EventRegistrationsModel.id)
+            .returning(EventInterestingModel.id)
         )
         result = await self.session.execute(stmt)
         registration_id = result.scalar_one_or_none()
         if registration_id is not None:
             logger.info(
-                "Event registration created. db='%s', id=%d, event_id=%d, user_id=%d",
+                "Event interesting created. db='%s', id=%d, event_id=%d, user_id=%d",
                 self.__tablename__,
                 registration_id,
                 event_id,
@@ -134,12 +134,12 @@ class _EventRegistrationsDB:
         *,
         event_id: int,
         user_id: int,
-    ) -> EventRegistrationsModel | None:
+    ) -> EventInterestingModel | None:
         stmt = (
-            select(EventRegistrationsModel)
-            .where(EventRegistrationsModel.event_id == event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
-            .where(EventRegistrationsModel.is_registered.is_(True))
+            select(EventInterestingModel)
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.user_id == user_id)
+            .where(EventInterestingModel.is_registered.is_(True))
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -156,11 +156,11 @@ class _EventRegistrationsDB:
                 EventsModel.event_datetime,
                 EventsModel.channel_id,
                 EventsModel.channel_message_id,
-                EventRegistrationsModel.is_paid,
+                EventInterestingModel.is_paid,
             )
-            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
-            .where(EventRegistrationsModel.is_registered.is_(True))
+            .join(EventsModel, EventsModel.id == EventInterestingModel.event_id)
+            .where(EventInterestingModel.user_id == user_id)
+            .where(EventInterestingModel.is_registered.is_(True))
             .order_by(EventsModel.event_datetime.asc())
         )
         result = await self.session.execute(stmt)
@@ -172,7 +172,7 @@ class _EventRegistrationsDB:
                     event_id=mapping[EventsModel.id],
                     name=mapping[EventsModel.name],
                     event_datetime=mapping[EventsModel.event_datetime],
-                    is_paid=mapping[EventRegistrationsModel.is_paid],
+                    is_paid=mapping[EventInterestingModel.is_paid],
                     channel_id=mapping[EventsModel.channel_id],
                     channel_message_id=mapping[EventsModel.channel_message_id],
                 )
@@ -186,13 +186,13 @@ class _EventRegistrationsDB:
     ) -> list[EventRegistrationListItem]:
         stmt = (
             select(
-                EventRegistrationsModel.user_id,
-                EventRegistrationsModel.is_paid,
-                EventRegistrationsModel.receipt,
+                EventInterestingModel.user_id,
+                EventInterestingModel.is_paid,
+                EventInterestingModel.receipt,
             )
-            .where(EventRegistrationsModel.event_id == event_id)
-            .where(EventRegistrationsModel.is_registered.is_(True))
-            .order_by(EventRegistrationsModel.created.asc())
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.is_registered.is_(True))
+            .order_by(EventInterestingModel.created.asc())
         )
         result = await self.session.execute(stmt)
         items = []
@@ -200,9 +200,9 @@ class _EventRegistrationsDB:
             mapping = row._mapping
             items.append(
                 EventRegistrationListItem(
-                    user_id=mapping[EventRegistrationsModel.user_id],
-                    is_paid=mapping[EventRegistrationsModel.is_paid],
-                    receipt=mapping[EventRegistrationsModel.receipt],
+                    user_id=mapping[EventInterestingModel.user_id],
+                    is_paid=mapping[EventInterestingModel.is_paid],
+                    receipt=mapping[EventInterestingModel.receipt],
                 )
             )
         return items
@@ -215,15 +215,15 @@ class _EventRegistrationsDB:
         stmt = (
             select(
                 EventsModel.id.label("event_id"),
-                func.count(EventRegistrationsModel.id).label("total"),
+                func.count(EventInterestingModel.id).label("total"),
                 func.coalesce(
                     func.sum(
                         case(
                             (
                                 (
-                                    EventRegistrationsModel.is_paid.is_(True)
-                                    & EventRegistrationsModel.receipt.is_not(None)
-                                    & (EventRegistrationsModel.receipt != "")
+                                    EventInterestingModel.is_paid.is_(True)
+                                    & EventInterestingModel.receipt.is_not(None)
+                                    & (EventInterestingModel.receipt != "")
                                 ),
                                 1,
                             ),
@@ -233,9 +233,9 @@ class _EventRegistrationsDB:
                     0,
                 ).label("paid"),
             )
-            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .join(EventsModel, EventsModel.id == EventInterestingModel.event_id)
             .where(EventsModel.partner_user_id == partner_user_id)
-            .where(EventRegistrationsModel.is_registered.is_(True))
+            .where(EventInterestingModel.is_registered.is_(True))
             .group_by(EventsModel.id)
         )
         result = await self.session.execute(stmt)
@@ -255,21 +255,21 @@ class _EventRegistrationsDB:
         user_id: int,
     ) -> bool:
         stmt = (
-            update(EventRegistrationsModel)
-            .where(EventRegistrationsModel.event_id == event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
-            .where(EventRegistrationsModel.is_registered.is_(True))
-            .where(EventRegistrationsModel.is_paid.is_(False))
+            update(EventInterestingModel)
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.user_id == user_id)
+            .where(EventInterestingModel.is_registered.is_(True))
+            .where(EventInterestingModel.is_paid.is_(False))
             .values(is_paid=True)
             .returning(
-                EventRegistrationsModel.id,
+                EventInterestingModel.id,
             )
         )
         result = await self.session.execute(stmt)
         row = result.one_or_none()
         if row is not None:
             mapping = row._mapping
-            registration_id = mapping[EventRegistrationsModel.id]
+            registration_id = mapping[EventInterestingModel.id]
             logger.info(
                 "Event registration marked paid. db='%s', id=%d, event_id=%d, user_id=%d",
                 self.__tablename__,
@@ -287,20 +287,20 @@ class _EventRegistrationsDB:
         user_id: int,
     ) -> bool:
         stmt = (
-            update(EventRegistrationsModel)
-            .where(EventRegistrationsModel.event_id == event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
-            .where(EventRegistrationsModel.is_registered.is_(False))
+            update(EventInterestingModel)
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.user_id == user_id)
+            .where(EventInterestingModel.is_registered.is_(False))
             .values(is_registered=True)
             .returning(
-                EventRegistrationsModel.id,
+                EventInterestingModel.id,
             )
         )
         result = await self.session.execute(stmt)
         row = result.one_or_none()
         if row is not None:
             mapping = row._mapping
-            registration_id = mapping[EventRegistrationsModel.id]
+            registration_id = mapping[EventInterestingModel.id]
             logger.info(
                 "Event marked registered. db='%s', id=%d, event_id=%d, user_id=%d",
                 self.__tablename__,
@@ -320,25 +320,25 @@ class _EventRegistrationsDB:
     ) -> tuple[bool, bool]:
         current_stmt = (
             select(
-                EventRegistrationsModel.receipt,
+                EventInterestingModel.receipt,
             )
-            .where(EventRegistrationsModel.event_id == event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
-            .where(EventRegistrationsModel.is_registered.is_(True))
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.user_id == user_id)
+            .where(EventInterestingModel.is_registered.is_(True))
         )
         current_result = await self.session.execute(current_stmt)
         current_row = current_result.one_or_none()
         if current_row is None:
             return False, False
         current_mapping = current_row._mapping
-        had_receipt = bool(current_mapping[EventRegistrationsModel.receipt])
+        had_receipt = bool(current_mapping[EventInterestingModel.receipt])
 
         stmt = (
-            update(EventRegistrationsModel)
-            .where(EventRegistrationsModel.event_id == event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
+            update(EventInterestingModel)
+            .where(EventInterestingModel.event_id == event_id)
+            .where(EventInterestingModel.user_id == user_id)
             .values(receipt=receipt)
-            .returning(EventRegistrationsModel.id)
+            .returning(EventInterestingModel.id)
         )
         result = await self.session.execute(stmt)
         registration_id = result.scalar_one_or_none()

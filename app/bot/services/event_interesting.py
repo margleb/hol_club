@@ -195,7 +195,7 @@ async def maybe_interesting_outer_start(
         return None
 
     # Создаем запись о заинтересованности пользователя
-    created = await db.event_registrations.create_registration(
+    created = await db.event_registrations.create_interesting(
         event_id=event_id,
         user_id=user_id,
         source="outer",  # Источник - внешняя ссылка

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.infrastructure.database.models.base import BaseModel
 
 
-class EventRegistrationsModel(BaseModel):
+class EventInterestingModel(BaseModel):
     __tablename__ = "event_interesting"
     __table_args__ = (
         UniqueConstraint("event_id", "user_id", name="uq_event_interesting"),

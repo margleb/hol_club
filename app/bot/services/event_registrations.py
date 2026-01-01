@@ -448,7 +448,7 @@ async def handle_event_going(
             source = "channel"
 
     # Создаем или обновляем регистрацию
-    created = await db.event_registrations.create_registration(
+    created = await db.event_registrations.create_interesting(
         event_id=event.id,
         user_id=user.id,
         source=source,
