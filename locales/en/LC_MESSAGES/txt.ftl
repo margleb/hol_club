@@ -269,6 +269,17 @@ partner-event-going-subscribe = Subscribe to { $channel } to stay up to date.
 partner-event-going-channel-button = Go to channel
 partner-event-going-notify-partner = User { $username } (id: { $user_id }) registered for “{ $event_name }”.
 partner-event-going-contact-user-button = Contact the user
+partner-event-going-message-user-button = Send message
+partner-event-going-message-reply-button = Reply
+partner-event-going-message-prompt =
+    Write a message for { $user_label } (id: { $user_id }) about the event “{ $event_name }”.
+    Reply to this message with text.
+partner-event-going-message-sent = Message sent to the user.
+partner-event-going-message-failed = Failed to send the message. Please try again.
+partner-event-going-message-forbidden = You don't have permission to send messages.
+partner-event-going-message-missing = Could not find the registration to message.
+partner-event-going-message-user-text =
+    Message from the organizer of “{ $event_name }” ({ $partner_username }):
 partner-event-going-contact-partner-button = Ask about the event
 partner-event-register-button = Register
 partner-event-going-paid-button = I have paid

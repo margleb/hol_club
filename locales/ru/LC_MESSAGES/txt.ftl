@@ -266,6 +266,17 @@ partner-event-going-subscribe = Подпишитесь на канал { $channe
 partner-event-going-channel-button = Перейти в канал
 partner-event-going-notify-partner = Пользователь { $username } (id: { $user_id }) зарегистрировался на событие «{ $event_name }».
 partner-event-going-contact-user-button = Связаться с пользователем
+partner-event-going-message-user-button = Отправить сообщение
+partner-event-going-message-reply-button = Ответить
+partner-event-going-message-prompt =
+    Напишите сообщение для пользователя { $user_label } (id: { $user_id }) по событию «{ $event_name }».
+    Ответьте на это сообщение текстом.
+partner-event-going-message-sent = Сообщение отправлено пользователю.
+partner-event-going-message-failed = Не удалось отправить сообщение. Попробуйте еще раз.
+partner-event-going-message-forbidden = Недостаточно прав для отправки сообщения.
+partner-event-going-message-missing = Не удалось найти регистрацию для отправки сообщения.
+partner-event-going-message-user-text =
+    Сообщение от организатора «{ $event_name }» ({ $partner_username }):
 partner-event-going-contact-partner-button = Задать вопрос по мероприятию
 partner-event-register-button = Зарегистрироваться
 partner-event-going-paid-button = Я оплатил(а)
