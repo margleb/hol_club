@@ -75,7 +75,7 @@ def upgrade() -> None:
             "role",
             sa.Enum(
                 "admin",
-                "owner",
+                "partner",
                 "user",
                 name="userrole",
                 native_enum=False,
@@ -311,7 +311,7 @@ def downgrade() -> None:
             "role",
             sa.Enum(
                 "admin",
-                "owner",
+                "partner",
                 "user",
                 name="userrole",
                 native_enum=False,

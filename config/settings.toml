@@ -10,7 +10,7 @@
     event_name_min = 10
     event_name_max = 60
     event_desc_min = 50
-    event_desc_max = 450
+    event_desc_max = 600
     price_max = 50000
     notify_users_enabled = false
 
