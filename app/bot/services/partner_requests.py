@@ -205,11 +205,17 @@ async def _ensure_user_record(db: DB, user: User) -> UsersModel:
     """
     user_record = await db.users.get_user_record(user_id=user.id)
     if user_record is not None:
+        if user_record.username != user.username:
+            await db.users.update_username(
+                user_id=user.id,
+                username=user.username,
+            )
         return user_record
 
     # Создаем нового пользователя
     await db.users.add(
         user_id=user.id,
+        username=user.username,
         language=user.language_code,  # Язык пользователя из Telegram
         role=UserRole.USER,  # Роль по умолчанию
     )

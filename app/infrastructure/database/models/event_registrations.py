@@ -15,6 +15,7 @@ class EventInterestingModel(BaseModel):
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[int] = mapped_column(nullable=False)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    username: Mapped[str | None] = mapped_column(String(64))
     source: Mapped[str] = mapped_column(String(16), nullable=False)
     adv_placement_date: Mapped[str | None] = mapped_column(
         String(32),

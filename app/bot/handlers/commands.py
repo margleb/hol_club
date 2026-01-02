@@ -51,17 +51,24 @@ async def process_start_command(
     if user_record is None:
         await db.users.add(
             user_id=message.from_user.id,
+            username=message.from_user.username,
             language=message.from_user.language_code,
             role=UserRole.USER
         )
         user_role = UserRole.USER
     else:
+        if user_record.username != message.from_user.username:
+            await db.users.update_username(
+                user_id=message.from_user.id,
+                username=message.from_user.username,
+            )
         user_role = user_record.role
 
     # 2. Попытка обработки рекламной ссылки
     outer_result = await maybe_interesting_outer_start(
         db=db,
         user_id=message.from_user.id,
+        username=message.from_user.username,
         user_role=user_role,
         message_text=message.text,
     )

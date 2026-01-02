@@ -153,6 +153,7 @@ async def maybe_interesting_outer_start(
         *,
         db: DB,
         user_id: int,
+        username: str | None,
         user_role: UserRole,
         message_text: str | None,
 ) -> tuple[bool, EventsModel] | None:
@@ -169,6 +170,7 @@ async def maybe_interesting_outer_start(
     Args:
         db: Объект базы данных
         user_id: ID пользователя
+        username: Username пользователя
         user_role: Роль пользователя в системе
         message_text: Текст сообщения с командой /start
 
@@ -198,6 +200,7 @@ async def maybe_interesting_outer_start(
     created = await db.event_registrations.create_interesting(
         event_id=event_id,
         user_id=user_id,
+        username=username,
         source="outer",  # Источник - внешняя ссылка
         is_registered=False,  # Пока только заинтересованность, не регистрация
     )

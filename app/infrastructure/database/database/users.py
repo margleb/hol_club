@@ -21,6 +21,7 @@ class _UsersDB:
             self,
             *,
             user_id: int,
+            username: str | None,
             language: str,
             role: UserRole,
             is_alive: bool = True,
@@ -30,6 +31,7 @@ class _UsersDB:
             insert(UsersModel)
             .values(
                 user_id=user_id,
+                username=username,
                 language=language,
                 role=role,
                 is_alive=is_alive,
@@ -40,9 +42,15 @@ class _UsersDB:
         await self.session.execute(stmt)
         logger.info(
             "User added. db='%s', user_id=%d, date_time='%s', "
-            "language='%s', role=%s, is_alive=%s, is_blocked=%s",
-            self.__tablename__, user_id, datetime.now(timezone.utc), language,
-            role.value, is_alive, is_blocked
+            "username='%s', language='%s', role=%s, is_alive=%s, is_blocked=%s",
+            self.__tablename__,
+            user_id,
+            datetime.now(timezone.utc),
+            username,
+            language,
+            role.value,
+            is_alive,
+            is_blocked,
         )
 
     async def delete(self, *, user_id: int) -> None:
@@ -80,6 +88,25 @@ class _UsersDB:
         logger.info(
             "User updated. db='%s', user_id=%d, language=%s",
             self.__tablename__, user_id, user_lang
+        )
+
+    async def update_username(
+        self,
+        *,
+        user_id: int,
+        username: str | None,
+    ) -> None:
+        stmt = (
+            update(UsersModel)
+            .where(UsersModel.user_id == user_id)
+            .values(username=username)
+        )
+        await self.session.execute(stmt)
+        logger.info(
+            "User updated. db='%s', user_id=%d, username='%s'",
+            self.__tablename__,
+            user_id,
+            username,
         )
 
     async def update_role(self, *, user_id: int, role: UserRole) -> None:

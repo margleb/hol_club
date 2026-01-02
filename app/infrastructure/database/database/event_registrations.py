@@ -48,6 +48,7 @@ class _EventInterestingDB:
         *,
         event_id: int,
         user_id: int,
+        username: str | None,
         source: str,
         is_registered: bool = True,
     ) -> bool:
@@ -56,6 +57,7 @@ class _EventInterestingDB:
             .values(
                 event_id=event_id,
                 user_id=user_id,
+                username=username,
                 source=source,
                 is_registered=is_registered,
                 is_paid=False,
