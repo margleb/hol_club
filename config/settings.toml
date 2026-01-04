@@ -13,6 +13,7 @@
     event_desc_max = 450
     price_max = 50000
     notify_users_enabled = false
+    auto_message_delay_seconds = 60
 
 [default.nominatim]
     url = "https://nominatim.openstreetmap.org/search"

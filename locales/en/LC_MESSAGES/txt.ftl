@@ -280,6 +280,7 @@ partner-event-going-message-forbidden = You don't have permission to send messag
 partner-event-going-message-missing = Could not find the registration to message.
 partner-event-going-message-user-text =
     Message from the organizer of “{ $event_name }” ({ $partner_username }):
+partner-event-going-message-auto-text = If you have any questions, just reply to this message.
 partner-event-going-contact-partner-button = Ask about the event
 partner-event-register-button = Register
 partner-event-going-paid-button = I have paid

@@ -277,6 +277,7 @@ partner-event-going-message-forbidden = Недостаточно прав для
 partner-event-going-message-missing = Не удалось найти регистрацию для отправки сообщения.
 partner-event-going-message-user-text =
     Сообщение от организатора «{ $event_name }» ({ $partner_username }):
+partner-event-going-message-auto-text = Если у вас есть вопросы, просто ответьте на это сообщение.
 partner-event-going-contact-partner-button = Задать вопрос по мероприятию
 partner-event-register-button = Зарегистрироваться
 partner-event-going-paid-button = Я оплатил(а)

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.users import UsersModel
+from config.config import settings
 
 # Настройка логгера для текущего модуля
 logger = logging.getLogger(__name__)
@@ -839,6 +841,15 @@ async def _handle_post_registration_actions(
         bot, i18n, user, event
     )
 
+    # Автоматическое сообщение от организатора (с задержкой)
+    _schedule_auto_partner_message(
+        bot=bot,
+        i18n=i18n,
+        user_id=user.id,
+        event_name=event.name,
+        partner_user_id=event.partner_user_id,
+    )
+
     # Подтверждение пользователю
     await callback.answer(i18n.partner.event.going.done())
 
@@ -931,6 +942,78 @@ async def _send_thanks_to_user(
         )
     except Exception as exc:
         logger.warning("Failed to notify user %s: %s", user.id, exc)
+
+
+def _schedule_auto_partner_message(
+        *,
+        bot: Bot,
+        i18n: TranslatorRunner,
+        user_id: int,
+        event_name: str,
+        partner_user_id: int,
+) -> None:
+    """
+    Планирует авто-сообщение пользователю от организатора после регистрации.
+
+    Использует настройку events.auto_message_delay_seconds (по умолчанию 60).
+    """
+    delay_seconds = int(
+        getattr(settings.events, "auto_message_delay_seconds", 60) or 0
+    )
+    if delay_seconds < 0:
+        delay_seconds = 0
+
+    async def _runner() -> None:
+        try:
+            if delay_seconds:
+                await asyncio.sleep(delay_seconds)
+            await _send_auto_partner_message(
+                bot=bot,
+                i18n=i18n,
+                user_id=user_id,
+                event_name=event_name,
+                partner_user_id=partner_user_id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to send auto organizer message to user %s: %s",
+                user_id,
+                exc,
+            )
+
+    asyncio.create_task(_runner())
+
+
+async def _send_auto_partner_message(
+        *,
+        bot: Bot,
+        i18n: TranslatorRunner,
+        user_id: int,
+        event_name: str,
+        partner_user_id: int,
+) -> None:
+    """
+    Отправляет авто-сообщение пользователю от организатора с кнопкой "Ответить".
+    """
+    partner_label = await _build_partner_label(bot, partner_user_id)
+    header_text = i18n.partner.event.going.message.user.text(
+        event_name=event_name,
+        partner_username=partner_label,
+    )
+    auto_text = i18n.partner.event.going.message.auto.text()
+    combined_text = (
+        f"{header_text}\n\n{auto_text}" if auto_text else header_text
+    )
+    reply_keyboard = _build_contact_keyboard(
+        i18n=i18n,
+        user_id=partner_user_id,
+        button_text=i18n.partner.event.going.message.reply.button(),
+    )
+    await bot.send_message(
+        user_id,
+        text=combined_text,
+        reply_markup=reply_keyboard,
+    )
 
 
 @dataclass
