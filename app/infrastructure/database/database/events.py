@@ -39,6 +39,7 @@ class _EventsDB:
         price: str | None,
         age_group: str | None,
         notify_users: bool,
+        auto_message_text: str | None,
         photo_file_id: str | None,
         fingerprint: str,
     ) -> int | None:
@@ -54,6 +55,7 @@ class _EventsDB:
                 price=price,
                 age_group=age_group,
                 notify_users=notify_users,
+                auto_message_text=auto_message_text,
                 photo_file_id=photo_file_id,
                 fingerprint=fingerprint,
             )

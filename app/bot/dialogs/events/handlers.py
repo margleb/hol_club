@@ -305,7 +305,7 @@ async def back_from_event_age_group(
     await dialog_manager.switch_to(EventsSG.price)
 
 
-async def back_from_event_notify(
+async def back_from_event_auto_message(
     callback: CallbackQuery,
     button: Button,
     dialog_manager: DialogManager,
@@ -316,6 +316,17 @@ async def back_from_event_notify(
     await dialog_manager.switch_to(EventsSG.age_group)
 
 
+async def back_from_event_notify(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.auto_message)
+
+
 async def back_from_event_preview(
     callback: CallbackQuery,
     button: Button,
@@ -324,7 +335,7 @@ async def back_from_event_preview(
     if settings.events.notify_users_enabled:
         await dialog_manager.switch_to(EventsSG.notify)
         return
-    await dialog_manager.switch_to(EventsSG.age_group)
+    await dialog_manager.switch_to(EventsSG.auto_message)
 
 
 async def on_event_description_input(
@@ -420,11 +431,7 @@ async def on_event_age_input(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    if settings.events.notify_users_enabled:
-        await dialog_manager.switch_to(EventsSG.notify)
-        return
-    dialog_manager.dialog_data["notify_users"] = False
-    await dialog_manager.switch_to(EventsSG.preview)
+    await dialog_manager.switch_to(EventsSG.auto_message)
 
 
 async def skip_event_age(
@@ -433,6 +440,25 @@ async def skip_event_age(
     dialog_manager: DialogManager,
 ) -> None:
     dialog_manager.dialog_data["age_group"] = None
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.auto_message)
+
+
+async def on_event_auto_message_input(
+    message: Message,
+    widget,
+    dialog_manager: DialogManager,
+    data: str,
+) -> None:
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    auto_message_text = (data or "").strip()
+    if not auto_message_text:
+        await message.answer(i18n.partner.event.auto.message.invalid())
+        return
+
+    dialog_manager.dialog_data["auto_message_text"] = auto_message_text
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
@@ -514,6 +540,15 @@ async def edit_event_age(
 ) -> None:
     dialog_manager.dialog_data["edit_mode"] = True
     await dialog_manager.switch_to(EventsSG.age_group)
+
+
+async def edit_event_auto_message(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data["edit_mode"] = True
+    await dialog_manager.switch_to(EventsSG.auto_message)
 
 
 async def edit_event_notify(
@@ -630,6 +665,7 @@ async def publish_event(
             "1" if data.get("is_paid") else "0",
             data.get("price") or "",
             data.get("age_group") or "",
+            data.get("auto_message_text") or "",
         ]
     )
     fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
@@ -649,6 +685,7 @@ async def publish_event(
         price=data.get("price"),
         age_group=data.get("age_group"),
         notify_users=notify_users,
+        auto_message_text=data.get("auto_message_text"),
         photo_file_id=photo_id,
         fingerprint=fingerprint,
     )

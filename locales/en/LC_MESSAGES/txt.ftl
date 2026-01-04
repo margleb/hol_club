@@ -222,6 +222,10 @@ partner-event-age-prompt = Enter the age group (e.g., <b>18+</b> or <b>35-45</b>
 
 partner-event-age-invalid = Invalid age group. Use the <b>18+</b> or <b>35-45</b> format.
 
+partner-event-auto-message-prompt = Enter the auto message text to send after registration.
+
+partner-event-auto-message-invalid = Auto message text cannot be empty.
+
 partner-event-notify-prompt = Notify bot users?
 
 partner-event-notify-yes = Yes
@@ -233,6 +237,10 @@ partner-event-preview-title = Event preview:
 partner-event-preview-photo-attached = A photo will be attached.
 
 partner-event-preview-trimmed = The text was shortened to fit the caption limit.
+
+partner-event-preview-auto-message =
+    Auto message to the user after registration:
+    { $text }
 
 partner-event-publish-button = Publish
 
@@ -251,6 +259,8 @@ partner-event-edit-participation-button = Edit participation
 partner-event-edit-price-button = Edit price
 
 partner-event-edit-age-button = Edit age group
+
+partner-event-edit-auto-message-button = Edit auto message
 
 partner-event-edit-notify-button = Edit notifications
 
@@ -280,6 +290,7 @@ partner-event-going-message-forbidden = You don't have permission to send messag
 partner-event-going-message-missing = Could not find the registration to message.
 partner-event-going-message-user-text =
     Message from the organizer of “{ $event_name }” ({ $partner_username }):
+partner-event-going-message-auto-text = If you have any questions, just reply to this message.
 partner-event-going-contact-partner-button = Ask about the event
 partner-event-register-button = Register
 partner-event-going-paid-button = I have paid
