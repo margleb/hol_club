@@ -16,6 +16,7 @@ def _build_outer_start_keyboard(
         *,
         i18n: TranslatorRunner,
         event_id: int,
+        post_url: str | None = None,
 ) -> InlineKeyboardMarkup:
     """
     Создает клавиатуру для внешнего пользователя (не участника сообщества).
@@ -23,20 +24,48 @@ def _build_outer_start_keyboard(
     Args:
         i18n: Переводчик для локализации текста кнопки
         event_id: ID мероприятия для callback_data
+        post_url: Ссылка на пост в канале, если доступна
 
     Returns:
         InlineKeyboardMarkup с кнопкой регистрации на мероприятие
     """
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+    keyboard_rows = [
+        [
+            InlineKeyboardButton(
+                text=i18n.partner.event.register.button(),
+                callback_data=f"{EVENT_REGISTER_CALLBACK}:{event_id}",
+            )
+        ]
+    ]
+    if post_url:
+        keyboard_rows.append(
             [
                 InlineKeyboardButton(
-                    text=i18n.partner.event.register.button(),
-                    callback_data=f"{EVENT_REGISTER_CALLBACK}:{event_id}",
+                    text=i18n.partner.event.view.post.button(),
+                    url=post_url,
                 )
             ]
-        ]
-    )
+        )
+    return InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+
+
+def _build_channel_post_link(
+        channel_id: int | None,
+        message_id: int | None,
+        channel_username: str | None = None,
+) -> str | None:
+    if not channel_id or not message_id:
+        return None
+    if channel_username:
+        channel_username = channel_username.lstrip("@")
+        if channel_username:
+            return f"https://t.me/{channel_username}/{message_id}"
+    chat_id_str = str(channel_id)
+    if chat_id_str.startswith("-100"):
+        channel_id_str = chat_id_str[4:]
+    else:
+        channel_id_str = str(abs(channel_id))
+    return f"https://t.me/c/{channel_id_str}/{message_id}"
 
 
 def _build_event_payload(event: EventsModel) -> dict:
@@ -250,9 +279,26 @@ async def show_event_to_outer_user(
         logger: Логгер для записи ошибок
     """
     # Создаем клавиатуру с кнопкой регистрации
+    channel_username = None
+    if event.channel_id:
+        try:
+            chat = await bot.get_chat(event.channel_id)
+            channel_username = getattr(chat, "username", None)
+        except Exception as exc:
+            logger.warning(
+                "Failed to get channel info for event %s: %s",
+                event.id,
+                exc,
+            )
+    post_url = _build_channel_post_link(
+        event.channel_id,
+        event.channel_message_id,
+        channel_username=channel_username,
+    )
     outer_keyboard = _build_outer_start_keyboard(
         i18n=i18n,
         event_id=event.id,
+        post_url=post_url,
     )
 
     # Пытаемся скопировать оригинальное сообщение из канала
