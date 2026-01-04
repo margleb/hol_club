@@ -1,4 +1,5 @@
 import asyncio
+import html
 import logging
 import re
 from dataclasses import dataclass
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramNetworkError, TelegramRetryAfter
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -848,6 +850,7 @@ async def _handle_post_registration_actions(
         user_id=user.id,
         event_name=event.name,
         partner_user_id=event.partner_user_id,
+        auto_message_text=event.auto_message_text,
     )
 
     # Подтверждение пользователю
@@ -951,6 +954,7 @@ def _schedule_auto_partner_message(
         user_id: int,
         event_name: str,
         partner_user_id: int,
+        auto_message_text: str | None,
 ) -> None:
     """
     Планирует авто-сообщение пользователю от организатора после регистрации.
@@ -973,6 +977,7 @@ def _schedule_auto_partner_message(
                 user_id=user_id,
                 event_name=event_name,
                 partner_user_id=partner_user_id,
+                auto_message_text=auto_message_text,
             )
         except Exception as exc:
             logger.warning(
@@ -991,6 +996,7 @@ async def _send_auto_partner_message(
         user_id: int,
         event_name: str,
         partner_user_id: int,
+        auto_message_text: str | None,
 ) -> None:
     """
     Отправляет авто-сообщение пользователю от организатора с кнопкой "Ответить".
@@ -1000,20 +1006,82 @@ async def _send_auto_partner_message(
         event_name=event_name,
         partner_username=partner_label,
     )
-    auto_text = i18n.partner.event.going.message.auto.text()
-    combined_text = (
-        f"{header_text}\n\n{auto_text}" if auto_text else header_text
-    )
+    raw_auto_text = (auto_message_text or "").strip()
+    if not raw_auto_text:
+        raw_auto_text = i18n.partner.event.going.message.auto.text()
+    auto_text = html.escape(raw_auto_text) if raw_auto_text else ""
     reply_keyboard = _build_contact_keyboard(
         i18n=i18n,
         user_id=partner_user_id,
         button_text=i18n.partner.event.going.message.reply.button(),
     )
-    await bot.send_message(
-        user_id,
-        text=combined_text,
+    if not auto_text:
+        await _send_message_with_retry(
+            bot=bot,
+            chat_id=user_id,
+            text=header_text,
+            reply_markup=reply_keyboard,
+        )
+        return
+
+    combined_text = f"{header_text}\n\n{auto_text}"
+    if len(combined_text) <= MAX_MESSAGE_LENGTH:
+        await _send_message_with_retry(
+            bot=bot,
+            chat_id=user_id,
+            text=combined_text,
+            reply_markup=reply_keyboard,
+        )
+        return
+
+    await _send_message_with_retry(
+        bot=bot,
+        chat_id=user_id,
+        text=header_text,
         reply_markup=reply_keyboard,
     )
+    for offset in range(0, len(auto_text), MAX_MESSAGE_LENGTH):
+        await _send_message_with_retry(
+            bot=bot,
+            chat_id=user_id,
+            text=auto_text[offset:offset + MAX_MESSAGE_LENGTH],
+        )
+
+
+async def _send_message_with_retry(
+        *,
+        bot: Bot,
+        chat_id: int,
+        text: str,
+        reply_markup: InlineKeyboardMarkup | None = None,
+        max_attempts: int | None = None,
+        base_delay: float = 1.0,
+) -> None:
+    if max_attempts is None:
+        max_attempts = int(
+            getattr(settings.events, "auto_message_send_retries", 3) or 1
+        )
+    if max_attempts < 1:
+        max_attempts = 1
+    attempt = 0
+    while True:
+        try:
+            await bot.send_message(
+                chat_id,
+                text=text,
+                reply_markup=reply_markup,
+            )
+            return
+        except TelegramRetryAfter as exc:
+            attempt += 1
+            if attempt >= max_attempts:
+                raise
+            await asyncio.sleep(max(base_delay, float(exc.retry_after)))
+        except TelegramNetworkError:
+            attempt += 1
+            if attempt >= max_attempts:
+                raise
+            await asyncio.sleep(min(base_delay * (2 ** (attempt - 1)), 10.0))
 
 
 @dataclass

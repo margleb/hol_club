@@ -9,6 +9,7 @@ from app.bot.dialogs.events.getters import (
     get_event_address_query,
     get_event_address_select,
     get_event_age_group,
+    get_event_auto_message,
     get_event_datetime,
     get_event_description,
     get_event_image,
@@ -20,6 +21,7 @@ from app.bot.dialogs.events.getters import (
 from app.bot.dialogs.events.handlers import (
     back_from_event_address_query,
     back_from_event_age_group,
+    back_from_event_auto_message,
     back_from_event_datetime,
     back_from_event_description,
     back_from_event_image,
@@ -30,6 +32,7 @@ from app.bot.dialogs.events.handlers import (
     back_to_address_query,
     edit_event_address,
     edit_event_age,
+    edit_event_auto_message,
     edit_event_datetime,
     edit_event_description,
     edit_event_image,
@@ -40,6 +43,7 @@ from app.bot.dialogs.events.handlers import (
     on_event_address_input,
     on_event_address_selected,
     on_event_age_input,
+    on_event_auto_message_input,
     on_event_datetime_input,
     on_event_description_input,
     on_event_name_input,
@@ -208,6 +212,22 @@ events_dialog = Dialog(
     ),
     Window(
         Format("{prompt}"),
+        TextInput(
+            id="event_auto_message_input",
+            on_success=on_event_auto_message_input,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_auto_message",
+                on_click=back_from_event_auto_message,
+            ),
+        ),
+        state=EventsSG.auto_message,
+        getter=get_event_auto_message,
+    ),
+    Window(
+        Format("{prompt}"),
         Select(
             Format("{item[0]}"),
             id="notify_select",
@@ -264,6 +284,11 @@ events_dialog = Dialog(
                 text=Format("{edit_age_button}"),
                 id="edit_event_age",
                 on_click=edit_event_age,
+            ),
+            Button(
+                text=Format("{edit_auto_message_button}"),
+                id="edit_event_auto_message",
+                on_click=edit_event_auto_message,
             ),
             Button(
                 text=Format("{edit_notify_button}"),

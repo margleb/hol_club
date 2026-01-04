@@ -15,6 +15,7 @@ class EventsModel(BaseModel):
     event_datetime: Mapped[str] = mapped_column(String(32), nullable=False)
     address: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    auto_message_text: Mapped[str | None] = mapped_column(Text)
     is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False)
     price: Mapped[str | None] = mapped_column(String(32))
     age_group: Mapped[str | None] = mapped_column(String(32))
