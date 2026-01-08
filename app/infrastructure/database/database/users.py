@@ -23,6 +23,8 @@ class _UsersDB:
             user_id: int,
             username: str | None,
             language: str,
+            gender: str | None = None,
+            age_group: str | None = None,
             role: UserRole,
             is_alive: bool = True,
             is_blocked: bool = False
@@ -33,6 +35,8 @@ class _UsersDB:
                 user_id=user_id,
                 username=username,
                 language=language,
+                gender=gender,
+                age_group=age_group,
                 role=role,
                 is_alive=is_alive,
                 is_blocked=is_blocked,
@@ -42,12 +46,15 @@ class _UsersDB:
         await self.session.execute(stmt)
         logger.info(
             "User added. db='%s', user_id=%d, date_time='%s', "
-            "username='%s', language='%s', role=%s, is_alive=%s, is_blocked=%s",
+            "username='%s', language='%s', gender='%s', age_group='%s', "
+            "role=%s, is_alive=%s, is_blocked=%s",
             self.__tablename__,
             user_id,
             datetime.now(timezone.utc),
             username,
             language,
+            gender,
+            age_group,
             role.value,
             is_alive,
             is_blocked,
