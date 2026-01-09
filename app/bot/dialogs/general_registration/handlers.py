@@ -4,10 +4,30 @@ from fluentogram import TranslatorRunner
 
 from app.bot.states.general_registration import GeneralRegistrationSG
 from app.infrastructure.database.database.db import DB
+from config.config import settings
 
-FEMALE_CHAT_URL = "https://t.me/+rf9C4DvuKzY4YTY6"
-MALE_CHAT_URL = "https://t.me/+F5GqT7jJGA1mNmFi"
-UNDER_35_CHAT_URL = "https://t.me/+xGSjpFlnbHgyZjE6"
+DEFAULT_FEMALE_CHAT_URL = "https://t.me/+rf9C4DvuKzY4YTY6"
+DEFAULT_MALE_CHAT_URL = "https://t.me/+F5GqT7jJGA1mNmFi"
+DEFAULT_UNDER_35_CHAT_URL = "https://t.me/+xGSjpFlnbHgyZjE6"
+
+
+def _get_chat_url(*, gender: str | None) -> str:
+    if gender == "female":
+        return (
+            getattr(settings.general_registration, "female_chat_url", None)
+            or DEFAULT_FEMALE_CHAT_URL
+        )
+    return (
+        getattr(settings.general_registration, "male_chat_url", None)
+        or DEFAULT_MALE_CHAT_URL
+    )
+
+
+def _get_under_35_url() -> str:
+    return (
+        getattr(settings.general_registration, "under_35_chat_url", None)
+        or DEFAULT_UNDER_35_CHAT_URL
+    )
 
 
 def _is_under_35(age_group: str) -> bool:
@@ -51,7 +71,7 @@ async def on_general_age_selected(
             age_group=item_id,
         )
 
-    chat_url = FEMALE_CHAT_URL if gender == "female" else MALE_CHAT_URL
+    chat_url = _get_chat_url(gender=gender)
     if i18n:
         lines = [
             i18n.general.registration.thanks(),
@@ -61,12 +81,14 @@ async def on_general_age_selected(
             ),
         ]
         if _is_under_35(item_id):
-            lines.append(i18n.general.registration.under35(url=UNDER_35_CHAT_URL))
+            lines.append(
+                i18n.general.registration.under35(url=_get_under_35_url())
+            )
         text = "\n\n".join(lines)
     else:
         extra = ""
         if _is_under_35(item_id):
-            extra = f"\n\n{UNDER_35_CHAT_URL}"
+            extra = f"\n\n{_get_under_35_url()}"
         text = (
             "Спасибо за регистрацию!\n\n"
             f"Подпишитесь на канал @hol_club и чат: {chat_url}{extra}"
