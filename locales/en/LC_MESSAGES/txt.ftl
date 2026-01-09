@@ -337,6 +337,10 @@ general-registration-chat-male-button = Men chat
 general-registration-chat-female-button = Women chat
 general-registration-under35-button = Under 35 chat
 general-registration-already = You are already registered.
+general-registration-request-text =
+    Please provide your gender and age group so we can route you to the right chats and notifications.
+general-registration-request-button = Fill the form
+general-registration-request-empty = No users to notify.
 
 partner-event-publish-success = Event published.
 

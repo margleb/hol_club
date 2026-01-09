@@ -368,3 +368,7 @@ general-registration-chat-male-button = Чат для мужчин
 general-registration-chat-female-button = Чат для женщин
 general-registration-under35-button = Чат до 35 лет
 general-registration-already = Вы уже зарегистрированы.
+general-registration-request-text =
+    Пожалуйста, укажите ваш пол и возрастную группу, чтобы мы могли корректно подбирать чаты и уведомления.
+general-registration-request-button = Заполнить анкету
+general-registration-request-empty = Нет пользователей для рассылки.
