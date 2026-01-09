@@ -27,7 +27,7 @@ def _set_adv_stats_sequence() -> None:
             SELECT pg_get_serial_sequence('adv_stats', 'id') INTO seq;
             IF seq IS NOT NULL THEN
                 EXECUTE format(
-                    'SELECT setval(%L, (SELECT COALESCE(MAX(id), 0) FROM adv_stats), true)',
+                    'SELECT setval(%L, (SELECT COALESCE(MAX(id), 1) FROM adv_stats), false)',
                     seq
                 );
             END IF;
