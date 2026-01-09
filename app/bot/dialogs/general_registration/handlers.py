@@ -1,4 +1,4 @@
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram_dialog import DialogManager
 from fluentogram import TranslatorRunner
 
@@ -9,6 +9,7 @@ from config.config import settings
 DEFAULT_FEMALE_CHAT_URL = "https://t.me/+rf9C4DvuKzY4YTY6"
 DEFAULT_MALE_CHAT_URL = "https://t.me/+F5GqT7jJGA1mNmFi"
 DEFAULT_UNDER_35_CHAT_URL = "https://t.me/+xGSjpFlnbHgyZjE6"
+DEFAULT_CHANNEL_URL = "https://t.me/hol_club"
 
 
 def _get_chat_url(*, gender: str | None) -> str:
@@ -28,6 +29,44 @@ def _get_under_35_url() -> str:
         getattr(settings.general_registration, "under_35_chat_url", None)
         or DEFAULT_UNDER_35_CHAT_URL
     )
+
+
+def _build_general_registration_keyboard(
+    *,
+    i18n: TranslatorRunner,
+    chat_url: str,
+    under_35_url: str | None,
+    gender: str | None,
+) -> InlineKeyboardMarkup:
+    chat_button_text = (
+        i18n.general.registration.chat.female.button()
+        if gender == "female"
+        else i18n.general.registration.chat.male.button()
+    )
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=i18n.general.registration.channel.button(),
+                url=DEFAULT_CHANNEL_URL,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=chat_button_text,
+                url=chat_url,
+            )
+        ],
+    ]
+    if under_35_url:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.general.registration.under35.button(),
+                    url=under_35_url,
+                )
+            ]
+        )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _is_under_35(age_group: str) -> bool:
@@ -80,21 +119,28 @@ async def on_general_age_selected(
                 chat_url=chat_url,
             ),
         ]
-        if _is_under_35(item_id):
-            lines.append(
-                i18n.general.registration.under35(url=_get_under_35_url())
-            )
+        under_35_url = _get_under_35_url() if _is_under_35(item_id) else None
+        if under_35_url:
+            lines.append(i18n.general.registration.under35())
         text = "\n\n".join(lines)
+        keyboard = _build_general_registration_keyboard(
+            i18n=i18n,
+            chat_url=chat_url,
+            under_35_url=under_35_url,
+            gender=gender,
+        )
     else:
         extra = ""
-        if _is_under_35(item_id):
-            extra = f"\n\n{_get_under_35_url()}"
+        under_35_url = _get_under_35_url() if _is_under_35(item_id) else None
+        if under_35_url:
+            extra = "\n\nЧат для тех, кому меньше 35 лет."
         text = (
             "Спасибо за регистрацию!\n\n"
-            f"Подпишитесь на канал @hol_club и чат: {chat_url}{extra}"
+            f"Подпишитесь на канал @hol_club и чат.{extra}"
         )
+        keyboard = None
 
     if callback.message:
-        await callback.message.answer(text)
+        await callback.message.answer(text, reply_markup=keyboard)
     await callback.answer()
     await dialog_manager.done()

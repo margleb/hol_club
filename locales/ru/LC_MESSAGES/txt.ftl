@@ -361,5 +361,10 @@ general-registration-age-prompt = Сколько вам лет?
 general-registration-age-group = { $range } лет
 general-registration-thanks = Спасибо за регистрацию!
 general-registration-subscribe =
-    Подпишитесь на канал { $channel } и чат: { $chat_url }
-general-registration-under35 = Чат для тех, кому меньше 35 лет: { $url }
+    Подпишитесь на канал { $channel } и чат.
+general-registration-under35 = Чат для тех, кому меньше 35 лет.
+general-registration-channel-button = Канал @hol_club
+general-registration-chat-male-button = Чат для мужчин
+general-registration-chat-female-button = Чат для женщин
+general-registration-under35-button = Чат до 35 лет
+general-registration-already = Вы уже зарегистрированы.

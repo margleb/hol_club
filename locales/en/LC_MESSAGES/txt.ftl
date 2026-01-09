@@ -330,8 +330,13 @@ general-registration-age-prompt = How old are you?
 general-registration-age-group = { $range } years
 general-registration-thanks = Thanks for registering!
 general-registration-subscribe =
-    Please subscribe to the channel { $channel } and the chat: { $chat_url }
-general-registration-under35 = Chat for those under 35: { $url }
+    Please subscribe to the channel { $channel } and the chat.
+general-registration-under35 = Chat for those under 35.
+general-registration-channel-button = Channel @hol_club
+general-registration-chat-male-button = Men chat
+general-registration-chat-female-button = Women chat
+general-registration-under35-button = Under 35 chat
+general-registration-already = You are already registered.
 
 partner-event-publish-success = Event published.
 

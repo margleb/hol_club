@@ -69,6 +69,9 @@ async def process_start_command(
     # 2. Попытка обработки рекламной ссылки
     general_payload = parse_general_start_payload(message.text)
     if general_payload and user_role == UserRole.USER:
+        if user_record and user_record.gender and user_record.age_group:
+            await message.answer(i18n.general.registration.already())
+            return
         await dialog_manager.start(
             state=GeneralRegistrationSG.gender,
             mode=StartMode.RESET_STACK,
