@@ -23,6 +23,8 @@ class UsersModel(BaseModel):
     longitude: Mapped[float | None] = mapped_column(Float)
     latitude: Mapped[float | None] = mapped_column(Float)
     language: Mapped[str | None] = mapped_column(String(10))
+    gender: Mapped[str | None] = mapped_column(String(16))
+    age_group: Mapped[str | None] = mapped_column(String(32))
     role: Mapped[UserRole] = mapped_column(
         Enum(
             UserRole,

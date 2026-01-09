@@ -12,7 +12,7 @@
     event_desc_min = 50
     event_desc_max = 600
     price_max = 50000
-    notify_users_enabled = false
+    notify_users_enabled = true
     auto_message_delay_seconds = 60
     auto_message_send_retries = 10
 
@@ -26,6 +26,11 @@
     geocoder_api_key = "7fd21d1b-dd9e-4004-a4bb-9126489f1f14"
     geocoder_results_limit = 5
     geocoder_timeout_seconds = 10
+
+[default.general_registration]
+    male_chat_url = "https://t.me/+F5GqT7jJGA1mNmFi"
+    female_chat_url = "https://t.me/+rf9C4DvuKzY4YTY6"
+    under_35_chat_url = "https://t.me/+xGSjpFlnbHgyZjE6"
 
 [development]
 

@@ -26,7 +26,7 @@ def _set_users_sequence() -> None:
             SELECT pg_get_serial_sequence('users', 'id') INTO seq;
             IF seq IS NOT NULL THEN
                 EXECUTE format(
-                    'SELECT setval(%L, (SELECT COALESCE(MAX(id), 0) FROM users), true)',
+                    'SELECT setval(%L, (SELECT COALESCE(MAX(id), 1) FROM users), false)',
                     seq
                 );
             END IF;
@@ -44,7 +44,7 @@ def _set_event_interesting_sequence() -> None:
             SELECT pg_get_serial_sequence('event_interesting', 'id') INTO seq;
             IF seq IS NOT NULL THEN
                 EXECUTE format(
-                    'SELECT setval(%L, (SELECT COALESCE(MAX(id), 0) FROM event_interesting), true)',
+                    'SELECT setval(%L, (SELECT COALESCE(MAX(id), 1) FROM event_interesting), false)',
                     seq
                 );
             END IF;

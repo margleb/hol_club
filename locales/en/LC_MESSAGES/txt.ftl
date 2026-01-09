@@ -323,6 +323,25 @@ partner-event-registrations-empty = No registrations yet.
 partner-event-registrations-item = { $user_label } { $paid_tag }
 partner-event-registrations-paid-tag = [paid]
 
+general-registration-gender-prompt = Please select your gender
+general-registration-gender-male = Male
+general-registration-gender-female = Female
+general-registration-age-prompt = How old are you?
+general-registration-age-group = { $range } years
+general-registration-thanks = Thanks for registering!
+general-registration-subscribe =
+    Please subscribe to the channel { $channel } and the chat.
+general-registration-under35 = Chat for those under 35.
+general-registration-channel-button = Channel @hol_club
+general-registration-chat-male-button = Men chat
+general-registration-chat-female-button = Women chat
+general-registration-under35-button = Under 35 chat
+general-registration-already = You are already registered.
+general-registration-request-text =
+    Please provide your gender and age group so we can route you to the right chats and notifications.
+general-registration-request-button = Fill the form
+general-registration-request-empty = No users to notify.
+
 partner-event-publish-success = Event published.
 
 partner-event-publish-failed = Failed to publish the event.

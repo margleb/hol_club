@@ -353,3 +353,22 @@ partner-event-text-template =
     { $age_block }
 
     { $description_block }
+
+general-registration-gender-prompt = Укажите ваш пол
+general-registration-gender-male = Мужчина
+general-registration-gender-female = Женщина
+general-registration-age-prompt = Сколько вам лет?
+general-registration-age-group = { $range } лет
+general-registration-thanks = Спасибо за регистрацию!
+general-registration-subscribe =
+    Подпишитесь на канал { $channel } и чат.
+general-registration-under35 = Чат для тех, кому меньше 35 лет.
+general-registration-channel-button = Канал @hol_club
+general-registration-chat-male-button = Чат для мужчин
+general-registration-chat-female-button = Чат для женщин
+general-registration-under35-button = Чат до 35 лет
+general-registration-already = Вы уже зарегистрированы.
+general-registration-request-text =
+    Пожалуйста, укажите ваш пол и возрастную группу, чтобы мы могли корректно подбирать чаты и уведомления.
+general-registration-request-button = Заполнить анкету
+general-registration-request-empty = Нет пользователей для рассылки.
