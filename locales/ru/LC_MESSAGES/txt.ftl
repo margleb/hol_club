@@ -353,3 +353,13 @@ partner-event-text-template =
     { $age_block }
 
     { $description_block }
+
+general-registration-gender-prompt = Укажите ваш пол
+general-registration-gender-male = Мужчина
+general-registration-gender-female = Женщина
+general-registration-age-prompt = Сколько вам лет?
+general-registration-age-group = { $range } лет
+general-registration-thanks = Спасибо за регистрацию!
+general-registration-subscribe =
+    Подпишитесь на канал { $channel } и чат: { $chat_url }
+general-registration-under35 = Чат для тех, кому меньше 35 лет: { $url }

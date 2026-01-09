@@ -323,6 +323,16 @@ partner-event-registrations-empty = No registrations yet.
 partner-event-registrations-item = { $user_label } { $paid_tag }
 partner-event-registrations-paid-tag = [paid]
 
+general-registration-gender-prompt = Please select your gender
+general-registration-gender-male = Male
+general-registration-gender-female = Female
+general-registration-age-prompt = How old are you?
+general-registration-age-group = { $range } years
+general-registration-thanks = Thanks for registering!
+general-registration-subscribe =
+    Please subscribe to the channel { $channel } and the chat: { $chat_url }
+general-registration-under35 = Chat for those under 35: { $url }
+
 partner-event-publish-success = Event published.
 
 partner-event-publish-failed = Failed to publish the event.

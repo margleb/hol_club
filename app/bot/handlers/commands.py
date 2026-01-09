@@ -16,7 +16,9 @@ from app.bot.services.event_interesting import (
     maybe_interesting_outer_start,
     show_event_to_outer_user,
 )
+from app.bot.services.general_registration import parse_general_start_payload
 from app.bot.states.settings import SettingsSG
+from app.bot.states.general_registration import GeneralRegistrationSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.users import UsersModel
@@ -65,6 +67,14 @@ async def process_start_command(
         user_role = user_record.role
 
     # 2. Попытка обработки рекламной ссылки
+    general_payload = parse_general_start_payload(message.text)
+    if general_payload and user_role == UserRole.USER:
+        await dialog_manager.start(
+            state=GeneralRegistrationSG.gender,
+            mode=StartMode.RESET_STACK,
+        )
+        return
+
     outer_result = await maybe_interesting_outer_start(
         db=db,
         user_id=message.from_user.id,

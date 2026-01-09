@@ -11,6 +11,7 @@ from aiogram_dialog.api.exceptions import UnknownIntent, UnknownState
 from fluentogram import TranslatorHub
 
 from app.bot.dialogs.events.dialogs import events_dialog
+from app.bot.dialogs.general_registration.dialogs import general_registration_dialog
 from app.bot.dialogs.settings.dialogs import settings_dialog
 from app.bot.dialogs.start.dialogs import start_dialog
 from app.bot.handlers.commands import commands_router
@@ -87,6 +88,7 @@ async def main():
         start_dialog,
         settings_dialog,
         events_dialog,
+        general_registration_dialog,
     )
 
     logger.info("Including middlewares")

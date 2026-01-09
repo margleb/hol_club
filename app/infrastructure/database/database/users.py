@@ -128,6 +128,27 @@ class _UsersDB:
             self.__tablename__, user_id, role.value
         )
 
+    async def update_profile(
+        self,
+        *,
+        user_id: int,
+        gender: str | None,
+        age_group: str | None,
+    ) -> None:
+        stmt = (
+            update(UsersModel)
+            .where(UsersModel.user_id == user_id)
+            .values(gender=gender, age_group=age_group)
+        )
+        await self.session.execute(stmt)
+        logger.info(
+            "User updated. db='%s', user_id=%d, gender='%s', age_group='%s'",
+            self.__tablename__,
+            user_id,
+            gender,
+            age_group,
+        )
+
     async def get_admin_user_ids(self) -> list[int]:
         stmt = select(UsersModel.user_id).where(UsersModel.role == UserRole.ADMIN)
         result = await self.session.execute(stmt)
