@@ -15,7 +15,12 @@ from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
 from app.bot.enums.roles import UserRole
-from app.bot.handlers.event_chats import EVENT_JOIN_CHAT_CALLBACK
+from app.bot.handlers.event_chats import (
+    EVENT_CHAT_START_PREFIX,
+    EVENT_JOIN_CHAT_CALLBACK,
+    build_age_keyboard,
+    build_gender_keyboard,
+)
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
@@ -621,44 +626,63 @@ async def _notify_users(
     post_link: str | None,
     text: str,
     photo_id: str | None,
+    male_chat_url: str,
+    female_chat_url: str,
 ) -> int:
-    user_ids = await db.users.get_active_user_ids_by_role(role=UserRole.USER)
-    if not user_ids:
+    user_profiles = await db.users.get_active_user_profiles_by_role(role=UserRole.USER)
+    if not user_profiles:
         return 0
 
-    keyboard_buttons = []
-    if post_link:
-        keyboard_buttons.append(
-            [
-                InlineKeyboardButton(
-                    text=i18n.partner.event.view.post.button(),
-                    url=post_link,
-                )
-            ]
-        )
-    keyboard_buttons.append(
-        [
-            InlineKeyboardButton(
-                text=i18n.partner.event.join.chat.button(),
-                callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
-            )
-        ]
-    )
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     sent = 0
-    for user_id in user_ids:
+    for user_id, gender, age_group in user_profiles:
+        keyboard_buttons = []
+        if post_link:
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.view.post.button(),
+                        url=post_link,
+                    )
+                ]
+            )
+        chat_url = None
+        if gender and age_group:
+            chat_url = female_chat_url if gender == "female" else male_chat_url
+        if chat_url:
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.join.chat.button(),
+                        url=chat_url,
+                    )
+                ]
+            )
+        keyboard = (
+            InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+            if keyboard_buttons
+            else None
+        )
+        message_text = text
+        if not gender:
+            prompt = i18n.general.registration.gender.prompt()
+            message_text = f"{text}\n\n{prompt}"
+            keyboard = build_gender_keyboard(i18n, event_id)
+        elif not age_group:
+            prompt = i18n.general.registration.age.prompt()
+            message_text = f"{text}\n\n{prompt}"
+            keyboard = build_age_keyboard(i18n, event_id)
         try:
             if photo_id:
                 await bot.send_photo(
                     user_id,
                     photo=photo_id,
-                    caption=text,
+                    caption=message_text,
                     reply_markup=keyboard,
                 )
             else:
                 await bot.send_message(
                     user_id,
-                    text=text,
+                    text=message_text,
                     reply_markup=keyboard,
                 )
             sent += 1
@@ -747,16 +771,30 @@ async def publish_event(
         )
         return
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=i18n.partner.event.join.chat.button(),
-                    callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
-                )
-            ]
-        ]
-    )
+    bot_username = None
+    try:
+        bot_info = await callback.bot.get_me()
+        bot_username = getattr(bot_info, "username", None)
+    except Exception:
+        bot_username = None
+    start_link = None
+    if bot_username:
+        start_link = (
+            f"https://t.me/{bot_username}?start={EVENT_CHAT_START_PREFIX}{event_id}"
+        )
+
+    join_button = None
+    if start_link:
+        join_button = InlineKeyboardButton(
+            text=i18n.partner.event.join.chat.button(),
+            url=start_link,
+        )
+    else:
+        join_button = InlineKeyboardButton(
+            text=i18n.partner.event.join.chat.button(),
+            callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
+        )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[join_button]])
 
     try:
         if photo_id:
@@ -810,6 +848,8 @@ async def publish_event(
             post_link=post_link,
             text=text,
             photo_id=photo_id,
+            male_chat_url=data.get("male_chat_url") or "",
+            female_chat_url=data.get("female_chat_url") or "",
         )
 
     await callback.message.answer(message_text, reply_markup=partner_keyboard)

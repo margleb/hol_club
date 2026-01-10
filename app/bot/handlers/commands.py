@@ -12,6 +12,10 @@ from taskiq_redis import RedisScheduleSource
 
 from app.bot.enums.roles import UserRole
 from app.bot.filters.dialog_filters import DialogStateFilter, DialogStateGroupFilter
+from app.bot.handlers.event_chats import (
+    handle_event_chat_start,
+    parse_event_chat_start_payload,
+)
 from app.bot.services.general_registration import parse_general_start_payload
 from app.bot.states.settings import SettingsSG
 from app.bot.states.general_registration import GeneralRegistrationSG
@@ -61,7 +65,18 @@ async def process_start_command(
             )
         user_role = user_record.role
 
-    # 2. Попытка обработки рекламной ссылки
+    # 2. Попытка обработки event chat ссылки
+    event_chat_id = parse_event_chat_start_payload(message.text)
+    if event_chat_id is not None:
+        await handle_event_chat_start(
+            message=message,
+            i18n=i18n,
+            db=db,
+            event_id=event_chat_id,
+        )
+        return
+
+    # 3. Попытка обработки рекламной ссылки
     general_payload = parse_general_start_payload(message.text)
     if general_payload and user_role == UserRole.USER:
         if user_record and user_record.gender and user_record.age_group:
@@ -73,7 +88,7 @@ async def process_start_command(
         )
         return
 
-    # 3. Стандартный запуск диалога
+    # 4. Стандартный запуск диалога
     await dialog_manager.start(
         state=StartSG.start,
         mode=StartMode.RESET_STACK

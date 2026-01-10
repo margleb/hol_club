@@ -12,7 +12,7 @@
     event_desc_min = 50
     event_desc_max = 450
     price_max = 50000
-    notify_users_enabled = true
+    notify_users_enabled = false
     auto_message_delay_seconds = 60
     auto_message_send_retries = 10
 
