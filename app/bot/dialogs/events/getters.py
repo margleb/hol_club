@@ -118,13 +118,24 @@ async def get_event_age_group(
     }
 
 
-async def get_event_auto_message(
+async def get_event_chat_male(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
     **kwargs,
 ) -> dict[str, str]:
     return {
-        "prompt": i18n.partner.event.auto.message.prompt(),
+        "prompt": i18n.partner.event.chat.male.prompt(),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_event_chat_female(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, str]:
+    return {
+        "prompt": i18n.partner.event.chat.female.prompt(),
         "back_button": i18n.back.button(),
     }
 
@@ -158,11 +169,15 @@ async def get_event_preview(
 
     lines = []
     lines.append(preview_text)
-    auto_message = (dialog_manager.dialog_data.get("auto_message_text") or "").strip()
-    auto_message = html.escape(auto_message) if auto_message else ""
-    if auto_message:
+    male_chat_url = (dialog_manager.dialog_data.get("male_chat_url") or "").strip()
+    female_chat_url = (dialog_manager.dialog_data.get("female_chat_url") or "").strip()
+    if male_chat_url:
         lines.append(
-            i18n.partner.event.preview.auto.message(text=auto_message)
+            i18n.partner.event.chat.male.preview(url=html.escape(male_chat_url))
+        )
+    if female_chat_url:
+        lines.append(
+            i18n.partner.event.chat.female.preview(url=html.escape(female_chat_url))
         )
 
     return {
@@ -183,7 +198,8 @@ async def get_event_preview(
         "edit_description_button": i18n.partner.event.edit.description.button(),
         "edit_price_button": i18n.partner.event.edit.price.button(),
         "edit_age_button": i18n.partner.event.edit.age.button(),
-        "edit_auto_message_button": i18n.partner.event.edit.auto.message.button(),
+        "edit_chat_male_button": i18n.partner.event.chat.male.edit.button(),
+        "edit_chat_female_button": i18n.partner.event.chat.female.edit.button(),
         "edit_notify_button": i18n.partner.event.edit.notify.button(),
         "is_paid": bool(dialog_manager.dialog_data.get("is_paid")),
         "back_button": i18n.back.button(),

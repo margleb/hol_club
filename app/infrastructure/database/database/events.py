@@ -39,7 +39,8 @@ class _EventsDB:
         price: str | None,
         age_group: str | None,
         notify_users: bool,
-        auto_message_text: str | None,
+        male_chat_url: str,
+        female_chat_url: str,
         photo_file_id: str | None,
         fingerprint: str,
     ) -> int | None:
@@ -55,7 +56,8 @@ class _EventsDB:
                 price=price,
                 age_group=age_group,
                 notify_users=notify_users,
-                auto_message_text=auto_message_text,
+                male_chat_url=male_chat_url,
+                female_chat_url=female_chat_url,
                 photo_file_id=photo_file_id,
                 fingerprint=fingerprint,
             )

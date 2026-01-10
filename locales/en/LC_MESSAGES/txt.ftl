@@ -26,7 +26,7 @@ start-event-past-tag = [already passed]
 partner-events-title = Your events
 partner-events-list-button = Мy events
 partner-events-empty = You have no created events yet.
-partner-events-item = { $name } — { $datetime } ({ $registered }/{ $paid })
+partner-events-item = { $name } — { $datetime }
 partner-events-page = Page { $current } of { $total }
 partner-events-prev-button = ◀️
 partner-events-next-button = ▶️
@@ -222,9 +222,10 @@ partner-event-age-prompt = Enter the age group (e.g., <b>18+</b> or <b>35-45</b>
 
 partner-event-age-invalid = Invalid age group. Use the <b>18+</b> or <b>35-45</b> format.
 
-partner-event-auto-message-prompt = Enter the auto message text to send after registration.
-
-partner-event-auto-message-invalid = Auto message text cannot be empty.
+partner-event-chat-male-prompt = Enter the link to the men chat.
+partner-event-chat-female-prompt = Enter the link to the women chat.
+partner-event-chat-male-invalid = Invalid link to the men chat.
+partner-event-chat-female-invalid = Invalid link to the women chat.
 
 partner-event-notify-prompt = Notify bot users?
 
@@ -238,9 +239,8 @@ partner-event-preview-photo-attached = A photo will be attached.
 
 partner-event-preview-trimmed = The text was shortened to fit the caption limit.
 
-partner-event-preview-auto-message =
-    Auto message to the user after registration:
-    { $text }
+partner-event-chat-male-preview = Men chat: { $url }
+partner-event-chat-female-preview = Women chat: { $url }
 
 partner-event-publish-button = Publish
 
@@ -260,68 +260,16 @@ partner-event-edit-price-button = Edit price
 
 partner-event-edit-age-button = Edit age group
 
-partner-event-edit-auto-message-button = Edit auto message
+partner-event-chat-male-edit-button = Edit men chat
+partner-event-chat-female-edit-button = Edit women chat
 
 partner-event-edit-notify-button = Edit notifications
 
-partner-event-going-button = Register
-partner-event-going-forbidden = Only users with the user status can register.
-partner-event-going-missing = Could not find the event for registration.
-partner-event-going-already = You are already registered for this event.
-partner-event-going-done = You are registered.
-partner-event-going-thanks =
-    Thanks for registering for the event “{ $event_name }”!
-
-    If you have any questions, please contact the organizer: { $partner_username }.
-
-    If you have already paid, please <b>don’t forget to tap the “I have paid” button</b> at the bottom of the registration form.
-partner-event-going-subscribe = Subscribe to { $channel } to stay up to date.
-partner-event-going-channel-button = Go to channel
-partner-event-going-notify-partner = User { $username } (id: { $user_id }) registered for “{ $event_name }”.
-partner-event-going-contact-user-button = Contact the user
-partner-event-going-message-user-button = Send message
-partner-event-going-message-reply-button = Reply
-partner-event-going-message-prompt =
-    Write a message for { $user_label } (id: { $user_id }) about the event “{ $event_name }”.
-    Reply to this message with text.
-partner-event-going-message-sent = Message sent to the user.
-partner-event-going-message-failed = Failed to send the message. Please try again.
-partner-event-going-message-forbidden = You don't have permission to send messages.
-partner-event-going-message-missing = Could not find the registration to message.
-partner-event-going-message-user-text =
-    Message from the organizer of “{ $event_name }” ({ $partner_username }):
-partner-event-going-message-auto-text = If you have any questions, just reply to this message.
-partner-event-going-contact-partner-button = Ask about the event
-partner-event-register-button = Register
-partner-event-going-paid-button = I have paid
-partner-event-paid-missing = Could not find the event for payment.
-partner-event-paid-not-registered = You are not registered for this event.
-partner-event-paid-already = Payment is already marked.
-partner-event-paid-done = Thanks! We notified the organizer.
-partner-event-paid-notify-partner =
-    User { $username } (id: { $user_id }) reported payment for the event “{ $event_name }”.
-
-    Please confirm the payment and send the receipt by replying to this message.
-partner-event-paid-receipt-forbidden = Could not accept a receipt for this event.
-partner-event-paid-receipt-saved = Receipt saved.
-partner-event-paid-receipt-failed = Could not save the receipt. Please try again.
+partner-event-join-chat-button = Join the chat
+partner-event-join-chat-text = Here is the event chat link:
+partner-event-join-chat-missing = Could not find a chat for this event.
 
 partner-event-view-post-button = View post
-partner-event-registrations-title = Registrations: { $count }
-partner-event-registrations-button = Registrations: { $registered }/{ $paid }
-partner-event-registrations-pending-button = Awaiting payment confirmation: { $count }
-partner-event-registrations-pending-title = Awaiting payment confirmation: { $count }
-partner-event-registrations-pending-empty = No pending payment confirmations.
-partner-event-registrations-pending-item = { $user_label }
-partner-event-registrations-pending-prompt =
-    Reply to this message with a receipt to confirm payment for user { $user_id }
-    for the event “{ $event_name }”.
-partner-event-registrations-pending-sent = Payment confirmation message sent.
-partner-event-registrations-pending-failed = Could not prepare payment confirmation.
-partner-event-registrations-pending-missing = Could not find the registration to confirm.
-partner-event-registrations-empty = No registrations yet.
-partner-event-registrations-item = { $user_label } { $paid_tag }
-partner-event-registrations-paid-tag = [paid]
 
 general-registration-gender-prompt = Please select your gender
 general-registration-gender-male = Male

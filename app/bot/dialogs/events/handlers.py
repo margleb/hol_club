@@ -15,6 +15,7 @@ from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
 from app.bot.enums.roles import UserRole
+from app.bot.handlers.event_chats import EVENT_JOIN_CHAT_CALLBACK
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
@@ -23,7 +24,7 @@ from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
 _AGE_GROUP_RE = re.compile(r"^\s*(\d{1,2}\+|\d{1,2}\s*-\s*\d{1,2})\s*$")
-EVENT_GOING_CALLBACK = "event_going"
+_CHAT_URL_RE = re.compile(r"^https?://t\.me/[\w+\-/.?=]+$", re.IGNORECASE)
 
 
 def _is_valid_age_group(value: str) -> bool:
@@ -42,6 +43,11 @@ def _is_valid_age_group(value: str) -> bool:
 
 def _get_events_channel() -> str | None:
     return settings.get("events_channel")
+
+
+def _is_valid_chat_url(value: str) -> bool:
+    return bool(_CHAT_URL_RE.match(value.strip()))
+
 
 def _is_edit_mode(dialog_manager: DialogManager) -> bool:
     return bool(dialog_manager.dialog_data.get("edit_mode"))
@@ -305,15 +311,6 @@ async def back_from_event_age_group(
     await dialog_manager.switch_to(EventsSG.price)
 
 
-async def back_from_event_auto_message(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    if _is_edit_mode(dialog_manager):
-        await _return_to_preview(dialog_manager)
-        return
-    await dialog_manager.switch_to(EventsSG.age_group)
 
 
 async def back_from_event_notify(
@@ -324,7 +321,7 @@ async def back_from_event_notify(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.auto_message)
+    await dialog_manager.switch_to(EventsSG.chat_female)
 
 
 async def back_from_event_preview(
@@ -335,7 +332,7 @@ async def back_from_event_preview(
     if settings.events.notify_users_enabled:
         await dialog_manager.switch_to(EventsSG.notify)
         return
-    await dialog_manager.switch_to(EventsSG.auto_message)
+    await dialog_manager.switch_to(EventsSG.chat_female)
 
 
 async def on_event_description_input(
@@ -431,7 +428,7 @@ async def on_event_age_input(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.auto_message)
+    await dialog_manager.switch_to(EventsSG.chat_male)
 
 
 async def skip_event_age(
@@ -443,22 +440,39 @@ async def skip_event_age(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.auto_message)
+    await dialog_manager.switch_to(EventsSG.chat_male)
 
 
-async def on_event_auto_message_input(
+async def on_event_chat_male_input(
     message: Message,
     widget,
     dialog_manager: DialogManager,
     data: str,
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    auto_message_text = (data or "").strip()
-    if not auto_message_text:
-        await message.answer(i18n.partner.event.auto.message.invalid())
+    chat_url = (data or "").strip()
+    if not _is_valid_chat_url(chat_url):
+        await message.answer(i18n.partner.event.chat.male.invalid())
         return
+    dialog_manager.dialog_data["male_chat_url"] = chat_url
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.chat_female)
 
-    dialog_manager.dialog_data["auto_message_text"] = auto_message_text
+
+async def on_event_chat_female_input(
+    message: Message,
+    widget,
+    dialog_manager: DialogManager,
+    data: str,
+) -> None:
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    chat_url = (data or "").strip()
+    if not _is_valid_chat_url(chat_url):
+        await message.answer(i18n.partner.event.chat.female.invalid())
+        return
+    dialog_manager.dialog_data["female_chat_url"] = chat_url
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
@@ -467,6 +481,8 @@ async def on_event_auto_message_input(
         return
     dialog_manager.dialog_data["notify_users"] = False
     await dialog_manager.switch_to(EventsSG.preview)
+
+
 
 
 async def on_event_notify_selected(
@@ -542,13 +558,6 @@ async def edit_event_age(
     await dialog_manager.switch_to(EventsSG.age_group)
 
 
-async def edit_event_auto_message(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    dialog_manager.dialog_data["edit_mode"] = True
-    await dialog_manager.switch_to(EventsSG.auto_message)
 
 
 async def edit_event_notify(
@@ -561,6 +570,46 @@ async def edit_event_notify(
         return
     dialog_manager.dialog_data["edit_mode"] = True
     await dialog_manager.switch_to(EventsSG.notify)
+
+
+async def back_from_event_chat_male(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.age_group)
+
+
+async def back_from_event_chat_female(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.chat_male)
+
+
+async def edit_event_chat_male(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data["edit_mode"] = True
+    await dialog_manager.switch_to(EventsSG.chat_male)
+
+
+async def edit_event_chat_female(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data["edit_mode"] = True
+    await dialog_manager.switch_to(EventsSG.chat_female)
 
 
 async def _notify_users(
@@ -590,8 +639,8 @@ async def _notify_users(
     keyboard_buttons.append(
         [
             InlineKeyboardButton(
-                text=i18n.partner.event.going.button(),
-                callback_data=f"{EVENT_GOING_CALLBACK}:{event_id}",
+                text=i18n.partner.event.join.chat.button(),
+                callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
             )
         ]
     )
@@ -665,7 +714,8 @@ async def publish_event(
             "1" if data.get("is_paid") else "0",
             data.get("price") or "",
             data.get("age_group") or "",
-            data.get("auto_message_text") or "",
+            data.get("male_chat_url") or "",
+            data.get("female_chat_url") or "",
         ]
     )
     fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
@@ -685,7 +735,8 @@ async def publish_event(
         price=data.get("price"),
         age_group=data.get("age_group"),
         notify_users=notify_users,
-        auto_message_text=data.get("auto_message_text"),
+        male_chat_url=data.get("male_chat_url") or "",
+        female_chat_url=data.get("female_chat_url") or "",
         photo_file_id=photo_id,
         fingerprint=fingerprint,
     )
@@ -700,8 +751,8 @@ async def publish_event(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=i18n.partner.event.going.button(),
-                    callback_data=f"{EVENT_GOING_CALLBACK}:{event_id}",
+                    text=i18n.partner.event.join.chat.button(),
+                    callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
                 )
             ]
         ]

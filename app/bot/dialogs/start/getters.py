@@ -1,6 +1,3 @@
-from datetime import datetime
-
-from aiogram import Bot
 from aiogram.types import ContentType, User
 from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
@@ -13,30 +10,6 @@ from app.infrastructure.database.database.db import DB
 EVENTS_PAGE_SIZE = 5
 
 
-def _build_event_tags(
-    *,
-    i18n: TranslatorRunner,
-    is_paid: bool,
-    is_past: bool,
-) -> str:
-    tags = []
-    if is_paid:
-        tags.append(i18n.start.event.paid.tag())
-    if is_past:
-        tags.append(i18n.start.event.past.tag())
-    if not tags:
-        return ""
-    return f" {' '.join(tags)}"
-
-
-def _is_event_past(event_datetime: str) -> bool:
-    try:
-        event_dt = datetime.strptime(event_datetime, "%Y.%m.%d %H:%M")
-    except ValueError:
-        return False
-    return event_dt < datetime.now()
-
-
 def _build_channel_post_link(channel_id: int | None, message_id: int | None) -> str | None:
     if not channel_id or not message_id:
         return None
@@ -46,24 +19,6 @@ def _build_channel_post_link(channel_id: int | None, message_id: int | None) -> 
     else:
         channel_id_str = str(abs(channel_id))
     return f"https://t.me/c/{channel_id_str}/{message_id}"
-
-
-async def _format_registration_user_label(
-    *,
-    bot: Bot | None,
-    user_id: int,
-) -> str:
-    if not bot:
-        return f"id:{user_id}"
-    try:
-        chat = await bot.get_chat(user_id)
-    except Exception:
-        return f"id:{user_id}"
-    if chat.username:
-        return f"@{chat.username}"
-    if chat.full_name:
-        return chat.full_name
-    return f"id:{user_id}"
 
 
 async def get_hello(
@@ -79,36 +34,6 @@ async def get_hello(
         user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
     )
     is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
-    can_view_events = bool(user_record and user_record.role == UserRole.USER)
-    all_events = []
-    if can_view_events:
-        all_events = await db.event_registrations.get_user_event_list(
-            user_id=event_from_user.id
-        )
-
-    total_events = len(all_events)
-    total_pages = max(1, (total_events + EVENTS_PAGE_SIZE - 1) // EVENTS_PAGE_SIZE)
-    current_page = int(dialog_manager.dialog_data.get("events_page", 0))
-    current_page = max(0, min(current_page, total_pages - 1))
-    dialog_manager.dialog_data["events_page"] = current_page
-    start = current_page * EVENTS_PAGE_SIZE
-    end = start + EVENTS_PAGE_SIZE
-    page_items = all_events[start:end]
-
-    event_items = []
-    for item in page_items:
-        tags = _build_event_tags(
-            i18n=i18n,
-            is_paid=item.is_paid,
-            is_past=_is_event_past(item.event_datetime),
-        )
-        label = i18n.start.events.item(
-            name=item.name,
-            datetime=item.event_datetime,
-            tags=tags,
-        )
-        event_items.append((label, str(item.event_id)))
-
     return {
         "hello": i18n.start.hello(username=username),
         "create_event_button": i18n.partner.event.create.button(),
@@ -117,21 +42,6 @@ async def get_hello(
         "can_view_partner_events": is_partner,
         "partner_requests_button": i18n.partner.request.list.button(),
         "can_manage_partner_requests": is_admin,
-        "can_view_events": can_view_events,
-        "events_list_button": i18n.start.events.list.button(),
-        "subscriptions_title": i18n.start.events.title(),
-        "subscriptions_empty": i18n.start.events.empty(),
-        "event_items": event_items,
-        "has_events": bool(event_items),
-        "show_empty_events": can_view_events and total_events == 0,
-        "show_events_page": can_view_events and total_pages > 1,
-        "events_page_text": i18n.start.events.page(
-            current=current_page + 1, total=total_pages
-        ),
-        "events_prev_button": i18n.start.events.prev.button(),
-        "events_next_button": i18n.start.events.next.button(),
-        "has_prev_page": current_page > 0,
-        "has_next_page": current_page < total_pages - 1,
         "back_button": i18n.back.button(),
     }
 
@@ -152,14 +62,6 @@ async def get_partner_events(
         all_events = await db.events.get_partner_event_list(
             partner_user_id=event_from_user.id
         )
-    registration_counts = {}
-    if is_partner and all_events:
-        registration_counts = (
-            await db.event_registrations.get_partner_event_registration_counts(
-                partner_user_id=event_from_user.id
-            )
-        )
-
     total_events = len(all_events)
     total_pages = max(1, (total_events + EVENTS_PAGE_SIZE - 1) // EVENTS_PAGE_SIZE)
     current_page = int(dialog_manager.dialog_data.get("partner_events_page", 0))
@@ -171,12 +73,9 @@ async def get_partner_events(
 
     event_items = []
     for item in page_items:
-        registered_count, paid_count = registration_counts.get(item.event_id, (0, 0))
         label = i18n.partner.events.item(
             name=item.name,
             datetime=item.event_datetime,
-            registered=registered_count,
-            paid=paid_count,
         )
         event_items.append((label, str(item.event_id)))
 
@@ -198,71 +97,6 @@ async def get_partner_events(
     }
 
 
-async def get_event_details(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    event_from_user: User,
-    db: DB,
-    **kwargs,
-) -> dict[str, str]:
-    event_id = dialog_manager.dialog_data.get("selected_event_id")
-    if not event_id:
-        return {
-            "event_details_text": i18n.start.event.details.missing(),
-            "back_button": i18n.back.button(),
-            "can_mark_paid": False,
-            "has_post_url": False,
-        }
-
-    registration = await db.event_registrations.get_registration(
-        event_id=event_id,
-        user_id=event_from_user.id,
-    )
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if registration is None or event is None:
-        return {
-            "event_details_text": i18n.start.event.details.missing(),
-            "back_button": i18n.back.button(),
-            "can_mark_paid": False,
-            "has_post_url": False,
-        }
-
-    event_text = build_event_text(
-        {
-            "name": event.name,
-            "datetime": event.event_datetime,
-            "address": event.address,
-            "description": event.description,
-            "is_paid": event.is_paid,
-            "price": event.price,
-            "age_group": event.age_group,
-        },
-        i18n,
-    )
-    return {
-        "event_details_text": event_text,
-        "event_media": (
-            MediaAttachment(
-                type=ContentType.PHOTO,
-                file_id=MediaId(event.photo_file_id),
-            )
-            if event.photo_file_id
-            else None
-        ),
-        "back_button": i18n.back.button(),
-        "mark_paid_button": i18n.partner.event.going.paid.button(),
-        "view_post_button": i18n.partner.event.view.post.button(),
-        "can_mark_paid": not registration.is_paid,
-        "event_post_url": _build_channel_post_link(
-            event.channel_id, event.channel_message_id
-        )
-        or "",
-        "has_post_url": bool(
-            event.channel_id and event.channel_message_id
-        ),
-    }
-
-
 async def get_partner_event_details(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -276,7 +110,6 @@ async def get_partner_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
-            "can_view_registrations": False,
         }
 
     user_record = await db.users.get_user_record(user_id=event_from_user.id)
@@ -288,7 +121,6 @@ async def get_partner_event_details(
             "event_details_text": i18n.partner.event.forbidden(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
-            "can_view_registrations": False,
         }
 
     event = await db.events.get_event_by_id(event_id=event_id)
@@ -297,14 +129,12 @@ async def get_partner_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
-            "can_view_registrations": False,
         }
     if user_record.role == UserRole.PARTNER and event.partner_user_id != event_from_user.id:
         return {
             "event_details_text": i18n.partner.event.forbidden(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
-            "can_view_registrations": False,
         }
 
     event_text = build_event_text(
@@ -320,21 +150,6 @@ async def get_partner_event_details(
         i18n,
     )
 
-    registrations = await db.event_registrations.get_event_registrations_list(
-        event_id=event_id
-    )
-    paid_count = sum(
-        1
-        for registration in registrations
-        if registration.is_paid and registration.receipt
-    )
-    pending_count = sum(
-        1
-        for registration in registrations
-        if registration.is_paid and not registration.receipt
-    )
-    total_count = len(registrations)
-
     return {
         "event_details_text": event_text,
         "event_media": (
@@ -345,13 +160,6 @@ async def get_partner_event_details(
             if event.photo_file_id
             else None
         ),
-        "registrations_button": i18n.partner.event.registrations.button(
-            registered=total_count,
-            paid=paid_count,
-        ),
-        "pending_payments_button": i18n.partner.event.registrations.pending.button(
-            count=pending_count
-        ),
         "back_button": i18n.back.button(),
         "view_post_button": i18n.partner.event.view.post.button(),
         "event_post_url": _build_channel_post_link(
@@ -359,173 +167,4 @@ async def get_partner_event_details(
         )
         or "",
         "has_post_url": bool(event.channel_id and event.channel_message_id),
-        "can_view_registrations": True,
-        "show_pending_payments": pending_count > 0,
-    }
-
-
-async def get_partner_event_registrations(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    event_from_user: User,
-    db: DB,
-    **kwargs,
-) -> dict[str, str | bool]:
-    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
-    if not event_id:
-        return {
-            "registrations_title": i18n.partner.event.registrations.title(count=0),
-            "registrations_text": i18n.partner.event.registrations.empty(),
-            "back_button": i18n.back.button(),
-        }
-
-    user_record = await db.users.get_user_record(user_id=event_from_user.id)
-    is_partner = bool(
-        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
-    )
-    if not is_partner:
-        return {
-            "registrations_title": i18n.partner.event.registrations.title(count=0),
-            "registrations_text": i18n.partner.event.forbidden(),
-            "back_button": i18n.back.button(),
-        }
-
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None:
-        return {
-            "registrations_title": i18n.partner.event.registrations.title(count=0),
-            "registrations_text": i18n.start.event.details.missing(),
-            "back_button": i18n.back.button(),
-        }
-    if user_record.role == UserRole.PARTNER and event.partner_user_id != event_from_user.id:
-        return {
-            "registrations_title": i18n.partner.event.registrations.title(count=0),
-            "registrations_text": i18n.partner.event.forbidden(),
-            "back_button": i18n.back.button(),
-        }
-
-    registrations = await db.event_registrations.get_event_registrations_list(
-        event_id=event_id
-    )
-    bot: Bot | None = dialog_manager.middleware_data.get("bot")
-    registration_lines = []
-    for registration in registrations:
-        user_label = await _format_registration_user_label(
-            bot=bot,
-            user_id=registration.user_id,
-        )
-        paid_tag = (
-            i18n.partner.event.registrations.paid.tag()
-            if registration.is_paid and registration.receipt
-            else ""
-        )
-        registration_lines.append(
-            i18n.partner.event.registrations.item(
-                user_label=user_label,
-                paid_tag=paid_tag,
-            )
-        )
-    if registration_lines:
-        registrations_text = "\n".join(registration_lines)
-    else:
-        registrations_text = i18n.partner.event.registrations.empty()
-
-    return {
-        "registrations_title": i18n.partner.event.registrations.title(
-            count=len(registrations)
-        ),
-        "registrations_text": registrations_text,
-        "back_button": i18n.back.button(),
-    }
-
-
-async def get_partner_event_pending_payments(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    event_from_user: User,
-    db: DB,
-    **kwargs,
-) -> dict[str, str | list[tuple[str, str]] | bool]:
-    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
-    if not event_id:
-        return {
-            "pending_payments_title": i18n.partner.event.registrations.pending.title(
-                count=0
-            ),
-            "pending_payments_empty": i18n.partner.event.registrations.pending.empty(),
-            "pending_items": [],
-            "has_pending_items": False,
-            "show_pending_payments_empty": True,
-            "back_button": i18n.back.button(),
-        }
-
-    user_record = await db.users.get_user_record(user_id=event_from_user.id)
-    is_partner = bool(
-        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
-    )
-    if not is_partner:
-        return {
-            "pending_payments_title": i18n.partner.event.registrations.pending.title(
-                count=0
-            ),
-            "pending_payments_empty": i18n.partner.event.forbidden(),
-            "pending_items": [],
-            "has_pending_items": False,
-            "show_pending_payments_empty": True,
-            "back_button": i18n.back.button(),
-        }
-
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None:
-        return {
-            "pending_payments_title": i18n.partner.event.registrations.pending.title(
-                count=0
-            ),
-            "pending_payments_empty": i18n.start.event.details.missing(),
-            "pending_items": [],
-            "has_pending_items": False,
-            "show_pending_payments_empty": True,
-            "back_button": i18n.back.button(),
-        }
-    if user_record.role == UserRole.PARTNER and event.partner_user_id != event_from_user.id:
-        return {
-            "pending_payments_title": i18n.partner.event.registrations.pending.title(
-                count=0
-            ),
-            "pending_payments_empty": i18n.partner.event.forbidden(),
-            "pending_items": [],
-            "has_pending_items": False,
-            "show_pending_payments_empty": True,
-            "back_button": i18n.back.button(),
-        }
-
-    registrations = await db.event_registrations.get_event_registrations_list(
-        event_id=event_id
-    )
-    pending_registrations = [
-        registration
-        for registration in registrations
-        if registration.is_paid and not registration.receipt
-    ]
-    bot: Bot | None = dialog_manager.middleware_data.get("bot")
-    pending_items = []
-    for registration in pending_registrations:
-        user_label = await _format_registration_user_label(
-            bot=bot,
-            user_id=registration.user_id,
-        )
-        label = i18n.partner.event.registrations.pending.item(
-            user_label=user_label,
-        )
-        pending_items.append((label, str(registration.user_id)))
-
-    return {
-        "pending_payments_title": i18n.partner.event.registrations.pending.title(
-            count=len(pending_items)
-        ),
-        "pending_payments_empty": i18n.partner.event.registrations.pending.empty(),
-        "pending_items": pending_items,
-        "has_pending_items": bool(pending_items),
-        "show_pending_payments_empty": not pending_items,
-        "back_button": i18n.back.button(),
     }

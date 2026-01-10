@@ -4,31 +4,19 @@ from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
-    get_event_details,
     get_hello,
     get_partner_event_details,
-    get_partner_event_pending_payments,
-    get_partner_event_registrations,
     get_partner_events,
 )
 from app.bot.dialogs.start.handlers import (
     back_to_start,
-    back_to_events_list,
     back_to_partner_event_details,
     back_to_partner_events_list,
-    mark_user_event_paid,
-    show_next_events_page,
     show_next_partner_events_page,
     show_partner_event_details,
-    show_partner_event_registrations,
-    show_partner_event_pending_payments,
-    request_pending_payment_receipt,
     show_partner_events_list,
     show_partner_requests_list,
-    show_prev_events_page,
     show_prev_partner_events_page,
-    show_user_events_list,
-    show_user_event_details,
 )
 from app.bot.states.start import StartSG
 from app.bot.states.events import EventsSG
@@ -44,12 +32,6 @@ start_dialog = Dialog(
             when="can_create_event",
         ),
         Button(
-            text=Format("{events_list_button}"),
-            id="start_events_list",
-            on_click=show_user_events_list,
-            when="can_view_events",
-        ),
-        Button(
             text=Format("{partner_events_list_button}"),
             id="partner_events_list",
             on_click=show_partner_events_list,
@@ -63,49 +45,6 @@ start_dialog = Dialog(
         ),
         getter=get_hello,
         state=StartSG.start
-    ),
-    Window(
-        Format("{subscriptions_title}"),
-        Format("{subscriptions_empty}", when="show_empty_events"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="user_events_select",
-                item_id_getter=lambda item: item[1],
-                items="event_items",
-                on_click=show_user_event_details,
-            ),
-            id="user_events_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_events",
-        ),
-        Format("{events_page_text}", when="show_events_page"),
-        Row(
-            Button(
-                text=Format("{events_prev_button}"),
-                id="events_prev_page",
-                on_click=show_prev_events_page,
-                when="has_prev_page",
-            ),
-            Button(
-                text=Format("{events_next_button}"),
-                id="events_next_page",
-                on_click=show_next_events_page,
-                when="has_next_page",
-            ),
-            when="show_events_page",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="events_list_back",
-                on_click=back_to_start,
-            ),
-        ),
-        getter=get_hello,
-        state=StartSG.events_list,
     ),
     Window(
         Format("{partner_events_title}"),
@@ -154,45 +93,6 @@ start_dialog = Dialog(
         DynamicMedia("event_media"),
         Format("{event_details_text}"),
         Group(
-            Button(
-                text=Format("{mark_paid_button}"),
-                id="user_event_mark_paid",
-                on_click=mark_user_event_paid,
-                when="can_mark_paid",
-            ),
-            Url(
-                text=Format("{view_post_button}"),
-                url=Format("{event_post_url}"),
-                id="user_event_view_post",
-                when="has_post_url",
-            ),
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="user_event_back",
-                on_click=back_to_events_list,
-            ),
-        ),
-        getter=get_event_details,
-        state=StartSG.event_details,
-    ),
-    Window(
-        DynamicMedia("event_media"),
-        Format("{event_details_text}"),
-        Group(
-            Button(
-                text=Format("{registrations_button}"),
-                id="partner_event_registrations",
-                on_click=show_partner_event_registrations,
-                when="can_view_registrations",
-            ),
-            Button(
-                text=Format("{pending_payments_button}"),
-                id="partner_event_pending_payments",
-                on_click=show_partner_event_pending_payments,
-                when="show_pending_payments",
-            ),
             Url(
                 text=Format("{view_post_button}"),
                 url=Format("{event_post_url}"),
@@ -209,46 +109,5 @@ start_dialog = Dialog(
         ),
         getter=get_partner_event_details,
         state=StartSG.partner_event_details,
-    ),
-    Window(
-        Format("{registrations_title}"),
-        Format("{registrations_text}"),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="partner_event_registrations_back",
-                on_click=back_to_partner_event_details,
-            ),
-        ),
-        getter=get_partner_event_registrations,
-        state=StartSG.partner_event_registrations,
-    ),
-    Window(
-        Format("{pending_payments_title}"),
-        Format("{pending_payments_empty}", when="show_pending_payments_empty"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="pending_payments_select",
-                item_id_getter=lambda item: item[1],
-                # Clicking a user asks the bot to send a receipt request message.
-                on_click=request_pending_payment_receipt,
-                items="pending_items",
-            ),
-            id="pending_payments_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_pending_items",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="pending_payments_back",
-                on_click=back_to_partner_event_details,
-            ),
-        ),
-        getter=get_partner_event_pending_payments,
-        state=StartSG.partner_event_pending_payments,
     ),
 )

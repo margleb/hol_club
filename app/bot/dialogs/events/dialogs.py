@@ -9,7 +9,8 @@ from app.bot.dialogs.events.getters import (
     get_event_address_query,
     get_event_address_select,
     get_event_age_group,
-    get_event_auto_message,
+    get_event_chat_female,
+    get_event_chat_male,
     get_event_datetime,
     get_event_description,
     get_event_image,
@@ -21,7 +22,8 @@ from app.bot.dialogs.events.getters import (
 from app.bot.dialogs.events.handlers import (
     back_from_event_address_query,
     back_from_event_age_group,
-    back_from_event_auto_message,
+    back_from_event_chat_female,
+    back_from_event_chat_male,
     back_from_event_datetime,
     back_from_event_description,
     back_from_event_image,
@@ -32,7 +34,8 @@ from app.bot.dialogs.events.handlers import (
     back_to_address_query,
     edit_event_address,
     edit_event_age,
-    edit_event_auto_message,
+    edit_event_chat_female,
+    edit_event_chat_male,
     edit_event_datetime,
     edit_event_description,
     edit_event_image,
@@ -43,7 +46,8 @@ from app.bot.dialogs.events.handlers import (
     on_event_address_input,
     on_event_address_selected,
     on_event_age_input,
-    on_event_auto_message_input,
+    on_event_chat_female_input,
+    on_event_chat_male_input,
     on_event_datetime_input,
     on_event_description_input,
     on_event_name_input,
@@ -213,18 +217,34 @@ events_dialog = Dialog(
     Window(
         Format("{prompt}"),
         TextInput(
-            id="event_auto_message_input",
-            on_success=on_event_auto_message_input,
+            id="event_chat_male_input",
+            on_success=on_event_chat_male_input,
         ),
         Row(
             Button(
                 text=Format("{back_button}"),
-                id="back_from_event_auto_message",
-                on_click=back_from_event_auto_message,
+                id="back_from_event_chat_male",
+                on_click=back_from_event_chat_male,
             ),
         ),
-        state=EventsSG.auto_message,
-        getter=get_event_auto_message,
+        state=EventsSG.chat_male,
+        getter=get_event_chat_male,
+    ),
+    Window(
+        Format("{prompt}"),
+        TextInput(
+            id="event_chat_female_input",
+            on_success=on_event_chat_female_input,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_chat_female",
+                on_click=back_from_event_chat_female,
+            ),
+        ),
+        state=EventsSG.chat_female,
+        getter=get_event_chat_female,
     ),
     Window(
         Format("{prompt}"),
@@ -286,9 +306,14 @@ events_dialog = Dialog(
                 on_click=edit_event_age,
             ),
             Button(
-                text=Format("{edit_auto_message_button}"),
-                id="edit_event_auto_message",
-                on_click=edit_event_auto_message,
+                text=Format("{edit_chat_male_button}"),
+                id="edit_event_chat_male",
+                on_click=edit_event_chat_male,
+            ),
+            Button(
+                text=Format("{edit_chat_female_button}"),
+                id="edit_event_chat_female",
+                on_click=edit_event_chat_female,
             ),
             Button(
                 text=Format("{edit_notify_button}"),

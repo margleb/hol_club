@@ -10,6 +10,7 @@ class EventsSG(StatesGroup):
     description = State()
     price = State()
     age_group = State()
-    auto_message = State()
+    chat_male = State()
+    chat_female = State()
     notify = State()
     preview = State()

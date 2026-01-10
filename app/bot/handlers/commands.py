@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from aiogram import Bot, Router
+from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
@@ -12,10 +12,6 @@ from taskiq_redis import RedisScheduleSource
 
 from app.bot.enums.roles import UserRole
 from app.bot.filters.dialog_filters import DialogStateFilter, DialogStateGroupFilter
-from app.bot.services.event_interesting import (
-    maybe_interesting_outer_start,
-    show_event_to_outer_user,
-)
 from app.bot.services.general_registration import parse_general_start_payload
 from app.bot.states.settings import SettingsSG
 from app.bot.states.general_registration import GeneralRegistrationSG
@@ -37,11 +33,10 @@ commands_router = Router()
 
 @commands_router.message(CommandStart())
 async def process_start_command(
-        message: Message,
-        dialog_manager: DialogManager,
-        i18n: TranslatorRunner,
-        db: DB,
-        bot: Bot,
+    message: Message,
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    db: DB,
 ) -> None:
     if not message.from_user:
         return
@@ -78,29 +73,7 @@ async def process_start_command(
         )
         return
 
-    outer_result = await maybe_interesting_outer_start(
-        db=db,
-        user_id=message.from_user.id,
-        username=message.from_user.username,
-        user_role=user_role,
-        message_text=message.text,
-    )
-
-    # 3. Если это рекламная ссылка и регистрация создана
-    if outer_result:
-        created, event = outer_result
-        if created:
-            # Выносим логику показа события в отдельную функцию
-            await show_event_to_outer_user(
-                bot=bot,
-                user_id=message.from_user.id,
-                event=event,
-                i18n=i18n,
-                logger=logger,
-            )
-            return
-
-    # 4. Стандартный запуск диалога
+    # 3. Стандартный запуск диалога
     await dialog_manager.start(
         state=StartSG.start,
         mode=StartMode.RESET_STACK

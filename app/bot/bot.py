@@ -15,7 +15,7 @@ from app.bot.dialogs.general_registration.dialogs import general_registration_di
 from app.bot.dialogs.settings.dialogs import settings_dialog
 from app.bot.dialogs.start.dialogs import start_dialog
 from app.bot.handlers.commands import commands_router
-from app.bot.handlers.event_registrations import event_registrations_router
+from app.bot.handlers.event_chats import event_chats_router
 from app.bot.handlers.partner_requests import partner_requests_router
 from app.bot.handlers.errors import on_unknown_intent, on_unknown_state
 from app.bot.i18n.translator_hub import create_translator_hub
@@ -83,7 +83,7 @@ async def main():
     logger.info("Including routers")
     dp.include_routers(
         commands_router,
-        event_registrations_router,
+        event_chats_router,
         partner_requests_router,
         start_dialog,
         settings_dialog,
