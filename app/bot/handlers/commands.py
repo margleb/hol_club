@@ -17,6 +17,7 @@ from app.bot.handlers.event_chats import (
     parse_event_chat_start_payload,
 )
 from app.bot.services.general_registration import parse_general_start_payload
+from app.bot.states.account import AccountSG
 from app.bot.states.settings import SettingsSG
 from app.bot.states.general_registration import GeneralRegistrationSG
 from app.bot.states.start import StartSG
@@ -88,7 +89,22 @@ async def process_start_command(
         )
         return
 
-    # 4. Стандартный запуск диалога
+    # 4. Обязательная анкета для первого входа
+    if user_role == UserRole.USER:
+        has_profile = bool(
+            user_record
+            and user_record.gender
+            and user_record.age_group
+        )
+        if not has_profile:
+            await dialog_manager.start(
+                state=AccountSG.gender,
+                mode=StartMode.RESET_STACK,
+                data={"force_profile": True},
+            )
+            return
+
+    # 5. Стандартный запуск диалога
     await dialog_manager.start(
         state=StartSG.start,
         mode=StartMode.RESET_STACK

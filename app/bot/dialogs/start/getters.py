@@ -38,6 +38,7 @@ async def get_hello(
         "hello": i18n.start.hello(username=username),
         "create_event_button": i18n.partner.event.create.button(),
         "can_create_event": is_partner,
+        "my_account_button": i18n.account.button(),
         "partner_events_list_button": i18n.partner.events.list.button(),
         "can_view_partner_events": is_partner,
         "partner_requests_button": i18n.partner.request.list.button(),

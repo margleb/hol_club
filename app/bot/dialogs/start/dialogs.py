@@ -18,6 +18,7 @@ from app.bot.dialogs.start.handlers import (
     show_partner_requests_list,
     show_prev_partner_events_page,
 )
+from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.bot.states.events import EventsSG
 
@@ -30,6 +31,12 @@ start_dialog = Dialog(
             state=EventsSG.name,
             mode=StartMode.NORMAL,
             when="can_create_event",
+        ),
+        Start(
+            text=Format("{my_account_button}"),
+            id="start_my_account",
+            state=AccountSG.gender,
+            mode=StartMode.NORMAL,
         ),
         Button(
             text=Format("{partner_events_list_button}"),

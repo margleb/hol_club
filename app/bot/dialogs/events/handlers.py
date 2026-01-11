@@ -635,6 +635,31 @@ async def _notify_users(
 
     sent = 0
     for user_id, gender, age_group in user_profiles:
+        if not gender:
+            try:
+                await bot.send_message(
+                    user_id,
+                    text=i18n.general.registration.gender.prompt(),
+                    reply_markup=build_gender_keyboard(
+                        i18n, event_id, announce=True
+                    ),
+                )
+                sent += 1
+            except Exception as exc:
+                logger.info("Failed to notify user %s: %s", user_id, exc)
+            continue
+        if not age_group:
+            try:
+                await bot.send_message(
+                    user_id,
+                    text=i18n.general.registration.age.prompt(),
+                    reply_markup=build_age_keyboard(i18n, event_id, announce=True),
+                )
+                sent += 1
+            except Exception as exc:
+                logger.info("Failed to notify user %s: %s", user_id, exc)
+            continue
+
         keyboard_buttons = []
         if post_link:
             keyboard_buttons.append(
@@ -645,9 +670,7 @@ async def _notify_users(
                     )
                 ]
             )
-        chat_url = None
-        if gender and age_group:
-            chat_url = female_chat_url if gender == "female" else male_chat_url
+        chat_url = female_chat_url if gender == "female" else male_chat_url
         if chat_url:
             keyboard_buttons.append(
                 [
@@ -662,27 +685,18 @@ async def _notify_users(
             if keyboard_buttons
             else None
         )
-        message_text = text
-        if not gender:
-            prompt = i18n.general.registration.gender.prompt()
-            message_text = f"{text}\n\n{prompt}"
-            keyboard = build_gender_keyboard(i18n, event_id)
-        elif not age_group:
-            prompt = i18n.general.registration.age.prompt()
-            message_text = f"{text}\n\n{prompt}"
-            keyboard = build_age_keyboard(i18n, event_id)
         try:
             if photo_id:
                 await bot.send_photo(
                     user_id,
                     photo=photo_id,
-                    caption=message_text,
+                    caption=text,
                     reply_markup=keyboard,
                 )
             else:
                 await bot.send_message(
                     user_id,
-                    text=message_text,
+                    text=text,
                     reply_markup=keyboard,
                 )
             sent += 1

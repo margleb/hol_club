@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.general_registration.getters import AGE_GROUPS
+from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 
@@ -24,7 +25,7 @@ def _parse_callback_parts(
     if not data or not data.startswith(prefix):
         return None
     parts = data.split(":")
-    if len(parts) != expected_parts:
+    if len(parts) not in {expected_parts, expected_parts + 1}:
         return None
     return parts
 
@@ -32,19 +33,26 @@ def _parse_callback_parts(
 def build_gender_keyboard(
     i18n: TranslatorRunner,
     event_id: int,
+    *,
+    announce: bool = False,
 ) -> InlineKeyboardMarkup:
+    suffix = ":announce" if announce else ""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text=i18n.general.registration.gender.male(),
-                    callback_data=f"{EVENT_JOIN_CHAT_GENDER_CALLBACK}:{event_id}:male",
+                    callback_data=(
+                        f"{EVENT_JOIN_CHAT_GENDER_CALLBACK}:{event_id}:male{suffix}"
+                    ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text=i18n.general.registration.gender.female(),
-                    callback_data=f"{EVENT_JOIN_CHAT_GENDER_CALLBACK}:{event_id}:female",
+                    callback_data=(
+                        f"{EVENT_JOIN_CHAT_GENDER_CALLBACK}:{event_id}:female{suffix}"
+                    ),
                 )
             ],
         ]
@@ -54,14 +62,19 @@ def build_gender_keyboard(
 def build_age_keyboard(
     i18n: TranslatorRunner,
     event_id: int,
+    *,
+    announce: bool = False,
 ) -> InlineKeyboardMarkup:
+    suffix = ":announce" if announce else ""
     rows = []
     for age_group in AGE_GROUPS:
         rows.append(
             [
                 InlineKeyboardButton(
                     text=i18n.general.registration.age.group(range=age_group),
-                    callback_data=f"{EVENT_JOIN_CHAT_AGE_CALLBACK}:{event_id}:{age_group}",
+                    callback_data=(
+                        f"{EVENT_JOIN_CHAT_AGE_CALLBACK}:{event_id}:{age_group}{suffix}"
+                    ),
                 )
             ]
         )
@@ -101,10 +114,13 @@ async def _send_chat_link_message(
             ]
         ]
     )
-    await message.answer(
-        i18n.partner.event.join.chat.text(),
-        reply_markup=keyboard,
+    text = "\n\n".join(
+        [
+            i18n.partner.event.join.chat.text(),
+            i18n.partner.event.join.chat.hint(),
+        ]
     )
+    await message.answer(text, reply_markup=keyboard)
 
 
 def parse_event_chat_start_payload(message_text: str | None) -> int | None:
@@ -127,6 +143,71 @@ def parse_event_chat_start_payload(message_text: str | None) -> int | None:
     if not raw_event_id.isdigit():
         return None
     return int(raw_event_id)
+
+
+def _build_channel_post_link(
+    channel_id: int | None,
+    message_id: int | None,
+) -> str | None:
+    if not channel_id or not message_id:
+        return None
+    chat_id_str = str(channel_id)
+    if chat_id_str.startswith("-100"):
+        channel_id_str = chat_id_str[4:]
+    else:
+        channel_id_str = str(abs(channel_id))
+    return f"https://t.me/c/{channel_id_str}/{message_id}"
+
+
+async def _send_event_announcement(
+    *,
+    message: Message,
+    i18n: TranslatorRunner,
+    event,
+    chat_url: str,
+) -> None:
+    event_text = build_event_text(
+        {
+            "name": event.name,
+            "datetime": event.event_datetime,
+            "address": event.address,
+            "description": event.description,
+            "is_paid": event.is_paid,
+            "price": event.price,
+            "age_group": event.age_group,
+        },
+        i18n,
+    )
+    post_url = _build_channel_post_link(
+        event.channel_id, event.channel_message_id
+    )
+    keyboard_rows = []
+    if post_url:
+        keyboard_rows.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.view.post.button(),
+                    url=post_url,
+                )
+            ]
+        )
+    keyboard_rows.append(
+        [
+            InlineKeyboardButton(
+                text=i18n.partner.event.join.chat.button(),
+                url=chat_url,
+            )
+        ]
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    if event.photo_file_id:
+        await message.answer_photo(
+            event.photo_file_id,
+            caption=event_text,
+            reply_markup=keyboard,
+        )
+    else:
+        await message.answer(event_text, reply_markup=keyboard)
 
 
 async def handle_event_chat_start(
@@ -172,11 +253,7 @@ async def handle_event_chat_start(
     if not chat_url:
         await message.answer(i18n.partner.event.join.chat.missing())
         return
-    await _send_chat_link_message(
-        message=message,
-        i18n=i18n,
-        chat_url=chat_url,
-    )
+    await _send_chat_link_message(message=message, i18n=i18n, chat_url=chat_url)
 
 
 @event_chats_router.callback_query(
@@ -269,6 +346,7 @@ async def process_event_join_chat_gender(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
     gender = parts[2]
+    announce = len(parts) == 4 and parts[3] == "announce"
     if gender not in {"male", "female"}:
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
@@ -296,7 +374,7 @@ async def process_event_join_chat_gender(
         if callback.message:
             await callback.message.answer(
                 i18n.general.registration.age.prompt(),
-                reply_markup=build_age_keyboard(i18n, event_id),
+                reply_markup=build_age_keyboard(i18n, event_id, announce=announce),
             )
         await callback.answer()
         return
@@ -311,7 +389,14 @@ async def process_event_join_chat_gender(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    if callback.message:
+    if announce and callback.message:
+        await _send_event_announcement(
+            message=callback.message,
+            i18n=i18n,
+            event=event,
+            chat_url=chat_url,
+        )
+    elif callback.message:
         await _send_chat_link_message(
             message=callback.message,
             i18n=i18n,
@@ -339,6 +424,7 @@ async def process_event_join_chat_age(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
     age_group = parts[2]
+    announce = len(parts) == 4 and parts[3] == "announce"
     if age_group not in AGE_GROUPS:
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
@@ -366,7 +452,7 @@ async def process_event_join_chat_age(
         if callback.message:
             await callback.message.answer(
                 i18n.general.registration.gender.prompt(),
-                reply_markup=build_gender_keyboard(i18n, event_id),
+                reply_markup=build_gender_keyboard(i18n, event_id, announce=announce),
             )
         await callback.answer()
         return
@@ -381,7 +467,14 @@ async def process_event_join_chat_age(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    if callback.message:
+    if announce and callback.message:
+        await _send_event_announcement(
+            message=callback.message,
+            i18n=i18n,
+            event=event,
+            chat_url=chat_url,
+        )
+    elif callback.message:
         await _send_chat_link_message(
             message=callback.message,
             i18n=i18n,

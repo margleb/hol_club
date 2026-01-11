@@ -268,6 +268,7 @@ partner-event-edit-notify-button = Edit notifications
 partner-event-join-chat-button = Join the chat
 partner-event-join-chat-text = Here is the event chat link:
 partner-event-join-chat-missing = Could not find a chat for this event.
+partner-event-join-chat-hint = You can change your gender and age in your account.
 
 partner-event-view-post-button = View post
 
@@ -289,6 +290,11 @@ general-registration-request-text =
     Please provide your gender and age group so we can route you to the right chats and notifications.
 general-registration-request-button = Fill the form
 general-registration-request-empty = No users to notify.
+
+account-button = My account
+account-gender-prompt = Select your gender
+account-age-prompt = Select your age group
+account-updated = Profile updated.
 
 partner-event-publish-success = Event published.
 

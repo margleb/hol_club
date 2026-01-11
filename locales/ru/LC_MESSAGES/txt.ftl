@@ -265,6 +265,7 @@ partner-event-edit-notify-button = Редактировать уведомлен
 partner-event-join-chat-button = Вступить в чат
 partner-event-join-chat-text = Вот ссылка на чат мероприятия:
 partner-event-join-chat-missing = Не удалось найти чат для этого события.
+partner-event-join-chat-hint = Пол и возраст можно изменить в личном кабинете.
 
 partner-event-view-post-button = Смотреть пост
 
@@ -320,3 +321,8 @@ general-registration-request-text =
     Пожалуйста, укажите ваш пол и возрастную группу, чтобы мы могли корректно подбирать чаты и уведомления.
 general-registration-request-button = Заполнить анкету
 general-registration-request-empty = Нет пользователей для рассылки.
+
+account-button = Мой аккаунт
+account-gender-prompt = Выберите ваш пол
+account-age-prompt = Выберите возрастную группу
+account-updated = Профиль обновлен.
