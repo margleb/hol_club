@@ -2,6 +2,7 @@ from aiogram_dialog import DialogManager
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.general_registration.getters import AGE_GROUPS
+from config.config import settings
 
 
 async def get_account_intro(
@@ -71,7 +72,28 @@ async def get_account_final(
     i18n: TranslatorRunner,
     **kwargs,
 ) -> dict[str, object]:
+    gender = dialog_manager.dialog_data.get("gender")
+    channel_url = getattr(settings.chat_links, "channel_url", None)
+    if not channel_url:
+        events_channel = settings.get("events_channel")
+        if isinstance(events_channel, str) and events_channel.strip():
+            slug = events_channel.strip().lstrip("@")
+            channel_url = f"https://t.me/{slug}"
+
+    if gender == "female":
+        chat_url = getattr(settings.chat_links, "female_chat_url", None)
+        chat_button = i18n.account.final.chat.female.button()
+    else:
+        chat_url = getattr(settings.chat_links, "male_chat_url", None)
+        chat_button = i18n.account.final.chat.male.button()
+
     return {
         "final_text": i18n.account.final.text(),
         "final_button": i18n.account.final.button(),
+        "channel_button": i18n.account.final.channel.button(),
+        "channel_url": channel_url or "",
+        "has_channel_url": bool(channel_url),
+        "chat_button": chat_button,
+        "chat_url": chat_url or "",
+        "has_chat_url": bool(chat_url),
     }

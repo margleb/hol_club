@@ -306,4 +306,7 @@ account-final-text = Готово 👍
                 Я буду звать тебя только на подходящие форматы и не буду спамить.
 
 account-final-button = Ок
+account-final-channel-button = Канал клуба
+account-final-chat-male-button = Мужской чат
+account-final-chat-female-button = Женский чат
 account-updated = Профиль обновлен.

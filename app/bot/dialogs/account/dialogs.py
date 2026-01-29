@@ -1,5 +1,5 @@
 from aiogram_dialog import Dialog, Window
-from aiogram_dialog.widgets.kbd import Button, Row, Select
+from aiogram_dialog.widgets.kbd import Button, Row, Select, Url
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.account.getters import (
@@ -93,6 +93,20 @@ account_dialog = Dialog(
     ),
     Window(
         Format("{final_text}"),
+        Row(
+            Url(
+                text=Format("{channel_button}"),
+                url=Format("{channel_url}"),
+                id="account_final_channel",
+                when="has_channel_url",
+            ),
+            Url(
+                text=Format("{chat_button}"),
+                url=Format("{chat_url}"),
+                id="account_final_chat",
+                when="has_chat_url",
+            ),
+        ),
         Button(
             text=Format("{final_button}"),
             id="account_final_ok",
