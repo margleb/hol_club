@@ -40,6 +40,9 @@ class _EventsDB:
         age_group: str | None,
         photo_file_id: str | None,
         fingerprint: str,
+        prepay_percent: int | None = None,
+        prepay_fixed_free: int | None = None,
+        attendance_code: str | None = None,
     ) -> int | None:
         stmt = (
             insert(EventsModel)
@@ -52,6 +55,9 @@ class _EventsDB:
                 is_paid=is_paid,
                 price=price,
                 age_group=age_group,
+                prepay_percent=prepay_percent,
+                prepay_fixed_free=prepay_fixed_free,
+                attendance_code=attendance_code,
                 photo_file_id=photo_file_id,
                 fingerprint=fingerprint,
             )

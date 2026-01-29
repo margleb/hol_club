@@ -142,6 +142,9 @@ def upgrade() -> None:
         sa.Column("is_paid", sa.Boolean(), nullable=False),
         sa.Column("price", sa.String(length=32), nullable=True),
         sa.Column("age_group", sa.String(length=32), nullable=True),
+        sa.Column("prepay_percent", sa.Integer(), nullable=True),
+        sa.Column("prepay_fixed_free", sa.Integer(), nullable=True),
+        sa.Column("attendance_code", sa.String(length=32), nullable=True),
         sa.Column("photo_file_id", sa.String(length=255), nullable=True),
         sa.Column("fingerprint", sa.String(length=64), nullable=False),
         sa.Column("channel_id", sa.BigInteger(), nullable=True),
@@ -165,8 +168,40 @@ def upgrade() -> None:
         sa.UniqueConstraint("fingerprint"),
     )
 
+    op.create_table(
+        "event_registrations",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("event_id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "status",
+            sa.Enum(
+                "pending_payment",
+                "paid_confirm_pending",
+                "confirmed",
+                "attended_confirmed",
+                "declined",
+                name="eventregistrationstatus",
+                native_enum=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("amount", sa.Integer(), nullable=True),
+        sa.Column(
+            "created",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column("paid_confirmed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("attended_confirmed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("event_id", "user_id"),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table("event_registrations")
     op.drop_table("events")
     op.drop_table("adv_registrations")
     op.drop_table("adv_stats")

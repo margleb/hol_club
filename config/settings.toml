@@ -30,6 +30,9 @@
     female_chat_url = "https://t.me/femgaze"
     under_35_chat_url = "https://t.me/not35yet"
 
+[default.payments]
+    card_number = ""
+
 [development]
 
     [development.logs]

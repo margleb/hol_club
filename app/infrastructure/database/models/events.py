@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database.models.base import BaseModel
@@ -17,6 +17,9 @@ class EventsModel(BaseModel):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False)
     price: Mapped[str | None] = mapped_column(String(32))
+    prepay_percent: Mapped[int | None] = mapped_column(Integer)
+    prepay_fixed_free: Mapped[int | None] = mapped_column(Integer)
+    attendance_code: Mapped[str | None] = mapped_column(String(32))
     age_group: Mapped[str | None] = mapped_column(String(32))
     photo_file_id: Mapped[str | None] = mapped_column(String(255))
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
