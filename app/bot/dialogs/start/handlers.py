@@ -158,17 +158,11 @@ async def on_user_event_attend_code(
 
     user_record = await db.users.get_user_record(user_id=user.id)
     if user_record:
-        order = ("cold", "warm", "hot")
-        current = user_record.intent
-        if current in order:
-            new_intent = order[min(order.index(current) + 1, len(order) - 1)]
-        else:
-            new_intent = "warm"
         await db.users.update_profile(
             user_id=user.id,
             gender=user_record.gender,
             age_group=user_record.age_group,
-            intent=new_intent,
+            intent="hot",
         )
 
     username = f"@{user.username}" if user.username else user.full_name
@@ -236,17 +230,11 @@ async def approve_pending_registration(
     )
     user_record = await db.users.get_user_record(user_id=user_id)
     if user_record:
-        order = ("cold", "warm", "hot")
-        current = user_record.intent
-        if current in order:
-            new_intent = order[min(order.index(current) + 1, len(order) - 1)]
-        else:
-            new_intent = "warm"
         await db.users.update_profile(
             user_id=user_id,
             gender=user_record.gender,
             age_group=user_record.age_group,
-            intent=new_intent,
+            intent="warm",
         )
     if bot:
         await bot.send_message(

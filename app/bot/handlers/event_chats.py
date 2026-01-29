@@ -362,13 +362,6 @@ def _calc_prepay_amount(event) -> int | None:
     return event.prepay_fixed_free
 
 
-def _bump_intent(current: str | None) -> str:
-    order = ("cold", "warm", "hot")
-    if current in order:
-        return order[min(order.index(current) + 1, len(order) - 1)]
-    return "warm"
-
-
 async def _send_prepay_message(
     *,
     message: Message,
@@ -1042,12 +1035,11 @@ async def process_event_prepay_confirm(
         )
         user_record = await db.users.get_user_record(user_id=user_id)
         if user_record:
-            new_intent = _bump_intent(user_record.intent)
             await db.users.update_profile(
                 user_id=user_id,
                 gender=user_record.gender,
                 age_group=user_record.age_group,
-                intent=new_intent,
+                intent="warm",
             )
         if callback.bot:
             await callback.bot.send_message(
@@ -1166,12 +1158,11 @@ async def process_attendance_code(
 
     user_record = await db.users.get_user_record(user_id=user.id)
     if user_record:
-        new_intent = _bump_intent(user_record.intent)
         await db.users.update_profile(
             user_id=user.id,
             gender=user_record.gender,
             age_group=user_record.age_group,
-            intent=new_intent,
+            intent="hot",
         )
 
     username = f"@{user.username}" if user.username else user.full_name
