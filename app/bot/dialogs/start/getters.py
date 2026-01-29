@@ -8,6 +8,7 @@ from fluentogram import TranslatorRunner
 from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
+from app.bot.handlers.event_chats import build_topic_message_link
 from app.infrastructure.database.database.db import DB
 
 EVENTS_PAGE_SIZE = 5
@@ -31,6 +32,24 @@ def _is_event_past(event_datetime: str | None) -> bool:
         return datetime.strptime(event_datetime, "%Y.%m.%d %H:%M") < datetime.now()
     except ValueError:
         return False
+
+
+def _get_event_topic_link(event, gender: str | None) -> str | None:
+    if gender == "female":
+        return build_topic_message_link(
+            event.female_chat_id,
+            event.female_thread_id,
+            event.female_message_id,
+            event.female_chat_username,
+        )
+    if gender == "male":
+        return build_topic_message_link(
+            event.male_chat_id,
+            event.male_thread_id,
+            event.male_message_id,
+            event.male_chat_username,
+        )
+    return None
 
 
 async def get_hello(
@@ -234,6 +253,17 @@ async def get_partner_event_details(
             ]
         )
 
+    gender = user_record.gender if user_record else None
+    topic_link = _get_event_topic_link(event, gender)
+    if not topic_link:
+        topic_link = (
+            _get_event_topic_link(event, "male")
+            or _get_event_topic_link(event, "female")
+        )
+    post_url = topic_link or _build_channel_post_link(
+        event.channel_id, event.channel_message_id
+    )
+
     return {
         "event_details_text": event_text,
         "event_media": (
@@ -245,12 +275,13 @@ async def get_partner_event_details(
             else None
         ),
         "back_button": i18n.back.button(),
-        "view_post_button": i18n.partner.event.view.post.button(),
-        "event_post_url": _build_channel_post_link(
-            event.channel_id, event.channel_message_id
-        )
-        or "",
-        "has_post_url": bool(event.channel_id and event.channel_message_id),
+        "view_post_button": (
+            i18n.partner.event.view.topic.button()
+            if topic_link
+            else i18n.partner.event.view.post.button()
+        ),
+        "event_post_url": post_url or "",
+        "has_post_url": bool(post_url),
         "pending_regs_button": i18n.partner.event.registrations.pending.button(),
         "confirmed_regs_button": i18n.partner.event.registrations.confirmed.button(),
     }
@@ -396,6 +427,9 @@ async def get_user_event_details(
         event_id=event_id,
         user_id=event_from_user.id,
     )
+    user_record = await db.users.get_user_record(user_id=event_from_user.id)
+    gender = user_record.gender if user_record else None
+    topic_link = _get_event_topic_link(event, gender)
     event_text = build_event_text(
         {
             "name": event.name,
@@ -430,12 +464,9 @@ async def get_user_event_details(
             else None
         ),
         "back_button": i18n.back.button(),
-        "view_post_button": i18n.partner.event.view.post.button(),
-        "event_post_url": _build_channel_post_link(
-            event.channel_id, event.channel_message_id
-        )
-        or "",
-        "has_post_url": bool(event.channel_id and event.channel_message_id),
+        "view_post_button": i18n.start.event.view.topic.button(),
+        "event_post_url": topic_link or "",
+        "has_post_url": bool(topic_link),
         "attend_button": i18n.partner.event.attend.confirm.button(),
         "show_attend_button": bool(
             reg
@@ -444,4 +475,15 @@ async def get_user_event_details(
                 EventRegistrationStatus.ATTENDED_CONFIRMED,
             }
         ),
+    }
+
+
+async def get_user_attend_prompt(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, str]:
+    return {
+        "prompt": i18n.partner.event.attend.confirm.prompt(),
+        "back_button": i18n.back.button(),
     }

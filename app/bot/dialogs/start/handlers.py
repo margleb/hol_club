@@ -5,6 +5,7 @@ from fluentogram import TranslatorRunner
 
 from app.bot.enums.roles import UserRole
 from app.bot.enums.event_registrations import EventRegistrationStatus
+from app.bot.handlers.event_chats import send_event_topic_link_to_user
 from app.bot.services.partner_requests import send_partner_requests_list
 from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
@@ -116,9 +117,39 @@ async def on_user_event_attend_code(
         await message.answer(i18n.partner.event.attend.confirm.already())
         return
     code = (data or "").strip()
-    if code != event.attendance_code:
-        await message.answer(i18n.partner.event.attend.confirm.invalid())
-        return
+    normalized_code = "".join(ch for ch in code if ch.isdigit())
+    expected_code = "".join(ch for ch in (event.attendance_code or "") if ch.isdigit())
+    if normalized_code != expected_code:
+        alt_event_id = await db.event_registrations.find_user_event_by_attendance_code(
+            user_id=user.id,
+            attendance_code=normalized_code,
+            statuses=[
+                EventRegistrationStatus.CONFIRMED,
+                EventRegistrationStatus.ATTENDED_CONFIRMED,
+            ],
+        )
+        if not alt_event_id:
+            await message.answer(i18n.partner.event.attend.confirm.invalid())
+            return
+        event_id = alt_event_id
+        dialog_manager.dialog_data["selected_user_event_id"] = event_id
+        event = await db.events.get_event_by_id(event_id=event_id)
+        if event is None or not event.attendance_code:
+            await message.answer(i18n.partner.event.attend.confirm.invalid())
+            return
+        reg = await db.event_registrations.get_by_user_event(
+            event_id=event_id,
+            user_id=user.id,
+        )
+        if reg is None or reg.status not in {
+            EventRegistrationStatus.CONFIRMED,
+            EventRegistrationStatus.ATTENDED_CONFIRMED,
+        }:
+            await message.answer(i18n.partner.event.attend.confirm.forbidden())
+            return
+        if reg.status == EventRegistrationStatus.ATTENDED_CONFIRMED:
+            await message.answer(i18n.partner.event.attend.confirm.already())
+            return
 
     await db.event_registrations.mark_attended_confirmed(
         event_id=event_id,
@@ -222,6 +253,15 @@ async def approve_pending_registration(
             user_id,
             i18n.partner.event.prepay.approved(),
         )
+        event = await db.events.get_event_by_id(event_id=event_id)
+        if event and user_record:
+            await send_event_topic_link_to_user(
+                bot=bot,
+                i18n=i18n,
+                event=event,
+                user_id=user_id,
+                gender=user_record.gender,
+            )
     await callback.answer(i18n.partner.event.prepay.approved.partner())
     await dialog_manager.switch_to(StartSG.partner_event_pending_list)
 

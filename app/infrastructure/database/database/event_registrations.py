@@ -178,3 +178,21 @@ class _EventRegistrationsDB:
             (row[0], row[1], row[2], row[3], row[4])
             for row in result.all()
         ]
+
+    async def find_user_event_by_attendance_code(
+        self,
+        *,
+        user_id: int,
+        attendance_code: str,
+        statuses: list[EventRegistrationStatus],
+    ) -> int | None:
+        stmt = (
+            select(EventRegistrationsModel.event_id)
+            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+            .where(EventRegistrationsModel.status.in_(statuses))
+            .where(EventsModel.attendance_code == attendance_code)
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

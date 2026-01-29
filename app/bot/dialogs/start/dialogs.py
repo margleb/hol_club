@@ -13,6 +13,7 @@ from app.bot.dialogs.start.getters import (
     get_partner_confirmed_registrations,
     get_user_events,
     get_user_event_details,
+    get_user_attend_prompt,
 )
 from app.bot.dialogs.start.handlers import (
     back_to_start,
@@ -163,10 +164,7 @@ start_dialog = Dialog(
                 on_click=back_to_user_event_details,
             ),
         ),
-        getter=lambda dialog_manager, i18n, **_: {
-            "prompt": i18n.partner.event.attend.confirm.prompt(),
-            "back_button": i18n.back.button(),
-        },
+        getter=get_user_attend_prompt,
         state=StartSG.user_event_attend_code,
     ),
     Window(

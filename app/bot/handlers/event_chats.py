@@ -153,6 +153,26 @@ async def _send_chat_link_message(
     topic_link: str,
     event_id: int | None = None,
 ) -> None:
+    keyboard = _build_chat_link_keyboard(
+        i18n=i18n,
+        topic_link=topic_link,
+        event_id=event_id,
+    )
+    text = "\n\n".join(
+        [
+            i18n.partner.event.join.chat.text(),
+            i18n.partner.event.join.chat.hint(),
+        ]
+    )
+    await message.answer(text, reply_markup=keyboard)
+
+
+def _build_chat_link_keyboard(
+    *,
+    i18n: TranslatorRunner,
+    topic_link: str,
+    event_id: int | None = None,
+) -> InlineKeyboardMarkup:
     rows = [
         [
             InlineKeyboardButton(
@@ -170,14 +190,49 @@ async def _send_chat_link_message(
                 )
             ]
         )
-    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _send_chat_link_notification(
+    *,
+    bot,
+    i18n: TranslatorRunner,
+    user_id: int,
+    topic_link: str,
+    event_id: int | None = None,
+) -> None:
+    keyboard = _build_chat_link_keyboard(
+        i18n=i18n,
+        topic_link=topic_link,
+        event_id=event_id,
+    )
     text = "\n\n".join(
         [
             i18n.partner.event.join.chat.text(),
             i18n.partner.event.join.chat.hint(),
         ]
     )
-    await message.answer(text, reply_markup=keyboard)
+    await bot.send_message(user_id, text, reply_markup=keyboard)
+
+
+async def send_event_topic_link_to_user(
+    *,
+    bot,
+    i18n: TranslatorRunner,
+    event,
+    user_id: int,
+    gender: str | None,
+) -> None:
+    topic_link = _get_event_topic_link(event, gender)
+    if not topic_link:
+        return
+    await _send_chat_link_notification(
+        bot=bot,
+        i18n=i18n,
+        user_id=user_id,
+        topic_link=topic_link,
+        event_id=event.id,
+    )
 
 
 def parse_event_chat_start_payload(message_text: str | None) -> int | None:
@@ -998,6 +1053,14 @@ async def process_event_prepay_confirm(
             await callback.bot.send_message(
                 user_id,
                 i18n.partner.event.prepay.approved(),
+            )
+            gender = user_record.gender if user_record else None
+            await send_event_topic_link_to_user(
+                bot=callback.bot,
+                i18n=i18n,
+                event=event,
+                user_id=user_id,
+                gender=gender,
             )
         await callback.answer(i18n.partner.event.prepay.approved.partner())
     else:

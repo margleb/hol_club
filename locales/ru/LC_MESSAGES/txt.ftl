@@ -33,6 +33,7 @@ partner-events-next-button = ▶️
 start-event-details-text = { $name }
     { $datetime }{ $tags }
 start-event-details-missing = Не удалось найти мероприятие.
+start-event-view-topic-button = Смотреть топик
 
               Добро пожаловать в Клуб холостяков ✨
 
@@ -287,6 +288,7 @@ partner-event-attend-confirm-ok = Посещение подтверждено. �
 partner-event-attend-confirm-notify = { $username } подтвердил(а) посещение мероприятия «{ $event_name }».
 
 partner-event-view-post-button = Смотреть пост
+partner-event-view-topic-button = Смотреть топик
 
 partner-event-publish-success = Событие опубликовано.
 
