@@ -38,7 +38,7 @@
     
     [development.i18n]
         default_locale = "ru"
-        locales = ["ru", "en"]
+        locales = ["ru"]
 
     [development.bot]
         PARSE_MODE = 'HTML'

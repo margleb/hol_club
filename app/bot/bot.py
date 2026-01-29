@@ -11,7 +11,6 @@ from fluentogram import TranslatorHub
 from app.bot.dialogs.events.dialogs import events_dialog
 from app.bot.dialogs.account.dialogs import account_dialog
 from app.bot.dialogs.general_registration.dialogs import general_registration_dialog
-from app.bot.dialogs.settings.dialogs import settings_dialog
 from app.bot.dialogs.start.dialogs import start_dialog
 from app.bot.handlers.commands import commands_router
 from app.bot.handlers.event_chats import event_chats_router
@@ -83,7 +82,6 @@ async def main():
         event_chats_router,
         partner_requests_router,
         start_dialog,
-        settings_dialog,
         events_dialog,
         account_dialog,
         general_registration_dialog,
