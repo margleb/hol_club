@@ -320,4 +320,5 @@ account-summary-edit-age-button = Изменить возраст
 account-summary-edit-gender-button = Изменить пол
 account-summary-edit-intent-button = Изменить готовность
 account-summary-confirm-button = Всё верно
+account-summary-close-button = Готово
 account-updated = Профиль обновлен.

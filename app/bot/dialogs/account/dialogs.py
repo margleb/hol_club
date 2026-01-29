@@ -127,6 +127,13 @@ account_dialog = Dialog(
             text=Format("{continue_button}"),
             id="account_summary_continue",
             on_click=continue_from_summary,
+            when="show_continue",
+        ),
+        Button(
+            text=Format("{close_button}"),
+            id="account_summary_close",
+            on_click=close_account_dialog,
+            when="show_close",
         ),
         state=AccountSG.summary,
         getter=get_account_summary,

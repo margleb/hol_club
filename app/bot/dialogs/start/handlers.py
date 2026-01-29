@@ -1,10 +1,11 @@
 from aiogram.types import CallbackQuery
-from aiogram_dialog import DialogManager
+from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
 from app.bot.enums.roles import UserRole
 from app.bot.services.partner_requests import send_partner_requests_list
+from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 
@@ -50,6 +51,19 @@ async def show_partner_events_list(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.partner_events_list)
+
+
+async def start_my_account(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.start(
+        state=AccountSG.summary,
+        mode=StartMode.NORMAL,
+        data={"edit_profile": True},
+    )
 
 
 async def back_to_start(

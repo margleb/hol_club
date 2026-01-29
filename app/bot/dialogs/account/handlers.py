@@ -22,6 +22,10 @@ async def back_from_age(
     dialog_manager: DialogManager,
 ) -> None:
     await callback.answer()
+    if dialog_manager.dialog_data.get("edit_target"):
+        dialog_manager.dialog_data.pop("edit_target", None)
+        await dialog_manager.switch_to(AccountSG.summary)
+        return
     await dialog_manager.switch_to(AccountSG.intro)
 
 
@@ -31,6 +35,10 @@ async def back_from_gender(
     dialog_manager: DialogManager,
 ) -> None:
     await callback.answer()
+    if dialog_manager.dialog_data.get("edit_target"):
+        dialog_manager.dialog_data.pop("edit_target", None)
+        await dialog_manager.switch_to(AccountSG.summary)
+        return
     await dialog_manager.switch_to(AccountSG.age_group)
 
 
@@ -40,6 +48,10 @@ async def back_from_intent(
     dialog_manager: DialogManager,
 ) -> None:
     await callback.answer()
+    if dialog_manager.dialog_data.get("edit_target"):
+        dialog_manager.dialog_data.pop("edit_target", None)
+        await dialog_manager.switch_to(AccountSG.summary)
+        return
     await dialog_manager.switch_to(AccountSG.gender)
 
 

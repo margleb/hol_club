@@ -111,9 +111,22 @@ async def get_account_summary(
     i18n: TranslatorRunner,
     **kwargs,
 ) -> dict[str, object]:
-    gender = dialog_manager.dialog_data.get("gender")
-    age_group = dialog_manager.dialog_data.get("age_group")
-    intent = dialog_manager.dialog_data.get("intent")
+    start_data = dialog_manager.start_data or {}
+    db = dialog_manager.middleware_data.get("db")
+    user = dialog_manager.middleware_data.get("event_from_user")
+
+    if db and user:
+        record = await db.users.get_user_record(user_id=user.id)
+    else:
+        record = None
+
+    gender = dialog_manager.dialog_data.get("gender") or (record.gender if record else None)
+    age_group = dialog_manager.dialog_data.get("age_group") or (record.age_group if record else None)
+    intent = dialog_manager.dialog_data.get("intent") or (record.intent if record else None)
+
+    dialog_manager.dialog_data["gender"] = gender
+    dialog_manager.dialog_data["age_group"] = age_group
+    dialog_manager.dialog_data["intent"] = intent
 
     if gender == "female":
         gender_label = i18n.general.registration.gender.female()
@@ -143,4 +156,7 @@ async def get_account_summary(
         "edit_gender_button": i18n.account.summary.edit.gender.button(),
         "edit_intent_button": i18n.account.summary.edit.intent.button(),
         "continue_button": i18n.account.summary.confirm.button(),
+        "close_button": i18n.account.summary.close.button(),
+        "show_continue": not start_data.get("edit_profile", False),
+        "show_close": bool(start_data.get("edit_profile", False)),
     }
