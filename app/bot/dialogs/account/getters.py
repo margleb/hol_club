@@ -1,7 +1,7 @@
 from aiogram_dialog import DialogManager
 from fluentogram import TranslatorRunner
 
-from app.bot.dialogs.general_registration.getters import AGE_GROUPS
+from app.bot.dialogs.registration.getters import AGE_GROUPS
 from config.config import settings
 
 

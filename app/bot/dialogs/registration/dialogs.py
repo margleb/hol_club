@@ -2,11 +2,11 @@ from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.kbd import Select
 from aiogram_dialog.widgets.text import Format
 
-from app.bot.dialogs.general_registration.getters import (
+from app.bot.dialogs.registration.getters import (
     get_general_registration_age,
     get_general_registration_gender,
 )
-from app.bot.dialogs.general_registration.handlers import (
+from app.bot.dialogs.registration.handlers import (
     on_general_age_selected,
     on_general_gender_selected,
 )

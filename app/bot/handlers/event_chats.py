@@ -7,7 +7,7 @@ from urllib.parse import unquote
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from fluentogram import TranslatorRunner
 
-from app.bot.dialogs.general_registration.getters import AGE_GROUPS
+from app.bot.dialogs.registration.getters import AGE_GROUPS
 from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
