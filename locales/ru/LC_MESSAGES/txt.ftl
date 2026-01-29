@@ -265,6 +265,15 @@ partner-event-registrations-pending-decline-button = Отклонить
 partner-event-registrations-confirmed-title = Зарегистрированные пользователи
 partner-event-registrations-confirmed-empty = Пока нет подтвержденных регистраций.
 partner-event-registrations-confirmed-item = { $username }
+partner-event-attendance-code = Пароль посещения: { $value }
+partner-event-attend-confirm-button = Подтвердить посещение
+partner-event-attend-confirm-prompt = Введите пароль посещения:
+partner-event-attend-confirm-missing = Не удалось найти мероприятие.
+partner-event-attend-confirm-forbidden = Подтвердить посещение можно только после подтверждения оплаты.
+partner-event-attend-confirm-invalid = Неверный пароль. Попробуйте еще раз.
+partner-event-attend-confirm-already = Посещение уже подтверждено.
+partner-event-attend-confirm-ok = Посещение подтверждено. Спасибо!
+partner-event-attend-confirm-notify = { $username } подтвердил(а) посещение мероприятия «{ $event_name }».
 
 partner-event-view-post-button = Смотреть пост
 

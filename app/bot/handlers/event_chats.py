@@ -1,4 +1,5 @@
 from aiogram import Router
+from aiogram.fsm.context import FSMContext
 from urllib.parse import unquote
 
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
@@ -9,6 +10,7 @@ from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
+from app.bot.states.attendance import AttendanceSG
 from config.config import settings
 
 event_chats_router = Router()
@@ -19,6 +21,7 @@ EVENT_JOIN_CHAT_AGE_CALLBACK = "event_join_chat_age"
 EVENT_JOIN_CHAT_INTENT_CALLBACK = "event_join_chat_intent"
 EVENT_REGISTER_PAY_CALLBACK = "event_register_pay"
 EVENT_REGISTER_CONFIRM_CALLBACK = "event_register_confirm"
+EVENT_ATTEND_CONFIRM_CALLBACK = "event_attend_confirm"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 INTENT_OPTIONS = ("hot", "warm", "cold")
 
@@ -145,17 +148,26 @@ async def _send_chat_link_message(
     message: Message,
     i18n: TranslatorRunner,
     topic_link: str,
+    event_id: int | None = None,
 ) -> None:
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=i18n.partner.event.join.chat.button(),
+                url=topic_link,
+            )
+        ]
+    ]
+    if event_id is not None:
+        rows.append(
             [
                 InlineKeyboardButton(
-                    text=i18n.partner.event.join.chat.button(),
-                    url=topic_link,
+                    text=i18n.partner.event.attend.confirm.button(),
+                    callback_data=f"{EVENT_ATTEND_CONFIRM_CALLBACK}:{event_id}",
                 )
             ]
-        ]
-    )
+        )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
     text = "\n\n".join(
         [
             i18n.partner.event.join.chat.text(),
@@ -243,6 +255,34 @@ def _get_event_topic_link(event, gender: str | None) -> str | None:
     return None
 
 
+async def _handle_attendance_confirmation(
+    *,
+    message: Message,
+    i18n: TranslatorRunner,
+    db: DB,
+    event_id: int,
+    user_id: int,
+    state: FSMContext,
+) -> None:
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await message.answer(i18n.partner.event.attend.confirm.missing())
+        return
+    registration = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user_id,
+    )
+    if registration is None or registration.status not in {
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    }:
+        await message.answer(i18n.partner.event.attend.confirm.forbidden())
+        return
+    await state.set_state(AttendanceSG.waiting_code)
+    await state.update_data(event_id=event_id)
+    await message.answer(i18n.partner.event.attend.confirm.prompt())
+
+
 def _get_card_number() -> str:
     card_number = getattr(settings.payments, "card_number", "")
     return (card_number or "").strip()
@@ -261,6 +301,13 @@ def _calc_prepay_amount(event) -> int | None:
         percent = event.prepay_percent or 0
         return max(0, int(round(price * percent / 100)))
     return event.prepay_fixed_free
+
+
+def _bump_intent(current: str | None) -> str:
+    order = ("cold", "warm", "hot")
+    if current in order:
+        return order[min(order.index(current) + 1, len(order) - 1)]
+    return "warm"
 
 
 async def _send_prepay_message(
@@ -324,6 +371,7 @@ async def _maybe_start_registration(
             message=message,
             i18n=i18n,
             topic_link=topic_link,
+            event_id=event.id,
         )
         return
 
@@ -855,3 +903,117 @@ async def process_event_register_confirm(
     if callback.message:
         await callback.message.answer(i18n.partner.event.prepay.sent())
     await callback.answer()
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_ATTEND_CONFIRM_CALLBACK}:")
+)
+async def process_event_attend_confirm(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    db: DB,
+    state: FSMContext,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_ATTEND_CONFIRM_CALLBACK, 2)
+    if not parts:
+        await callback.answer(i18n.partner.event.attend.confirm.missing())
+        return
+    try:
+        event_id = int(parts[1])
+    except ValueError:
+        await callback.answer(i18n.partner.event.attend.confirm.missing())
+        return
+
+    user = callback.from_user
+    if not user:
+        return
+
+    if callback.message:
+        await _handle_attendance_confirmation(
+            message=callback.message,
+            i18n=i18n,
+            db=db,
+            event_id=event_id,
+            user_id=user.id,
+            state=state,
+        )
+    await callback.answer()
+
+
+@event_chats_router.message(AttendanceSG.waiting_code)
+async def process_attendance_code(
+    message: Message,
+    i18n: TranslatorRunner,
+    db: DB,
+    state: FSMContext,
+) -> None:
+    data = await state.get_data()
+    event_id = data.get("event_id")
+    if not isinstance(event_id, int):
+        await state.clear()
+        await message.answer(i18n.partner.event.attend.confirm.missing())
+        return
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None or not event.attendance_code:
+        await state.clear()
+        await message.answer(i18n.partner.event.attend.confirm.missing())
+        return
+
+    user = message.from_user
+    if not user:
+        await state.clear()
+        return
+
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user.id,
+    )
+    if reg is None or reg.status not in {
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    }:
+        await state.clear()
+        await message.answer(i18n.partner.event.attend.confirm.forbidden())
+        return
+
+    if reg.status == EventRegistrationStatus.ATTENDED_CONFIRMED:
+        await state.clear()
+        await message.answer(i18n.partner.event.attend.confirm.already())
+        return
+
+    code = (message.text or "").strip()
+    if code != event.attendance_code:
+        await message.answer(i18n.partner.event.attend.confirm.invalid())
+        return
+
+    await db.event_registrations.mark_attended_confirmed(
+        event_id=event_id,
+        user_id=user.id,
+    )
+
+    user_record = await db.users.get_user_record(user_id=user.id)
+    if user_record:
+        new_intent = _bump_intent(user_record.intent)
+        await db.users.update_profile(
+            user_id=user.id,
+            gender=user_record.gender,
+            age_group=user_record.age_group,
+            intent=new_intent,
+        )
+
+    username = f"@{user.username}" if user.username else user.full_name
+    await message.answer(i18n.partner.event.attend.confirm.ok())
+    try:
+        await message.bot.send_message(
+            event.partner_user_id,
+            i18n.partner.event.attend.confirm.notify(
+                username=username,
+                event_name=event.name,
+            ),
+        )
+    except Exception:
+        pass
+
+    await state.clear()

@@ -151,6 +151,13 @@ async def get_partner_event_details(
         },
         i18n,
     )
+    if event.attendance_code:
+        event_text = "\n\n".join(
+            [
+                event_text,
+                i18n.partner.event.attendance.code(value=event.attendance_code),
+            ]
+        )
 
     return {
         "event_details_text": event_text,

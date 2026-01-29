@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import re
+import secrets
 from datetime import datetime
 
 from aiogram.types import (
@@ -73,6 +74,10 @@ def _normalize_chat_target(chat_url: str | None) -> str | None:
             return None
         return f"@{slug}"
     return value
+
+
+def _generate_attendance_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 async def _create_event_topic_message(
@@ -593,6 +598,7 @@ async def publish_event(
         ]
     )
     fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
+    attendance_code = _generate_attendance_code()
 
     event_id = await db.events.create_event(
         partner_user_id=user.id,
@@ -605,6 +611,7 @@ async def publish_event(
         age_group=data.get("age_group"),
         photo_file_id=photo_id,
         fingerprint=fingerprint,
+        attendance_code=attendance_code,
     )
     if event_id is None:
         await callback.answer(
