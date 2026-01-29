@@ -6,4 +6,5 @@ class AccountSG(StatesGroup):
     age_group = State()
     gender = State()
     intent = State()
+    summary = State()
     final = State()

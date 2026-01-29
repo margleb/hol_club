@@ -296,17 +296,28 @@ account-intro-text = Привет 👋
 account-intro-button = Поехали
 account-gender-prompt = Выберите ваш пол
 account-age-prompt = Выберите возрастную группу
-account-intent-prompt = Если будет ламповая оффлайн-встреча для одиноких в Москве — тебе это актуально?
-account-intent-hot = ✅ Да, в ближайшие 7 дней → HOT
-account-intent-warm = 🟡 В течение месяца → WARM
-account-intent-cold = 🧊 Пока не готов(а) → COLD
-account-intent-note = ❗ Это не обещание, а температура
+account-intent-prompt = Если в клубе холостяков будет проходить встреча, то когда вы будете готовы ее посетить?
+account-intent-hot = ✅ В ближайшие 7 дней
+account-intent-warm = 🟡 В течение месяца
+account-intent-cold = 🧊 Пока не готов(а)
 account-final-text = Готово 👍
+
+                Подпишись на { $channel } и { $chat }.
 
                 Я буду звать тебя только на подходящие форматы и не буду спамить.
 
-account-final-button = Ок
 account-final-channel-button = Канал клуба
 account-final-chat-male-button = Мужской чат
 account-final-chat-female-button = Женский чат
+account-final-channel = канал клуба
+account-final-chat-male = мужской чат
+account-final-chat-female = женский чат
+account-summary-title = Проверьте ваши ответы
+account-summary-age = Возраст
+account-summary-gender = Пол
+account-summary-intent = Готовность
+account-summary-edit-age-button = Изменить возраст
+account-summary-edit-gender-button = Изменить пол
+account-summary-edit-intent-button = Изменить готовность
+account-summary-confirm-button = Всё верно
 account-updated = Профиль обновлен.

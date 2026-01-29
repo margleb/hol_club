@@ -62,7 +62,6 @@ async def get_account_intent(
             (i18n.account.intent.warm(), "warm"),
             (i18n.account.intent.cold(), "cold"),
         ],
-        "note": i18n.account.intent.note(),
         "back_button": i18n.back.button(),
     }
 
@@ -83,17 +82,65 @@ async def get_account_final(
     if gender == "female":
         chat_url = getattr(settings.chat_links, "female_chat_url", None)
         chat_button = i18n.account.final.chat.female.button()
+        chat_label = i18n.account.final.chat.female()
     else:
         chat_url = getattr(settings.chat_links, "male_chat_url", None)
         chat_button = i18n.account.final.chat.male.button()
+        chat_label = i18n.account.final.chat.male()
+
+    channel_label = i18n.account.final.channel()
+
+    text = i18n.account.final.text(
+        channel=channel_label,
+        chat=chat_label,
+    )
 
     return {
-        "final_text": i18n.account.final.text(),
-        "final_button": i18n.account.final.button(),
+        "final_text": text,
         "channel_button": i18n.account.final.channel.button(),
         "channel_url": channel_url or "",
         "has_channel_url": bool(channel_url),
         "chat_button": chat_button,
         "chat_url": chat_url or "",
         "has_chat_url": bool(chat_url),
+    }
+
+
+async def get_account_summary(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, object]:
+    gender = dialog_manager.dialog_data.get("gender")
+    age_group = dialog_manager.dialog_data.get("age_group")
+    intent = dialog_manager.dialog_data.get("intent")
+
+    if gender == "female":
+        gender_label = i18n.general.registration.gender.female()
+    elif gender == "male":
+        gender_label = i18n.general.registration.gender.male()
+    else:
+        gender_label = "-"
+
+    if intent == "hot":
+        intent_label = i18n.account.intent.hot()
+    elif intent == "warm":
+        intent_label = i18n.account.intent.warm()
+    elif intent == "cold":
+        intent_label = i18n.account.intent.cold()
+    else:
+        intent_label = "-"
+
+    return {
+        "summary_title": i18n.account.summary.title(),
+        "summary_age_label": i18n.account.summary.age(),
+        "summary_gender_label": i18n.account.summary.gender(),
+        "summary_intent_label": i18n.account.summary.intent(),
+        "summary_age_value": age_group or "-",
+        "summary_gender_value": gender_label,
+        "summary_intent_value": intent_label,
+        "edit_age_button": i18n.account.summary.edit.age.button(),
+        "edit_gender_button": i18n.account.summary.edit.gender.button(),
+        "edit_intent_button": i18n.account.summary.edit.intent.button(),
+        "continue_button": i18n.account.summary.confirm.button(),
     }
