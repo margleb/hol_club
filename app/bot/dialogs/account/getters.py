@@ -64,3 +64,14 @@ async def get_account_intent(
         "note": i18n.account.intent.note(),
         "back_button": i18n.back.button(),
     }
+
+
+async def get_account_final(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, object]:
+    return {
+        "final_text": i18n.account.final.text(),
+        "final_button": i18n.account.final.button(),
+    }

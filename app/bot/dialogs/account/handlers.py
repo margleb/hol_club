@@ -57,7 +57,6 @@ async def on_account_intent_selected(
     gender = dialog_manager.dialog_data.get("gender")
     age_group = dialog_manager.dialog_data.get("age_group")
     db: DB | None = dialog_manager.middleware_data.get("db")
-    i18n: TranslatorRunner | None = dialog_manager.middleware_data.get("i18n")
     user = callback.from_user
     if db and user:
         await db.users.update_profile(
@@ -66,9 +65,15 @@ async def on_account_intent_selected(
             age_group=age_group,
             intent=item_id,
         )
-    if i18n and callback.message:
-        await callback.message.answer(i18n.account.updated())
     await callback.answer()
+    await dialog_manager.switch_to(AccountSG.final)
+
+
+async def finish_account_final(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
     start_data = dialog_manager.start_data or {}
     if start_data.get("force_profile", False):
         await dialog_manager.start(

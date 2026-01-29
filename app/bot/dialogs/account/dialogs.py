@@ -4,12 +4,14 @@ from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.account.getters import (
     get_account_age,
+    get_account_final,
     get_account_gender,
     get_account_intent,
     get_account_intro,
 )
 from app.bot.dialogs.account.handlers import (
     close_account_dialog,
+    finish_account_final,
     on_account_age_selected,
     on_account_gender_selected,
     on_account_intent_selected,
@@ -88,5 +90,15 @@ account_dialog = Dialog(
         ),
         state=AccountSG.intent,
         getter=get_account_intent,
+    ),
+    Window(
+        Format("{final_text}"),
+        Button(
+            text=Format("{final_button}"),
+            id="account_final_ok",
+            on_click=finish_account_final,
+        ),
+        state=AccountSG.final,
+        getter=get_account_final,
     ),
 )
