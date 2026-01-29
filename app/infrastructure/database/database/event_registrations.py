@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.infrastructure.database.models.users import UsersModel
+from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.event_registrations import EventRegistrationsModel
 
 logger = logging.getLogger(__name__)
@@ -150,5 +151,30 @@ class _EventRegistrationsDB:
         result = await self.session.execute(stmt)
         return [
             (row[0], row[1], row[2], row[3])
+            for row in result.all()
+        ]
+
+    async def list_user_events(
+        self,
+        *,
+        user_id: int,
+        statuses: list[EventRegistrationStatus],
+    ) -> list[tuple[int, str, str, EventRegistrationStatus, bool]]:
+        stmt = (
+            select(
+                EventRegistrationsModel.event_id,
+                EventsModel.name,
+                EventsModel.event_datetime,
+                EventRegistrationsModel.status,
+                EventsModel.is_paid,
+            )
+            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+            .where(EventRegistrationsModel.status.in_(statuses))
+            .order_by(EventsModel.event_datetime.asc())
+        )
+        result = await self.session.execute(stmt)
+        return [
+            (row[0], row[1], row[2], row[3], row[4])
             for row in result.all()
         ]

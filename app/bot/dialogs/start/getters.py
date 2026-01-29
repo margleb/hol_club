@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from aiogram.types import ContentType, User
 from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
@@ -22,6 +24,15 @@ def _build_channel_post_link(channel_id: int | None, message_id: int | None) -> 
     return f"https://t.me/c/{channel_id_str}/{message_id}"
 
 
+def _is_event_past(event_datetime: str | None) -> bool:
+    if not event_datetime:
+        return False
+    try:
+        return datetime.strptime(event_datetime, "%Y.%m.%d %H:%M") < datetime.now()
+    except ValueError:
+        return False
+
+
 async def get_hello(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -40,6 +51,8 @@ async def get_hello(
         "create_event_button": i18n.partner.event.create.button(),
         "can_create_event": is_partner,
         "my_account_button": i18n.account.button(),
+        "user_events_list_button": i18n.start.events.list.button(),
+        "can_view_user_events": True,
         "partner_events_list_button": i18n.partner.events.list.button(),
         "can_view_partner_events": is_partner,
         "partner_requests_button": i18n.partner.request.list.button(),
@@ -95,6 +108,68 @@ async def get_partner_events(
         "partner_events_next_button": i18n.partner.events.next.button(),
         "has_partner_prev_page": current_page > 0,
         "has_partner_next_page": current_page < total_pages - 1,
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_user_events(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, str | list[tuple[str, str]] | bool]:
+    statuses = [
+        EventRegistrationStatus.PENDING_PAYMENT,
+        EventRegistrationStatus.PAID_CONFIRM_PENDING,
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    ]
+    all_events = await db.event_registrations.list_user_events(
+        user_id=event_from_user.id,
+        statuses=statuses,
+    )
+    total_events = len(all_events)
+    total_pages = max(1, (total_events + EVENTS_PAGE_SIZE - 1) // EVENTS_PAGE_SIZE)
+    current_page = int(dialog_manager.dialog_data.get("user_events_page", 0))
+    current_page = max(0, min(current_page, total_pages - 1))
+    dialog_manager.dialog_data["user_events_page"] = current_page
+    start = current_page * EVENTS_PAGE_SIZE
+    end = start + EVENTS_PAGE_SIZE
+    page_items = all_events[start:end]
+
+    event_items = []
+    for event_id, name, event_datetime, status, _is_paid in page_items:
+        tags = []
+        if status in {
+            EventRegistrationStatus.CONFIRMED,
+            EventRegistrationStatus.ATTENDED_CONFIRMED,
+        }:
+            tags.append(i18n.start.event.paid.tag())
+        if _is_event_past(event_datetime):
+            tags.append(i18n.start.event.past.tag())
+        tags_text = f" {' '.join(tags)}" if tags else ""
+        label = i18n.start.events.item(
+            name=name,
+            datetime=event_datetime,
+            tags=tags_text,
+        )
+        event_items.append((label, str(event_id)))
+
+    return {
+        "user_events_title": i18n.start.events.title(),
+        "user_events_empty": i18n.start.events.empty(),
+        "user_event_items": event_items,
+        "has_user_events": bool(event_items),
+        "show_user_events_empty": total_events == 0,
+        "show_user_events_page": total_pages > 1,
+        "user_events_page_text": i18n.start.events.page(
+            current=current_page + 1, total=total_pages
+        ),
+        "user_events_prev_button": i18n.start.events.prev.button(),
+        "user_events_next_button": i18n.start.events.next.button(),
+        "has_user_prev_page": current_page > 0,
+        "has_user_next_page": current_page < total_pages - 1,
         "back_button": i18n.back.button(),
     }
 
@@ -291,4 +366,82 @@ async def get_partner_confirmed_registrations(
         "empty_text": i18n.partner.event.registrations.confirmed.empty(),
         "has_items": bool(formatted),
         "back_button": i18n.back.button(),
+    }
+
+
+async def get_user_event_details(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    event_id = dialog_manager.dialog_data.get("selected_user_event_id")
+    if not event_id:
+        return {
+            "event_details_text": i18n.start.event.details.missing(),
+            "back_button": i18n.back.button(),
+            "has_post_url": False,
+            "show_attend_button": False,
+        }
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        return {
+            "event_details_text": i18n.start.event.details.missing(),
+            "back_button": i18n.back.button(),
+            "has_post_url": False,
+            "show_attend_button": False,
+        }
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=event_from_user.id,
+    )
+    event_text = build_event_text(
+        {
+            "name": event.name,
+            "datetime": event.event_datetime,
+            "address": event.address,
+            "description": event.description,
+            "is_paid": event.is_paid,
+            "price": event.price,
+            "age_group": event.age_group,
+        },
+        i18n,
+    )
+    tags = []
+    if reg and reg.status in {
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    }:
+        tags.append(i18n.start.event.paid.tag())
+    if _is_event_past(event.event_datetime):
+        tags.append(i18n.start.event.past.tag())
+    if tags:
+        event_text = "\n\n".join([event_text, " ".join(tags)])
+
+    return {
+        "event_details_text": event_text,
+        "event_media": (
+            MediaAttachment(
+                type=ContentType.PHOTO,
+                file_id=MediaId(event.photo_file_id),
+            )
+            if event.photo_file_id
+            else None
+        ),
+        "back_button": i18n.back.button(),
+        "view_post_button": i18n.partner.event.view.post.button(),
+        "event_post_url": _build_channel_post_link(
+            event.channel_id, event.channel_message_id
+        )
+        or "",
+        "has_post_url": bool(event.channel_id and event.channel_message_id),
+        "attend_button": i18n.partner.event.attend.confirm.button(),
+        "show_attend_button": bool(
+            reg
+            and reg.status in {
+                EventRegistrationStatus.CONFIRMED,
+                EventRegistrationStatus.ATTENDED_CONFIRMED,
+            }
+        ),
     }

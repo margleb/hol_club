@@ -1,3 +1,5 @@
+import os
+
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from urllib.parse import unquote
@@ -21,6 +23,7 @@ EVENT_JOIN_CHAT_AGE_CALLBACK = "event_join_chat_age"
 EVENT_JOIN_CHAT_INTENT_CALLBACK = "event_join_chat_intent"
 EVENT_REGISTER_PAY_CALLBACK = "event_register_pay"
 EVENT_REGISTER_CONFIRM_CALLBACK = "event_register_confirm"
+EVENT_PREPAY_CONFIRM_CALLBACK = "event_prepay_confirm"
 EVENT_ATTEND_CONFIRM_CALLBACK = "event_attend_confirm"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 INTENT_OPTIONS = ("hot", "warm", "cold")
@@ -284,7 +287,8 @@ async def _handle_attendance_confirmation(
 
 
 def _get_card_number() -> str:
-    card_number = getattr(settings.payments, "card_number", "")
+    env_card = os.getenv("CARD_NUMBER")
+    card_number = env_card or getattr(settings.payments, "card_number", "")
     return (card_number or "").strip()
 
 
@@ -350,6 +354,9 @@ async def _maybe_start_registration(
     user_id: int,
     gender: str | None,
 ) -> None:
+    if event and event.partner_user_id == user_id:
+        await message.answer(i18n.partner.event.join.chat.self.forbidden())
+        return
     if not gender:
         await message.answer(i18n.partner.event.join.chat.missing())
         return
@@ -893,17 +900,118 @@ async def process_event_register_confirm(
     event = await db.events.get_event_by_id(event_id=event_id)
     if event and callback.bot:
         username = f"@{user.username}" if user.username else user.full_name
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.registrations.pending.approve.button(),
+                        callback_data=(
+                            f"{EVENT_PREPAY_CONFIRM_CALLBACK}:{event_id}:{user.id}:approve"
+                        ),
+                    ),
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.registrations.pending.decline.button(),
+                        callback_data=(
+                            f"{EVENT_PREPAY_CONFIRM_CALLBACK}:{event_id}:{user.id}:decline"
+                        ),
+                    ),
+                ]
+            ]
+        )
         await callback.bot.send_message(
             event.partner_user_id,
             i18n.partner.event.prepay.notify(
                 username=username,
                 event_name=event.name,
             ),
+            reply_markup=keyboard,
         )
     if callback.message:
         await callback.message.answer(i18n.partner.event.prepay.sent())
     await callback.answer()
 
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_PREPAY_CONFIRM_CALLBACK}:")
+)
+async def process_event_prepay_confirm(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    db: DB,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_PREPAY_CONFIRM_CALLBACK, 4)
+    if not parts:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    try:
+        event_id = int(parts[1])
+        user_id = int(parts[2])
+    except ValueError:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    decision = parts[3]
+    if decision not in {"approve", "decline"}:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    approver = callback.from_user
+    if not approver:
+        return
+
+    approver_record = await db.users.get_user_record(user_id=approver.id)
+    if not approver_record or approver_record.role not in {UserRole.PARTNER, UserRole.ADMIN}:
+        await callback.answer(i18n.partner.event.forbidden())
+        return
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    if approver_record.role == UserRole.PARTNER and event.partner_user_id != approver.id:
+        await callback.answer(i18n.partner.event.forbidden())
+        return
+
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user_id,
+    )
+    if reg is None:
+        await callback.answer(i18n.partner.event.registrations.pending.details.missing())
+        return
+
+    if decision == "approve":
+        await db.event_registrations.mark_paid_confirmed(
+            event_id=event_id,
+            user_id=user_id,
+        )
+        user_record = await db.users.get_user_record(user_id=user_id)
+        if user_record:
+            new_intent = _bump_intent(user_record.intent)
+            await db.users.update_profile(
+                user_id=user_id,
+                gender=user_record.gender,
+                age_group=user_record.age_group,
+                intent=new_intent,
+            )
+        if callback.bot:
+            await callback.bot.send_message(
+                user_id,
+                i18n.partner.event.prepay.approved(),
+            )
+        await callback.answer(i18n.partner.event.prepay.approved.partner())
+    else:
+        await db.event_registrations.update_status(
+            event_id=event_id,
+            user_id=user_id,
+            status=EventRegistrationStatus.DECLINED,
+        )
+        if callback.bot:
+            await callback.bot.send_message(
+                user_id,
+                i18n.partner.event.prepay.declined(),
+            )
+        await callback.answer(i18n.partner.event.prepay.declined.partner())
 
 @event_chats_router.callback_query(
     lambda callback: callback.data

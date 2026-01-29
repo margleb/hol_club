@@ -83,24 +83,41 @@ def _generate_attendance_code() -> str:
 async def _create_event_topic_message(
     *,
     bot,
+    i18n: TranslatorRunner,
     chat: str,
     topic_name: str,
     text: str,
     photo_id: str | None,
+    event_id: int,
+    join_url: str | None,
 ):
     topic = await bot.create_forum_topic(chat, name=topic_name)
+    join_button = (
+        InlineKeyboardButton(
+            text=i18n.partner.event.join.chat.button(),
+            url=join_url,
+        )
+        if join_url
+        else InlineKeyboardButton(
+            text=i18n.partner.event.join.chat.button(),
+            callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
+        )
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[join_button]])
     if photo_id:
         message = await bot.send_photo(
             chat,
             photo=photo_id,
             caption=text,
             message_thread_id=topic.message_thread_id,
+            reply_markup=keyboard,
         )
     else:
         message = await bot.send_message(
             chat,
             text=text,
             message_thread_id=topic.message_thread_id,
+            reply_markup=keyboard,
         )
     return topic, message
 
@@ -356,7 +373,7 @@ async def back_from_event_price(
     await dialog_manager.switch_to(EventsSG.description)
 
 
-async def back_from_event_age_group(
+async def back_from_event_prepay(
     callback: CallbackQuery,
     button: Button,
     dialog_manager: DialogManager,
@@ -365,6 +382,17 @@ async def back_from_event_age_group(
         await _return_to_preview(dialog_manager)
         return
     await dialog_manager.switch_to(EventsSG.price)
+
+
+async def back_from_event_age_group(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.prepay)
 
 
 
@@ -428,10 +456,11 @@ async def on_event_price_input(
 
     dialog_manager.dialog_data["price"] = price
     dialog_manager.dialog_data["is_paid"] = True
-    if _is_edit_mode(dialog_manager):
+    dialog_manager.dialog_data["prepay_fixed_free"] = None
+    if _is_edit_mode(dialog_manager) and dialog_manager.dialog_data.get("prepay_percent") is not None:
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.age_group)
+    await dialog_manager.switch_to(EventsSG.prepay)
 
 
 async def skip_event_price(
@@ -441,6 +470,50 @@ async def skip_event_price(
 ) -> None:
     dialog_manager.dialog_data["price"] = None
     dialog_manager.dialog_data["is_paid"] = False
+    dialog_manager.dialog_data["prepay_percent"] = None
+    if _is_edit_mode(dialog_manager) and dialog_manager.dialog_data.get("prepay_fixed_free") is not None:
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.prepay)
+
+
+async def on_event_prepay_input(
+    message: Message,
+    widget,
+    dialog_manager: DialogManager,
+    data: str,
+) -> None:
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    value = (data or "").strip()
+    normalized_value = value.replace(" ", "")
+    if not normalized_value or not normalized_value.isdigit():
+        if bool(dialog_manager.dialog_data.get("is_paid")):
+            await message.answer(i18n.partner.event.prepay.percent.invalid())
+        else:
+            await message.answer(
+                i18n.partner.event.prepay.free.invalid(
+                    max=settings.events.price_max,
+                )
+            )
+        return
+    amount = int(normalized_value)
+    if bool(dialog_manager.dialog_data.get("is_paid")):
+        if amount < 0 or amount > 100:
+            await message.answer(i18n.partner.event.prepay.percent.invalid())
+            return
+        dialog_manager.dialog_data["prepay_percent"] = amount
+        dialog_manager.dialog_data["prepay_fixed_free"] = None
+    else:
+        if amount < 0 or amount > settings.events.price_max:
+            await message.answer(
+                i18n.partner.event.prepay.free.invalid(
+                    max=settings.events.price_max,
+                )
+            )
+            return
+        dialog_manager.dialog_data["prepay_fixed_free"] = amount
+        dialog_manager.dialog_data["prepay_percent"] = None
+
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
@@ -539,6 +612,15 @@ async def edit_event_price(
     await dialog_manager.switch_to(EventsSG.price)
 
 
+async def edit_event_prepay(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data["edit_mode"] = True
+    await dialog_manager.switch_to(EventsSG.prepay)
+
+
 async def edit_event_age(
     callback: CallbackQuery,
     button: Button,
@@ -561,6 +643,104 @@ def _build_channel_post_link(chat, message_id: int) -> str | None:
             channel_id = str(abs(chat_id))
         return f"https://t.me/c/{channel_id}/{message_id}"
     return None
+
+
+def _build_channel_post_link_by_id(
+    channel_id: int | None,
+    message_id: int | None,
+) -> str | None:
+    if not channel_id or not message_id:
+        return None
+    chat_id_str = str(channel_id)
+    if chat_id_str.startswith("-100"):
+        channel_id_str = chat_id_str[4:]
+    else:
+        channel_id_str = str(abs(channel_id))
+    return f"https://t.me/c/{channel_id_str}/{message_id}"
+
+
+async def _send_event_announcement_to_user(
+    *,
+    bot,
+    i18n: TranslatorRunner,
+    user_id: int,
+    event_payload: dict[str, object],
+) -> None:
+    event_text = build_event_text(
+        {
+            "name": event_payload.get("name"),
+            "datetime": event_payload.get("event_datetime"),
+            "address": event_payload.get("address"),
+            "description": event_payload.get("description"),
+            "is_paid": event_payload.get("is_paid"),
+            "price": event_payload.get("price"),
+            "age_group": event_payload.get("age_group"),
+        },
+        i18n,
+    )
+    post_url = _build_channel_post_link_by_id(
+        event_payload.get("channel_id"),
+        event_payload.get("channel_message_id"),
+    )
+    keyboard_rows = []
+    if post_url:
+        keyboard_rows.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.view.post.button(),
+                    url=post_url,
+                )
+            ]
+        )
+    keyboard_rows.append(
+        [
+            InlineKeyboardButton(
+                text=i18n.partner.event.join.chat.button(),
+                callback_data=(
+                    f"{EVENT_JOIN_CHAT_CALLBACK}:{event_payload.get('id')}"
+                ),
+            )
+        ]
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    photo_id = event_payload.get("photo_file_id")
+    if photo_id:
+        await bot.send_photo(
+            user_id,
+            photo=photo_id,
+            caption=event_text,
+            reply_markup=keyboard,
+        )
+    else:
+        await bot.send_message(
+            user_id,
+            text=event_text,
+            reply_markup=keyboard,
+        )
+
+
+async def _broadcast_event_announcement(
+    *,
+    bot,
+    i18n: TranslatorRunner,
+    db: DB,
+    event_payload: dict[str, object],
+) -> None:
+    user_ids = await db.users.get_active_user_ids_by_role(role=UserRole.USER)
+    for user_id in user_ids:
+        try:
+            await _send_event_announcement_to_user(
+                bot=bot,
+                i18n=i18n,
+                user_id=user_id,
+                event_payload=event_payload,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to send event announcement to user_id=%s: %s",
+                user_id,
+                exc,
+            )
 
 
 async def publish_event(
@@ -594,6 +774,8 @@ async def publish_event(
             data.get("description") or "",
             "1" if data.get("is_paid") else "0",
             data.get("price") or "",
+            str(data.get("prepay_percent") or ""),
+            str(data.get("prepay_fixed_free") or ""),
             data.get("age_group") or "",
         ]
     )
@@ -608,6 +790,8 @@ async def publish_event(
         description=data.get("description") or "",
         is_paid=bool(data.get("is_paid")),
         price=data.get("price"),
+        prepay_percent=data.get("prepay_percent"),
+        prepay_fixed_free=data.get("prepay_fixed_free"),
         age_group=data.get("age_group"),
         photo_file_id=photo_id,
         fingerprint=fingerprint,
@@ -627,23 +811,41 @@ async def publish_event(
         await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
         return
 
+    bot_username = None
+    try:
+        bot_info = await callback.bot.get_me()
+        bot_username = getattr(bot_info, "username", None)
+    except Exception:
+        bot_username = None
+    start_link = None
+    if bot_username:
+        start_link = (
+            f"https://t.me/{bot_username}?start={EVENT_CHAT_START_PREFIX}{event_id}"
+        )
+
     event_name = data.get("name") or ""
     event_datetime = data.get("datetime") or ""
     topic_name = build_event_topic_name(event_datetime, event_name)
     try:
         male_topic, male_message = await _create_event_topic_message(
             bot=callback.bot,
+            i18n=i18n,
             chat=male_chat,
             topic_name=topic_name,
             text=text,
             photo_id=photo_id,
+            event_id=event_id,
+            join_url=start_link,
         )
         female_topic, female_message = await _create_event_topic_message(
             bot=callback.bot,
+            i18n=i18n,
             chat=female_chat,
             topic_name=topic_name,
             text=text,
             photo_id=photo_id,
+            event_id=event_id,
+            join_url=start_link,
         )
     except Exception as exc:
         logger.warning("Failed to publish event topics: %s", exc)
@@ -679,18 +881,6 @@ async def publish_event(
         female_message_id=female_message.message_id,
         female_chat_username=female_message.chat.username,
     )
-
-    bot_username = None
-    try:
-        bot_info = await callback.bot.get_me()
-        bot_username = getattr(bot_info, "username", None)
-    except Exception:
-        bot_username = None
-    start_link = None
-    if bot_username:
-        start_link = (
-            f"https://t.me/{bot_username}?start={EVENT_CHAT_START_PREFIX}{event_id}"
-        )
 
     join_button = None
     if start_link:
@@ -729,6 +919,26 @@ async def publish_event(
         event_id=event_id,
         channel_id=channel_message.chat.id,
         channel_message_id=channel_message.message_id,
+    )
+
+    event_payload = {
+        "id": event_id,
+        "name": data.get("name") or "",
+        "event_datetime": data.get("datetime") or "",
+        "address": data.get("address") or "",
+        "description": data.get("description") or "",
+        "is_paid": bool(data.get("is_paid")),
+        "price": data.get("price"),
+        "age_group": data.get("age_group"),
+        "photo_file_id": photo_id,
+        "channel_id": channel_message.chat.id,
+        "channel_message_id": channel_message.message_id,
+    }
+    await _broadcast_event_announcement(
+        bot=callback.bot,
+        i18n=i18n,
+        db=db,
+        event_payload=event_payload,
     )
 
     post_link = _build_channel_post_link(

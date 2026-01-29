@@ -1,4 +1,5 @@
 from aiogram_dialog import Dialog, StartMode, Window
+from aiogram_dialog.widgets.input import TextInput
 from aiogram_dialog.widgets.kbd import Button, Group, Row, ScrollingGroup, Select, Start, Url
 from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
@@ -10,11 +11,15 @@ from app.bot.dialogs.start.getters import (
     get_partner_pending_registrations,
     get_partner_pending_registration_details,
     get_partner_confirmed_registrations,
+    get_user_events,
+    get_user_event_details,
 )
 from app.bot.dialogs.start.handlers import (
     back_to_start,
     back_to_partner_event_details,
     back_to_partner_events_list,
+    back_to_user_events_list,
+    back_to_user_event_details,
     show_partner_pending_registrations,
     show_partner_confirmed_registrations,
     show_pending_registration_details,
@@ -25,6 +30,12 @@ from app.bot.dialogs.start.handlers import (
     show_partner_events_list,
     show_partner_requests_list,
     show_prev_partner_events_page,
+    show_next_user_events_page,
+    show_prev_user_events_page,
+    show_user_event_details,
+    show_user_events_list,
+    start_user_attend_confirm,
+    on_user_event_attend_code,
     start_my_account,
 )
 from app.bot.states.account import AccountSG
@@ -47,6 +58,12 @@ start_dialog = Dialog(
             on_click=start_my_account,
         ),
         Button(
+            text=Format("{user_events_list_button}"),
+            id="user_events_list",
+            on_click=show_user_events_list,
+            when="can_view_user_events",
+        ),
+        Button(
             text=Format("{partner_events_list_button}"),
             id="partner_events_list",
             on_click=show_partner_events_list,
@@ -60,6 +77,97 @@ start_dialog = Dialog(
         ),
         getter=get_hello,
         state=StartSG.start
+    ),
+    Window(
+        Format("{user_events_title}"),
+        Format("{user_events_empty}", when="show_user_events_empty"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="user_events_select",
+                item_id_getter=lambda item: item[1],
+                items="user_event_items",
+                on_click=show_user_event_details,
+            ),
+            id="user_events_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_user_events",
+        ),
+        Format("{user_events_page_text}", when="show_user_events_page"),
+        Row(
+            Button(
+                text=Format("{user_events_prev_button}"),
+                id="user_events_prev_page",
+                on_click=show_prev_user_events_page,
+                when="has_user_prev_page",
+            ),
+            Button(
+                text=Format("{user_events_next_button}"),
+                id="user_events_next_page",
+                on_click=show_next_user_events_page,
+                when="has_user_next_page",
+            ),
+            when="show_user_events_page",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="user_events_back",
+                on_click=back_to_start,
+            ),
+        ),
+        getter=get_user_events,
+        state=StartSG.user_events_list,
+    ),
+    Window(
+        DynamicMedia("event_media"),
+        Format("{event_details_text}"),
+        Group(
+            Url(
+                text=Format("{view_post_button}"),
+                url=Format("{event_post_url}"),
+                id="user_event_view_post",
+                when="has_post_url",
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{attend_button}"),
+                id="user_event_attend_confirm",
+                on_click=start_user_attend_confirm,
+                when="show_attend_button",
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="user_event_back",
+                on_click=back_to_user_events_list,
+            ),
+        ),
+        getter=get_user_event_details,
+        state=StartSG.user_event_details,
+    ),
+    Window(
+        Format("{prompt}"),
+        TextInput(
+            id="user_event_attend_code_input",
+            on_success=on_user_event_attend_code,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="user_event_attend_back",
+                on_click=back_to_user_event_details,
+            ),
+        ),
+        getter=lambda dialog_manager, i18n, **_: {
+            "prompt": i18n.partner.event.attend.confirm.prompt(),
+            "back_button": i18n.back.button(),
+        },
+        state=StartSG.user_event_attend_code,
     ),
     Window(
         Format("{partner_events_title}"),
