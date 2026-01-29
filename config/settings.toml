@@ -1,0 +1,61 @@
+[default]
+
+    LEVEL_NAME = "DEBUG"
+    GEOCODER_PROVIDER = "yandex"
+
+[default.geocoding]
+    allowed_cities = ["Москва", "Moscow", "Moskva"]
+
+[default.events]
+    event_name_min = 10
+    event_name_max = 60
+    event_desc_min = 50
+    event_desc_max = 600
+    price_max = 50000
+
+[default.nominatim]
+    url = "https://nominatim.openstreetmap.org/search"
+    limit = 5
+    timeout = 7
+    user_agent = "hol_club_bot"
+
+[default.yandex]
+    geocoder_api_key = "7fd21d1b-dd9e-4004-a4bb-9126489f1f14"
+    geocoder_results_limit = 5
+    geocoder_timeout_seconds = 10
+
+[default.chat_links]
+    channel_url = "https://t.me/hol_club"
+    male_chat_url = "https://t.me/malgaze"
+    female_chat_url = "https://t.me/femgaze"
+    under_35_chat_url = "https://t.me/not35yet"
+
+[development]
+
+    [development.logs]
+        LEVEL_NAME = "DEBUG"
+        FORMAT = '[%(asctime)s] #%(levelname)-8s %(filename)s:%(lineno)d - %(name)s - %(message)s'
+    
+    [development.i18n]
+        default_locale = "ru"
+        locales = ["ru", "en"]
+
+    [development.bot]
+        PARSE_MODE = 'HTML'
+
+    [development.postgres]
+        DB = 'hol_club'
+        HOST = 'localhost'
+        PORT = 5432
+        USER = 'margleb'
+    
+    [development.redis]
+        HOST = 'localhost'
+        PORT = 6379
+        DATABASE = 1
+
+    [development.nats]
+        SERVERS = 'nats://localhost:4222'
+    
+    [development.cache]
+        USE_CACHE = true

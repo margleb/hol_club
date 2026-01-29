@@ -1,0 +1,120 @@
+from aiogram_dialog import Dialog, StartMode, Window
+from aiogram_dialog.widgets.kbd import Button, Group, Row, ScrollingGroup, Select, Start, Url
+from aiogram_dialog.widgets.media import DynamicMedia
+from aiogram_dialog.widgets.text import Format
+
+from app.bot.dialogs.start.getters import (
+    get_hello,
+    get_partner_event_details,
+    get_partner_events,
+)
+from app.bot.dialogs.start.handlers import (
+    back_to_start,
+    back_to_partner_event_details,
+    back_to_partner_events_list,
+    show_next_partner_events_page,
+    show_partner_event_details,
+    show_partner_events_list,
+    show_partner_requests_list,
+    show_prev_partner_events_page,
+)
+from app.bot.states.account import AccountSG
+from app.bot.states.start import StartSG
+from app.bot.states.events import EventsSG
+
+start_dialog = Dialog(
+    Window(
+        Format('{hello}'),
+        Start(
+            text=Format("{create_event_button}"),
+            id="start_event_creation",
+            state=EventsSG.name,
+            mode=StartMode.NORMAL,
+            when="can_create_event",
+        ),
+        Start(
+            text=Format("{my_account_button}"),
+            id="start_my_account",
+            state=AccountSG.gender,
+            mode=StartMode.NORMAL,
+        ),
+        Button(
+            text=Format("{partner_events_list_button}"),
+            id="partner_events_list",
+            on_click=show_partner_events_list,
+            when="can_view_partner_events",
+        ),
+        Button(
+            text=Format("{partner_requests_button}"),
+            id="partner_requests_list",
+            on_click=show_partner_requests_list,
+            when="can_manage_partner_requests",
+        ),
+        getter=get_hello,
+        state=StartSG.start
+    ),
+    Window(
+        Format("{partner_events_title}"),
+        Format("{partner_events_empty}", when="show_partner_events_empty"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="partner_events_select",
+                item_id_getter=lambda item: item[1],
+                items="partner_event_items",
+                on_click=show_partner_event_details,
+            ),
+            id="partner_events_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_partner_events",
+        ),
+        Format("{partner_events_page_text}", when="show_partner_events_page"),
+        Row(
+            Button(
+                text=Format("{partner_events_prev_button}"),
+                id="partner_events_prev_page",
+                on_click=show_prev_partner_events_page,
+                when="has_partner_prev_page",
+            ),
+            Button(
+                text=Format("{partner_events_next_button}"),
+                id="partner_events_next_page",
+                on_click=show_next_partner_events_page,
+                when="has_partner_next_page",
+            ),
+            when="show_partner_events_page",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="partner_events_list_back",
+                on_click=back_to_start,
+            ),
+        ),
+        getter=get_partner_events,
+        state=StartSG.partner_events_list,
+    ),
+    Window(
+        DynamicMedia("event_media"),
+        Format("{event_details_text}"),
+        Group(
+            Url(
+                text=Format("{view_post_button}"),
+                url=Format("{event_post_url}"),
+                id="partner_event_view_post",
+                when="has_post_url",
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="partner_event_back",
+                on_click=back_to_partner_events_list,
+            ),
+        ),
+        getter=get_partner_event_details,
+        state=StartSG.partner_event_details,
+    ),
+)
