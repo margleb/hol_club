@@ -14,7 +14,9 @@ event_chats_router = Router()
 EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
 EVENT_JOIN_CHAT_GENDER_CALLBACK = "event_join_chat_gender"
 EVENT_JOIN_CHAT_AGE_CALLBACK = "event_join_chat_age"
+EVENT_JOIN_CHAT_INTENT_CALLBACK = "event_join_chat_intent"
 EVENT_CHAT_START_PREFIX = "event_chat_"
+INTENT_OPTIONS = ("hot", "warm", "cold")
 
 
 def _parse_callback_parts(
@@ -78,6 +80,42 @@ def build_age_keyboard(
                 )
             ]
         )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def build_intent_keyboard(
+    i18n: TranslatorRunner,
+    event_id: int,
+    *,
+    announce: bool = False,
+) -> InlineKeyboardMarkup:
+    suffix = ":announce" if announce else ""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=i18n.account.intent.hot(),
+                callback_data=(
+                    f"{EVENT_JOIN_CHAT_INTENT_CALLBACK}:{event_id}:hot{suffix}"
+                ),
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=i18n.account.intent.warm(),
+                callback_data=(
+                    f"{EVENT_JOIN_CHAT_INTENT_CALLBACK}:{event_id}:warm{suffix}"
+                ),
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=i18n.account.intent.cold(),
+                callback_data=(
+                    f"{EVENT_JOIN_CHAT_INTENT_CALLBACK}:{event_id}:cold{suffix}"
+                ),
+            )
+        ],
+    ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -277,6 +315,7 @@ async def handle_event_chat_start(
     user_record = await db.users.get_user_record(user_id=user.id)
     gender = user_record.gender if user_record else None
     age_group = user_record.age_group if user_record else None
+    intent = user_record.intent if user_record else None
 
     if not gender:
         await message.answer(
@@ -288,6 +327,12 @@ async def handle_event_chat_start(
         await message.answer(
             i18n.general.registration.age.prompt(),
             reply_markup=build_age_keyboard(i18n, event_id),
+        )
+        return
+    if not intent:
+        await message.answer(
+            i18n.account.intent.prompt(),
+            reply_markup=build_intent_keyboard(i18n, event_id),
         )
         return
 
@@ -340,6 +385,7 @@ async def process_event_join_chat(
     user_record = await db.users.get_user_record(user_id=user.id)
     gender = user_record.gender if user_record else None
     age_group = user_record.age_group if user_record else None
+    intent = user_record.intent if user_record else None
 
     if not gender:
         if callback.message:
@@ -355,6 +401,14 @@ async def process_event_join_chat(
             await callback.message.answer(
                 i18n.general.registration.age.prompt(),
                 reply_markup=build_age_keyboard(i18n, event_id),
+            )
+        await callback.answer()
+        return
+    if not intent:
+        if callback.message:
+            await callback.message.answer(
+                i18n.account.intent.prompt(),
+                reply_markup=build_intent_keyboard(i18n, event_id),
             )
         await callback.answer()
         return
@@ -409,11 +463,13 @@ async def process_event_join_chat_gender(
     )
     user_record = await db.users.get_user_record(user_id=user.id)
     age_group = user_record.age_group if user_record else None
+    intent = user_record.intent if user_record else None
 
     await db.users.update_profile(
         user_id=user.id,
         gender=gender,
         age_group=age_group,
+        intent=intent,
     )
 
     if not age_group:
@@ -421,6 +477,14 @@ async def process_event_join_chat_gender(
             await callback.message.answer(
                 i18n.general.registration.age.prompt(),
                 reply_markup=build_age_keyboard(i18n, event_id, announce=announce),
+            )
+        await callback.answer()
+        return
+    if not intent:
+        if callback.message:
+            await callback.message.answer(
+                i18n.account.intent.prompt(),
+                reply_markup=build_intent_keyboard(i18n, event_id, announce=announce),
             )
         await callback.answer()
         return
@@ -487,11 +551,13 @@ async def process_event_join_chat_age(
     )
     user_record = await db.users.get_user_record(user_id=user.id)
     gender = user_record.gender if user_record else None
+    intent = user_record.intent if user_record else None
 
     await db.users.update_profile(
         user_id=user.id,
         gender=gender,
         age_group=age_group,
+        intent=intent,
     )
 
     if not gender:
@@ -499,6 +565,103 @@ async def process_event_join_chat_age(
             await callback.message.answer(
                 i18n.general.registration.gender.prompt(),
                 reply_markup=build_gender_keyboard(i18n, event_id, announce=announce),
+            )
+        await callback.answer()
+        return
+    if not intent:
+        if callback.message:
+            await callback.message.answer(
+                i18n.account.intent.prompt(),
+                reply_markup=build_intent_keyboard(i18n, event_id, announce=announce),
+            )
+        await callback.answer()
+        return
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    topic_link = _get_event_topic_link(event, gender)
+    if not topic_link:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    if announce and callback.message:
+        await _send_event_announcement(
+            message=callback.message,
+            i18n=i18n,
+            event=event,
+            topic_link=topic_link,
+        )
+    elif callback.message:
+        await _send_chat_link_message(
+            message=callback.message,
+            i18n=i18n,
+            topic_link=topic_link,
+        )
+    await callback.answer()
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_JOIN_CHAT_INTENT_CALLBACK}:")
+)
+async def process_event_join_chat_intent(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    db: DB,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_JOIN_CHAT_INTENT_CALLBACK, 3)
+    if not parts:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    try:
+        event_id = int(parts[1])
+    except ValueError:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    intent = parts[2]
+    announce = len(parts) == 4 and parts[3] == "announce"
+    if intent not in INTENT_OPTIONS:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    user = callback.from_user
+    if not user:
+        return
+
+    await _ensure_user_record(
+        db=db,
+        user_id=user.id,
+        username=user.username,
+        language=user.language_code,
+    )
+    user_record = await db.users.get_user_record(user_id=user.id)
+    gender = user_record.gender if user_record else None
+    age_group = user_record.age_group if user_record else None
+
+    await db.users.update_profile(
+        user_id=user.id,
+        gender=gender,
+        age_group=age_group,
+        intent=intent,
+    )
+
+    if not gender:
+        if callback.message:
+            await callback.message.answer(
+                i18n.general.registration.gender.prompt(),
+                reply_markup=build_gender_keyboard(i18n, event_id, announce=announce),
+            )
+        await callback.answer()
+        return
+
+    if not age_group:
+        if callback.message:
+            await callback.message.answer(
+                i18n.general.registration.age.prompt(),
+                reply_markup=build_age_keyboard(i18n, event_id, announce=announce),
             )
         await callback.answer()
         return
