@@ -6,8 +6,10 @@ from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.general_registration.getters import AGE_GROUPS
 from app.bot.dialogs.events.utils import build_event_text
+from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
+from config.config import settings
 
 event_chats_router = Router()
 
@@ -15,6 +17,8 @@ EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
 EVENT_JOIN_CHAT_GENDER_CALLBACK = "event_join_chat_gender"
 EVENT_JOIN_CHAT_AGE_CALLBACK = "event_join_chat_age"
 EVENT_JOIN_CHAT_INTENT_CALLBACK = "event_join_chat_intent"
+EVENT_REGISTER_PAY_CALLBACK = "event_register_pay"
+EVENT_REGISTER_CONFIRM_CALLBACK = "event_register_confirm"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 INTENT_OPTIONS = ("hot", "warm", "cold")
 
@@ -239,6 +243,105 @@ def _get_event_topic_link(event, gender: str | None) -> str | None:
     return None
 
 
+def _get_card_number() -> str:
+    card_number = getattr(settings.payments, "card_number", "")
+    return (card_number or "").strip()
+
+
+def _calc_prepay_amount(event) -> int | None:
+    if event is None:
+        return None
+    if event.is_paid:
+        if not event.price:
+            return None
+        try:
+            price = int(str(event.price).replace(" ", ""))
+        except ValueError:
+            return None
+        percent = event.prepay_percent or 0
+        return max(0, int(round(price * percent / 100)))
+    return event.prepay_fixed_free
+
+
+async def _send_prepay_message(
+    *,
+    message: Message,
+    i18n: TranslatorRunner,
+    event,
+) -> None:
+    amount = _calc_prepay_amount(event)
+    card_number = _get_card_number()
+    refund_note = (
+        i18n.partner.event.prepay.free.refund()
+        if not event.is_paid
+        else ""
+    )
+    text = i18n.partner.event.prepay.text(
+        amount=amount if amount is not None else "-",
+        card_number=card_number or "-",
+        refund_note=refund_note,
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.prepay.paid.button(),
+                    callback_data=f"{EVENT_REGISTER_PAY_CALLBACK}:{event.id}",
+                )
+            ]
+        ]
+    )
+    await message.answer(text, reply_markup=keyboard)
+
+
+async def _maybe_start_registration(
+    *,
+    message: Message,
+    i18n: TranslatorRunner,
+    db: DB,
+    event,
+    user_id: int,
+    gender: str | None,
+) -> None:
+    if not gender:
+        await message.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    registration = await db.event_registrations.get_by_user_event(
+        event_id=event.id,
+        user_id=user_id,
+    )
+
+    if registration and registration.status in {
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    }:
+        topic_link = _get_event_topic_link(event, gender)
+        if not topic_link:
+            await message.answer(i18n.partner.event.join.chat.missing())
+            return
+        await _send_chat_link_message(
+            message=message,
+            i18n=i18n,
+            topic_link=topic_link,
+        )
+        return
+
+    if registration and registration.status == EventRegistrationStatus.PAID_CONFIRM_PENDING:
+        await message.answer(i18n.partner.event.prepay.waiting())
+        return
+
+    amount = _calc_prepay_amount(event)
+    if registration is None:
+        await db.event_registrations.create(
+            event_id=event.id,
+            user_id=user_id,
+            status=EventRegistrationStatus.PENDING_PAYMENT,
+            amount=amount,
+        )
+    await _send_prepay_message(message=message, i18n=i18n, event=event)
+
+
 async def _send_event_announcement(
     *,
     message: Message,
@@ -336,14 +439,13 @@ async def handle_event_chat_start(
         )
         return
 
-    topic_link = _get_event_topic_link(event, gender)
-    if not topic_link:
-        await message.answer(i18n.partner.event.join.chat.missing())
-        return
-    await _send_chat_link_message(
+    await _maybe_start_registration(
         message=message,
         i18n=i18n,
-        topic_link=topic_link,
+        db=db,
+        event=event,
+        user_id=user.id,
+        gender=gender,
     )
 
 
@@ -413,16 +515,14 @@ async def process_event_join_chat(
         await callback.answer()
         return
 
-    topic_link = _get_event_topic_link(event, gender)
-    if not topic_link:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
     if callback.message:
-        await _send_chat_link_message(
+        await _maybe_start_registration(
             message=callback.message,
             i18n=i18n,
-            topic_link=topic_link,
+            db=db,
+            event=event,
+            user_id=user.id,
+            gender=gender,
         )
     await callback.answer()
 
@@ -494,23 +594,14 @@ async def process_event_join_chat_gender(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    topic_link = _get_event_topic_link(event, gender)
-    if not topic_link:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    if announce and callback.message:
-        await _send_event_announcement(
+    if callback.message:
+        await _maybe_start_registration(
             message=callback.message,
             i18n=i18n,
+            db=db,
             event=event,
-            topic_link=topic_link,
-        )
-    elif callback.message:
-        await _send_chat_link_message(
-            message=callback.message,
-            i18n=i18n,
-            topic_link=topic_link,
+            user_id=user.id,
+            gender=gender,
         )
     await callback.answer()
 
@@ -582,23 +673,14 @@ async def process_event_join_chat_age(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    topic_link = _get_event_topic_link(event, gender)
-    if not topic_link:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    if announce and callback.message:
-        await _send_event_announcement(
+    if callback.message:
+        await _maybe_start_registration(
             message=callback.message,
             i18n=i18n,
+            db=db,
             event=event,
-            topic_link=topic_link,
-        )
-    elif callback.message:
-        await _send_chat_link_message(
-            message=callback.message,
-            i18n=i18n,
-            topic_link=topic_link,
+            user_id=user.id,
+            gender=gender,
         )
     await callback.answer()
 
@@ -671,22 +753,95 @@ async def process_event_join_chat_intent(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    topic_link = _get_event_topic_link(event, gender)
-    if not topic_link:
+    if callback.message:
+        await _maybe_start_registration(
+            message=callback.message,
+            i18n=i18n,
+            db=db,
+            event=event,
+            user_id=user.id,
+            gender=gender,
+        )
+    await callback.answer()
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_REGISTER_PAY_CALLBACK}:")
+)
+async def process_event_register_pay(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    db: DB,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_REGISTER_PAY_CALLBACK, 2)
+    if not parts:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    try:
+        event_id = int(parts[1])
+    except ValueError:
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    if announce and callback.message:
-        await _send_event_announcement(
-            message=callback.message,
-            i18n=i18n,
-            event=event,
-            topic_link=topic_link,
-        )
-    elif callback.message:
-        await _send_chat_link_message(
-            message=callback.message,
-            i18n=i18n,
-            topic_link=topic_link,
-        )
+    if not callback.message:
+        await callback.answer()
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.prepay.confirm.yes(),
+                    callback_data=f"{EVENT_REGISTER_CONFIRM_CALLBACK}:{event_id}:yes",
+                ),
+                InlineKeyboardButton(
+                    text=i18n.partner.event.prepay.confirm.no(),
+                    callback_data=f"{EVENT_REGISTER_CONFIRM_CALLBACK}:{event_id}:no",
+                ),
+            ]
+        ]
+    )
+    await callback.message.answer(i18n.partner.event.prepay.confirm.prompt(), reply_markup=keyboard)
+    await callback.answer()
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_REGISTER_CONFIRM_CALLBACK}:")
+)
+async def process_event_register_confirm(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    db: DB,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_REGISTER_CONFIRM_CALLBACK, 3)
+    if not parts:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    try:
+        event_id = int(parts[1])
+    except ValueError:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    decision = parts[2]
+    if decision not in {"yes", "no"}:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    user = callback.from_user
+    if not user:
+        return
+
+    if decision == "no":
+        await callback.answer(i18n.partner.event.prepay.cancelled())
+        return
+
+    await db.event_registrations.update_status(
+        event_id=event_id,
+        user_id=user.id,
+        status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+    )
+    if callback.message:
+        await callback.message.answer(i18n.partner.event.prepay.sent())
     await callback.answer()
