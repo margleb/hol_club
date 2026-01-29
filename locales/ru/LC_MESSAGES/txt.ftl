@@ -228,7 +228,7 @@ partner-event-chat-male-edit-button = Редактировать мужской 
 partner-event-chat-female-edit-button = Редактировать женский чат
 
 
-partner-event-join-chat-button = Вступить в чат
+partner-event-join-chat-button = Зарегистрироваться
 partner-event-join-chat-text = Вот ссылка на чат мероприятия:
 partner-event-join-chat-missing = Не удалось найти чат для этого события.
 partner-event-join-chat-hint = Пол и возраст можно изменить в личном кабинете.
