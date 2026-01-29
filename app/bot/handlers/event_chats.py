@@ -842,6 +842,16 @@ async def process_event_register_confirm(
         user_id=user.id,
         status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
     )
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event and callback.bot:
+        username = f"@{user.username}" if user.username else user.full_name
+        await callback.bot.send_message(
+            event.partner_user_id,
+            i18n.partner.event.prepay.notify(
+                username=username,
+                event_name=event.name,
+            ),
+        )
     if callback.message:
         await callback.message.answer(i18n.partner.event.prepay.sent())
     await callback.answer()

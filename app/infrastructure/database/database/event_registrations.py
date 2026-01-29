@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.enums.event_registrations import EventRegistrationStatus
+from app.infrastructure.database.models.users import UsersModel
 from app.infrastructure.database.models.event_registrations import EventRegistrationsModel
 
 logger = logging.getLogger(__name__)
@@ -127,3 +128,27 @@ class _EventRegistrationsDB:
             event_id,
             user_id,
         )
+
+    async def list_by_event_and_status(
+        self,
+        *,
+        event_id: int,
+        status: EventRegistrationStatus,
+    ) -> list[tuple[int, str | None, EventRegistrationStatus, int | None]]:
+        stmt = (
+            select(
+                EventRegistrationsModel.user_id,
+                UsersModel.username,
+                EventRegistrationsModel.status,
+                EventRegistrationsModel.amount,
+            )
+            .join(UsersModel, UsersModel.user_id == EventRegistrationsModel.user_id)
+            .where(EventRegistrationsModel.event_id == event_id)
+            .where(EventRegistrationsModel.status == status)
+            .order_by(EventRegistrationsModel.created.asc())
+        )
+        result = await self.session.execute(stmt)
+        return [
+            (row[0], row[1], row[2], row[3])
+            for row in result.all()
+        ]

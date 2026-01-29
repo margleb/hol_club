@@ -4,6 +4,7 @@ from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.events.utils import build_event_text
+from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 
@@ -168,4 +169,119 @@ async def get_partner_event_details(
         )
         or "",
         "has_post_url": bool(event.channel_id and event.channel_message_id),
+        "pending_regs_button": i18n.partner.event.registrations.pending.button(),
+        "confirmed_regs_button": i18n.partner.event.registrations.confirmed.button(),
+    }
+
+
+async def get_partner_pending_registrations(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+    if not event_id:
+        return {
+            "title": i18n.partner.event.registrations.pending.title(),
+            "items": [],
+            "empty_text": i18n.partner.event.registrations.pending.empty(),
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    items = await db.event_registrations.list_by_event_and_status(
+        event_id=event_id,
+        status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+    )
+    formatted = []
+    for user_id, username, status, amount in items:
+        label = i18n.partner.event.registrations.pending.item(
+            user_id=user_id,
+            username=f"@{username}" if username else f"id:{user_id}",
+            amount=amount if amount is not None else "-",
+        )
+        formatted.append((label, str(user_id)))
+
+    return {
+        "title": i18n.partner.event.registrations.pending.title(),
+        "items": formatted,
+        "empty_text": i18n.partner.event.registrations.pending.empty(),
+        "has_items": bool(formatted),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_partner_pending_registration_details(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+    user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
+    if not event_id or not user_id:
+        return {
+            "details_text": i18n.partner.event.registrations.pending.details.missing(),
+            "approve_button": i18n.partner.event.registrations.pending.approve.button(),
+            "decline_button": i18n.partner.event.registrations.pending.decline.button(),
+            "back_button": i18n.back.button(),
+        }
+
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user_id,
+    )
+    user = await db.users.get_user_record(user_id=user_id)
+    username = f"@{user.username}" if user and user.username else f"id:{user_id}"
+    amount = reg.amount if reg else "-"
+    text = i18n.partner.event.registrations.pending.details.text(
+        username=username,
+        amount=amount,
+    )
+    return {
+        "details_text": text,
+        "approve_button": i18n.partner.event.registrations.pending.approve.button(),
+        "decline_button": i18n.partner.event.registrations.pending.decline.button(),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_partner_confirmed_registrations(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+    if not event_id:
+        return {
+            "title": i18n.partner.event.registrations.confirmed.title(),
+            "items": [],
+            "empty_text": i18n.partner.event.registrations.confirmed.empty(),
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    items = await db.event_registrations.list_by_event_and_status(
+        event_id=event_id,
+        status=EventRegistrationStatus.CONFIRMED,
+    )
+    formatted = []
+    for user_id, username, status, amount in items:
+        label = i18n.partner.event.registrations.confirmed.item(
+            user_id=user_id,
+            username=f"@{username}" if username else f"id:{user_id}",
+        )
+        formatted.append((label, str(user_id)))
+
+    return {
+        "title": i18n.partner.event.registrations.confirmed.title(),
+        "items": formatted,
+        "empty_text": i18n.partner.event.registrations.confirmed.empty(),
+        "has_items": bool(formatted),
+        "back_button": i18n.back.button(),
     }

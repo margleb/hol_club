@@ -247,6 +247,24 @@ partner-event-prepay-confirm-no = Нет
 partner-event-prepay-sent = Спасибо! Ожидаем подтверждение оплаты от организатора.
 partner-event-prepay-cancelled = Хорошо, подтвердите оплату, когда будете готовы.
 partner-event-prepay-waiting = Оплата уже ожидает подтверждения организатора.
+partner-event-prepay-notify = { $username } сообщил(а) об оплате предоплаты за мероприятие «{ $event_name }».
+partner-event-prepay-approved = Ваша предоплата подтверждена. Вы зарегистрированы на мероприятие.
+partner-event-prepay-approved-partner = Предоплата подтверждена.
+partner-event-prepay-declined = Оплата отклонена организатором. Если есть вопросы — напишите ему.
+partner-event-prepay-declined-partner = Оплата отклонена.
+
+partner-event-registrations-pending-button = Ожидают подтверждения
+partner-event-registrations-confirmed-button = Зарегистрированные
+partner-event-registrations-pending-title = Ожидают подтверждения оплаты
+partner-event-registrations-pending-empty = Пока нет ожидающих подтверждения.
+partner-event-registrations-pending-item = { $username } • { $amount } ₽
+partner-event-registrations-pending-details-missing = Не удалось найти заявку.
+partner-event-registrations-pending-details-text = Пользователь: { $username }\nПредоплата: { $amount } ₽
+partner-event-registrations-pending-approve-button = Подтвердить
+partner-event-registrations-pending-decline-button = Отклонить
+partner-event-registrations-confirmed-title = Зарегистрированные пользователи
+partner-event-registrations-confirmed-empty = Пока нет подтвержденных регистраций.
+partner-event-registrations-confirmed-item = { $username }
 
 partner-event-view-post-button = Смотреть пост
 

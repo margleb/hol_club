@@ -7,11 +7,19 @@ from app.bot.dialogs.start.getters import (
     get_hello,
     get_partner_event_details,
     get_partner_events,
+    get_partner_pending_registrations,
+    get_partner_pending_registration_details,
+    get_partner_confirmed_registrations,
 )
 from app.bot.dialogs.start.handlers import (
     back_to_start,
     back_to_partner_event_details,
     back_to_partner_events_list,
+    show_partner_pending_registrations,
+    show_partner_confirmed_registrations,
+    show_pending_registration_details,
+    approve_pending_registration,
+    decline_pending_registration,
     show_next_partner_events_page,
     show_partner_event_details,
     show_partner_events_list,
@@ -109,6 +117,18 @@ start_dialog = Dialog(
         ),
         Row(
             Button(
+                text=Format("{pending_regs_button}"),
+                id="partner_event_pending_regs",
+                on_click=show_partner_pending_registrations,
+            ),
+            Button(
+                text=Format("{confirmed_regs_button}"),
+                id="partner_event_confirmed_regs",
+                on_click=show_partner_confirmed_registrations,
+            ),
+        ),
+        Row(
+            Button(
                 text=Format("{back_button}"),
                 id="partner_event_back",
                 on_click=back_to_partner_events_list,
@@ -116,5 +136,82 @@ start_dialog = Dialog(
         ),
         getter=get_partner_event_details,
         state=StartSG.partner_event_details,
+    ),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="pending_regs_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_pending_registration_details,
+            ),
+            id="pending_regs_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="pending_regs_back",
+                on_click=back_to_partner_event_details,
+            ),
+        ),
+        getter=get_partner_pending_registrations,
+        state=StartSG.partner_event_pending_list,
+    ),
+    Window(
+        Format("{details_text}"),
+        Row(
+            Button(
+                text=Format("{approve_button}"),
+                id="pending_reg_approve",
+                on_click=approve_pending_registration,
+            ),
+            Button(
+                text=Format("{decline_button}"),
+                id="pending_reg_decline",
+                on_click=decline_pending_registration,
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="pending_reg_back",
+                on_click=show_partner_pending_registrations,
+            ),
+        ),
+        getter=get_partner_pending_registration_details,
+        state=StartSG.partner_event_pending_details,
+    ),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="confirmed_regs_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+            ),
+            id="confirmed_regs_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="confirmed_regs_back",
+                on_click=back_to_partner_event_details,
+            ),
+        ),
+        getter=get_partner_confirmed_registrations,
+        state=StartSG.partner_event_confirmed_list,
     ),
 )
