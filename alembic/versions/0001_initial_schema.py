@@ -36,6 +36,7 @@ def upgrade() -> None:
         sa.Column("language", sa.String(length=10), nullable=True),
         sa.Column("gender", sa.String(length=16), nullable=True),
         sa.Column("age_group", sa.String(length=32), nullable=True),
+        sa.Column("intent", sa.String(length=16), nullable=True),
         sa.Column(
             "role",
             sa.Enum(

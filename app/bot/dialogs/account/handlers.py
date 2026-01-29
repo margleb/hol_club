@@ -32,6 +32,29 @@ async def on_account_gender_selected(
     dialog_manager: DialogManager,
     item_id: str,
 ) -> None:
+    await callback.answer()
+    dialog_manager.dialog_data["gender"] = item_id
+    await dialog_manager.switch_to(AccountSG.intent)
+
+
+async def on_account_age_selected(
+    callback: CallbackQuery,
+    widget: object,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    dialog_manager.dialog_data["age_group"] = item_id
+    await callback.answer()
+    await dialog_manager.switch_to(AccountSG.gender)
+
+
+async def on_account_intent_selected(
+    callback: CallbackQuery,
+    widget: object,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    gender = dialog_manager.dialog_data.get("gender")
     age_group = dialog_manager.dialog_data.get("age_group")
     db: DB | None = dialog_manager.middleware_data.get("db")
     i18n: TranslatorRunner | None = dialog_manager.middleware_data.get("i18n")
@@ -39,8 +62,9 @@ async def on_account_gender_selected(
     if db and user:
         await db.users.update_profile(
             user_id=user.id,
-            gender=item_id,
+            gender=gender,
             age_group=age_group,
+            intent=item_id,
         )
     if i18n and callback.message:
         await callback.message.answer(i18n.account.updated())
@@ -53,14 +77,3 @@ async def on_account_gender_selected(
         )
         return
     await dialog_manager.done()
-
-
-async def on_account_age_selected(
-    callback: CallbackQuery,
-    widget: object,
-    dialog_manager: DialogManager,
-    item_id: str,
-) -> None:
-    dialog_manager.dialog_data["age_group"] = item_id
-    await callback.answer()
-    await dialog_manager.switch_to(AccountSG.gender)

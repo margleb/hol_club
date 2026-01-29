@@ -47,3 +47,20 @@ async def get_account_age(
         "back_button": i18n.back.button(),
         "can_back": not start_data.get("force_profile", False),
     }
+
+
+async def get_account_intent(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, object]:
+    return {
+        "prompt": i18n.account.intent.prompt(),
+        "options": [
+            (i18n.account.intent.hot(), "hot"),
+            (i18n.account.intent.warm(), "warm"),
+            (i18n.account.intent.cold(), "cold"),
+        ],
+        "note": i18n.account.intent.note(),
+        "back_button": i18n.back.button(),
+    }

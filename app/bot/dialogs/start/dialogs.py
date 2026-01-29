@@ -35,7 +35,7 @@ start_dialog = Dialog(
         Start(
             text=Format("{my_account_button}"),
             id="start_my_account",
-            state=AccountSG.age_group,
+            state=AccountSG.intro,
             mode=StartMode.NORMAL,
         ),
         Button(

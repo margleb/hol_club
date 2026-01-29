@@ -25,6 +25,7 @@ class _UsersDB:
             language: str,
             gender: str | None = None,
             age_group: str | None = None,
+            intent: str | None = None,
             role: UserRole,
             is_alive: bool = True,
             is_blocked: bool = False
@@ -37,6 +38,7 @@ class _UsersDB:
                 language=language,
                 gender=gender,
                 age_group=age_group,
+                intent=intent,
                 role=role,
                 is_alive=is_alive,
                 is_blocked=is_blocked,
@@ -134,19 +136,21 @@ class _UsersDB:
         user_id: int,
         gender: str | None,
         age_group: str | None,
+        intent: str | None = None,
     ) -> None:
         stmt = (
             update(UsersModel)
             .where(UsersModel.user_id == user_id)
-            .values(gender=gender, age_group=age_group)
+            .values(gender=gender, age_group=age_group, intent=intent)
         )
         await self.session.execute(stmt)
         logger.info(
-            "User updated. db='%s', user_id=%d, gender='%s', age_group='%s'",
+            "User updated. db='%s', user_id=%d, gender='%s', age_group='%s', intent='%s'",
             self.__tablename__,
             user_id,
             gender,
             age_group,
+            intent,
         )
 
     async def get_admin_user_ids(self) -> list[int]:
