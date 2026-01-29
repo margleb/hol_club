@@ -93,7 +93,7 @@ async def process_start_command(
         )
         if not has_profile:
             await dialog_manager.start(
-                state=AccountSG.gender,
+                state=AccountSG.intro,
                 mode=StartMode.RESET_STACK,
                 data={"force_profile": True},
             )

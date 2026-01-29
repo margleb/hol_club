@@ -2,5 +2,6 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 class AccountSG(StatesGroup):
-    gender = State()
+    intro = State()
     age_group = State()
+    gender = State()

@@ -4,6 +4,17 @@ from fluentogram import TranslatorRunner
 from app.bot.dialogs.general_registration.getters import AGE_GROUPS
 
 
+async def get_account_intro(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, object]:
+    return {
+        "intro_text": i18n.account.intro.text(),
+        "intro_button": i18n.account.intro.button(),
+    }
+
+
 async def get_account_gender(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
