@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import re
 import secrets
 from datetime import datetime
 
@@ -15,6 +14,7 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
+from app.bot.dialogs.registration.getters import AGE_GROUPS
 from app.bot.enums.roles import UserRole
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
@@ -23,23 +23,8 @@ from app.bot.dialogs.events.utils import build_event_text
 from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
-_AGE_GROUP_RE = re.compile(r"^\s*(\d{1,2}\+|\d{1,2}\s*-\s*\d{1,2})\s*$")
 EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
 EVENT_CHAT_START_PREFIX = "event_chat_"
-
-
-def _is_valid_age_group(value: str) -> bool:
-    match = _AGE_GROUP_RE.match(value)
-    if not match:
-        return False
-    if "-" in value:
-        parts = re.split(r"\s*-\s*", value.strip())
-        try:
-            start, end = (int(part) for part in parts)
-        except ValueError:
-            return False
-        return start < end
-    return True
 
 
 def _get_events_channel() -> str | None:
@@ -380,26 +365,19 @@ async def on_event_price_input(
         return
     await dialog_manager.switch_to(EventsSG.age_group)
 
-async def on_event_age_input(
-    message: Message,
-    widget,
+async def on_event_age_selected(
+    callback: CallbackQuery,
+    widget: Select,
     dialog_manager: DialogManager,
-    data: str,
+    item_id: str,
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    age_group = (data or "").strip()
-    if not age_group:
-        await message.answer(
-            i18n.partner.event.age.invalid()
-        )
-        return
-    if not _is_valid_age_group(age_group):
-        await message.answer(
-            i18n.partner.event.age.invalid()
-        )
+    if item_id not in AGE_GROUPS:
+        await callback.answer(i18n.partner.event.age.invalid(), show_alert=True)
         return
 
-    dialog_manager.dialog_data["age_group"] = age_group
+    dialog_manager.dialog_data["age_group"] = item_id
+    await callback.answer()
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return

@@ -36,7 +36,7 @@ from app.bot.dialogs.events.handlers import (
     ensure_partner_access,
     on_event_address_input,
     on_event_address_selected,
-    on_event_age_input,
+    on_event_age_selected,
     on_event_datetime_input,
     on_event_description_input,
     on_event_name_input,
@@ -177,9 +177,15 @@ events_dialog = Dialog(
     ),
     Window(
         Format("{prompt}"),
-        TextInput(
-            id="event_age_input",
-            on_success=on_event_age_input,
+        Group(
+            Select(
+                Format("{item[0]}"),
+                id="event_age_select",
+                item_id_getter=lambda item: item[1],
+                items="age_choices",
+                on_click=on_event_age_selected,
+            ),
+            width=1,
         ),
         Row(
             Button(

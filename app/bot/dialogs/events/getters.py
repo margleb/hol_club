@@ -3,6 +3,7 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
+from app.bot.dialogs.registration.getters import AGE_GROUPS
 from config.config import settings
 from app.bot.dialogs.events.utils import build_event_text
 
@@ -107,9 +108,13 @@ async def get_event_age_group(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
     **kwargs,
-) -> dict[str, str]:
+) -> dict[str, list[tuple[str, str]] | str]:
     return {
         "prompt": i18n.partner.event.age.prompt(),
+        "age_choices": [
+            (i18n.general.registration.age.group(range=age_group), age_group)
+            for age_group in AGE_GROUPS
+        ],
         "skip_button": i18n.partner.event.skip.button(),
         "back_button": i18n.back.button(),
     }
