@@ -16,15 +16,10 @@ from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
 from app.bot.enums.roles import UserRole
-from app.bot.handlers.event_chats import (
-    EVENT_CHAT_START_PREFIX,
-    EVENT_JOIN_CHAT_CALLBACK,
-    build_topic_message_link,
-)
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
-from app.bot.dialogs.events.utils import build_event_text, build_event_topic_name
+from app.bot.dialogs.events.utils import build_event_text
 from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
@@ -49,77 +44,8 @@ def _get_events_channel() -> str | None:
     return settings.get("events_channel")
 
 
-def _get_events_male_chat() -> str | None:
-    return getattr(settings.chat_links, "male_chat_url", None)
-
-
-def _get_events_female_chat() -> str | None:
-    return getattr(settings.chat_links, "female_chat_url", None)
-
-
-def _normalize_chat_target(chat_url: str | None) -> str | None:
-    if not chat_url:
-        return None
-    value = chat_url.strip()
-    if not value:
-        return None
-    if value.startswith("@"):
-        return value
-    if value.lstrip("-").isdigit():
-        return value
-    prefix = "https://t.me/"
-    if value.startswith(prefix):
-        slug = value[len(prefix):].split("?", 1)[0].strip("/")
-        if slug.startswith("+") or slug.startswith("c/") or not slug:
-            return None
-        return f"@{slug}"
-    return value
-
-
 def _generate_attendance_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
-
-
-async def _create_event_topic_message(
-    *,
-    bot,
-    i18n: TranslatorRunner,
-    chat: str,
-    topic_name: str,
-    text: str,
-    photo_id: str | None,
-    event_id: int,
-    join_url: str | None,
-):
-    topic = await bot.create_forum_topic(chat, name=topic_name)
-    join_button = (
-        InlineKeyboardButton(
-            text=i18n.partner.event.join.chat.button(),
-            url=join_url,
-        )
-        if join_url
-        else InlineKeyboardButton(
-            text=i18n.partner.event.join.chat.button(),
-            callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
-        )
-    )
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[join_button]])
-    if photo_id:
-        message = await bot.send_photo(
-            chat,
-            photo=photo_id,
-            caption=text,
-            message_thread_id=topic.message_thread_id,
-            reply_markup=keyboard,
-        )
-    else:
-        message = await bot.send_message(
-            chat,
-            text=text,
-            message_thread_id=topic.message_thread_id,
-            reply_markup=keyboard,
-        )
-    return topic, message
 
 
 def _is_edit_mode(dialog_manager: DialogManager) -> bool:
@@ -692,17 +618,11 @@ async def _send_event_announcement_to_user(
                 )
             ]
         )
-    keyboard_rows.append(
-        [
-            InlineKeyboardButton(
-                text=i18n.partner.event.join.chat.button(),
-                callback_data=(
-                    f"{EVENT_JOIN_CHAT_CALLBACK}:{event_payload.get('id')}"
-                ),
-            )
-        ]
+    keyboard = (
+        InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+        if keyboard_rows
+        else None
     )
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
     photo_id = event_payload.get("photo_file_id")
     if photo_id:
         await bot.send_photo(
@@ -804,110 +724,17 @@ async def publish_event(
         )
         return
 
-    male_chat = _normalize_chat_target(_get_events_male_chat())
-    female_chat = _normalize_chat_target(_get_events_female_chat())
-    if not male_chat or not female_chat:
-        await db.events.delete_event(event_id=event_id)
-        await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
-        return
-
-    bot_username = None
-    try:
-        bot_info = await callback.bot.get_me()
-        bot_username = getattr(bot_info, "username", None)
-    except Exception:
-        bot_username = None
-    start_link = None
-    if bot_username:
-        start_link = (
-            f"https://t.me/{bot_username}?start={EVENT_CHAT_START_PREFIX}{event_id}"
-        )
-
-    event_name = data.get("name") or ""
-    event_datetime = data.get("datetime") or ""
-    topic_name = build_event_topic_name(event_datetime, event_name)
-    try:
-        male_topic, male_message = await _create_event_topic_message(
-            bot=callback.bot,
-            i18n=i18n,
-            chat=male_chat,
-            topic_name=topic_name,
-            text=text,
-            photo_id=photo_id,
-            event_id=event_id,
-            join_url=start_link,
-        )
-        female_topic, female_message = await _create_event_topic_message(
-            bot=callback.bot,
-            i18n=i18n,
-            chat=female_chat,
-            topic_name=topic_name,
-            text=text,
-            photo_id=photo_id,
-            event_id=event_id,
-            join_url=start_link,
-        )
-    except Exception as exc:
-        logger.warning("Failed to publish event topics: %s", exc)
-        await db.events.delete_event(event_id=event_id)
-        await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
-        return
-
-    male_topic_link = build_topic_message_link(
-        male_message.chat.id,
-        male_topic.message_thread_id,
-        male_message.message_id,
-        male_message.chat.username,
-    )
-    female_topic_link = build_topic_message_link(
-        female_message.chat.id,
-        female_topic.message_thread_id,
-        female_message.message_id,
-        female_message.chat.username,
-    )
-    if not male_topic_link or not female_topic_link:
-        await db.events.delete_event(event_id=event_id)
-        await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
-        return
-
-    await db.events.mark_event_chat_topics(
-        event_id=event_id,
-        male_chat_id=male_message.chat.id,
-        male_thread_id=male_topic.message_thread_id,
-        male_message_id=male_message.message_id,
-        male_chat_username=male_message.chat.username,
-        female_chat_id=female_message.chat.id,
-        female_thread_id=female_topic.message_thread_id,
-        female_message_id=female_message.message_id,
-        female_chat_username=female_message.chat.username,
-    )
-
-    join_button = None
-    if start_link:
-        join_button = InlineKeyboardButton(
-            text=i18n.partner.event.join.chat.button(),
-            url=start_link,
-        )
-    else:
-        join_button = InlineKeyboardButton(
-            text=i18n.partner.event.join.chat.button(),
-            callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
-        )
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[join_button]])
-
     try:
         if photo_id:
             channel_message = await callback.bot.send_photo(
                 channel,
                 photo=photo_id,
                 caption=text,
-                reply_markup=keyboard,
             )
         else:
             channel_message = await callback.bot.send_message(
                 channel,
                 text=text,
-                reply_markup=keyboard,
             )
     except Exception as exc:
         logger.warning("Failed to publish event: %s", exc)
