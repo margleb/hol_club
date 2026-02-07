@@ -50,22 +50,6 @@ async def get_account_age(
     }
 
 
-async def get_account_intent(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    **kwargs,
-) -> dict[str, object]:
-    return {
-        "prompt": i18n.account.intent.prompt(),
-        "options": [
-            (i18n.account.intent.hot(), "hot"),
-            (i18n.account.intent.warm(), "warm"),
-            (i18n.account.intent.cold(), "cold"),
-        ],
-        "back_button": i18n.back.button(),
-    }
-
-
 async def get_account_final(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -122,11 +106,15 @@ async def get_account_summary(
 
     gender = dialog_manager.dialog_data.get("gender") or (record.gender if record else None)
     age_group = dialog_manager.dialog_data.get("age_group") or (record.age_group if record else None)
-    intent = dialog_manager.dialog_data.get("intent") or (record.intent if record else None)
+    temperature = (
+        dialog_manager.dialog_data.get("temperature")
+        or (record.temperature if record else None)
+        or "cold"
+    )
 
     dialog_manager.dialog_data["gender"] = gender
     dialog_manager.dialog_data["age_group"] = age_group
-    dialog_manager.dialog_data["intent"] = intent
+    dialog_manager.dialog_data["temperature"] = temperature
 
     if gender == "female":
         gender_label = i18n.general.registration.gender.female()
@@ -135,26 +123,14 @@ async def get_account_summary(
     else:
         gender_label = "-"
 
-    if intent == "hot":
-        intent_label = i18n.account.intent.hot()
-    elif intent == "warm":
-        intent_label = i18n.account.intent.warm()
-    elif intent == "cold":
-        intent_label = i18n.account.intent.cold()
-    else:
-        intent_label = "-"
-
     return {
         "summary_title": i18n.account.summary.title(),
         "summary_age_label": i18n.account.summary.age(),
         "summary_gender_label": i18n.account.summary.gender(),
-        "summary_intent_label": i18n.account.summary.intent(),
         "summary_age_value": age_group or "-",
         "summary_gender_value": gender_label,
-        "summary_intent_value": intent_label,
         "edit_age_button": i18n.account.summary.edit.age.button(),
         "edit_gender_button": i18n.account.summary.edit.gender.button(),
-        "edit_intent_button": i18n.account.summary.edit.intent.button(),
         "continue_button": i18n.account.summary.confirm.button(),
         "close_button": i18n.account.summary.close.button(),
         "show_continue": not start_data.get("edit_profile", False),

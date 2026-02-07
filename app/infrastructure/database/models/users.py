@@ -20,7 +20,11 @@ class UsersModel(BaseModel):
     )
     gender: Mapped[str | None] = mapped_column(String(16))
     age_group: Mapped[str | None] = mapped_column(String(32))
-    intent: Mapped[str | None] = mapped_column(String(16))
+    temperature: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        server_default="cold",
+    )
     role: Mapped[UserRole] = mapped_column(
         Enum(
             UserRole,

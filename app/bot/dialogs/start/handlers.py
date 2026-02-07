@@ -162,7 +162,7 @@ async def on_user_event_attend_code(
             user_id=user.id,
             gender=user_record.gender,
             age_group=user_record.age_group,
-            intent="hot",
+            temperature="hot",
         )
 
     username = f"@{user.username}" if user.username else user.full_name
@@ -238,7 +238,7 @@ async def approve_pending_registration(
             user_id=user_id,
             gender=user_record.gender,
             age_group=user_record.age_group,
-            intent="warm",
+            temperature="warm",
         )
     if bot:
         await bot.send_message(

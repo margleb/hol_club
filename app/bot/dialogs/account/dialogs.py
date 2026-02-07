@@ -6,22 +6,18 @@ from app.bot.dialogs.account.getters import (
     get_account_age,
     get_account_final,
     get_account_gender,
-    get_account_intent,
     get_account_intro,
     get_account_summary,
 )
 from app.bot.dialogs.account.handlers import (
     back_from_age,
     back_from_gender,
-    back_from_intent,
     close_account_dialog,
     continue_from_summary,
     edit_account_age,
     edit_account_gender,
-    edit_account_intent,
     on_account_age_selected,
     on_account_gender_selected,
-    on_account_intent_selected,
     start_account_intro,
 )
 from app.bot.states.account import AccountSG
@@ -79,32 +75,9 @@ account_dialog = Dialog(
         getter=get_account_gender,
     ),
     Window(
-        Format("{prompt}"),
-        Group(
-            Select(
-                Format("{item[0]}"),
-                id="account_intent_select",
-                item_id_getter=lambda item: item[1],
-                items="options",
-                on_click=on_account_intent_selected,
-            ),
-            width=1,
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="account_intent_back",
-                on_click=back_from_intent,
-            ),
-        ),
-        state=AccountSG.intent,
-        getter=get_account_intent,
-    ),
-    Window(
         Format("{summary_title}"),
         Format("{summary_age_label}: {summary_age_value}"),
         Format("{summary_gender_label}: {summary_gender_value}"),
-        Format("{summary_intent_label}: {summary_intent_value}"),
         Group(
             Button(
                 text=Format("{edit_age_button}"),
@@ -115,11 +88,6 @@ account_dialog = Dialog(
                 text=Format("{edit_gender_button}"),
                 id="account_summary_edit_gender",
                 on_click=edit_account_gender,
-            ),
-            Button(
-                text=Format("{edit_intent_button}"),
-                id="account_summary_edit_intent",
-                on_click=edit_account_intent,
             ),
             width=1,
         ),

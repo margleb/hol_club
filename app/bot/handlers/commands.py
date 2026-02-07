@@ -89,7 +89,6 @@ async def process_start_command(
             user_record
             and user_record.gender
             and user_record.age_group
-            and user_record.intent
         )
         if not has_profile:
             await dialog_manager.start(

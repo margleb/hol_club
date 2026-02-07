@@ -24,7 +24,7 @@ class _UsersDB:
             username: str | None,
             gender: str | None = None,
             age_group: str | None = None,
-            intent: str | None = None,
+            temperature: str = "cold",
             role: UserRole,
             is_alive: bool = True,
             is_blocked: bool = False
@@ -36,7 +36,7 @@ class _UsersDB:
                 username=username,
                 gender=gender,
                 age_group=age_group,
-                intent=intent,
+                temperature=temperature,
                 role=role,
                 is_alive=is_alive,
                 is_blocked=is_blocked,
@@ -121,21 +121,28 @@ class _UsersDB:
         user_id: int,
         gender: str | None,
         age_group: str | None,
-        intent: str | None = None,
+        temperature: str | None = None,
     ) -> None:
+        values: dict[str, str | None] = {
+            "gender": gender,
+            "age_group": age_group,
+        }
+        if temperature is not None:
+            values["temperature"] = temperature
+
         stmt = (
             update(UsersModel)
             .where(UsersModel.user_id == user_id)
-            .values(gender=gender, age_group=age_group, intent=intent)
+            .values(**values)
         )
         await self.session.execute(stmt)
         logger.info(
-            "User updated. db='%s', user_id=%d, gender='%s', age_group='%s', intent='%s'",
+            "User updated. db='%s', user_id=%d, gender='%s', age_group='%s', temperature='%s'",
             self.__tablename__,
             user_id,
             gender,
             age_group,
-            intent,
+            temperature,
         )
 
     async def get_admin_user_ids(self) -> list[int]:
