@@ -2,6 +2,8 @@ from urllib.parse import quote_plus
 
 from fluentogram import TranslatorRunner
 
+from app.bot.dialogs.events.constants import EVENT_AGE_GROUP_ALL
+
 def _escape_html(value: str) -> str:
     return (
         value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -62,6 +64,11 @@ def build_event_text(
     is_paid = bool(data.get("is_paid"))
     raw_price = data.get("price")
     raw_age_group = data.get("age_group")
+    display_age_group = (
+        i18n.partner.event.age.everyone()
+        if raw_age_group == EVENT_AGE_GROUP_ALL
+        else raw_age_group
+    )
 
     def render(description: str, address: str) -> str:
         return _render_event_text(
@@ -71,7 +78,7 @@ def build_event_text(
             description=_escape_html(description),
             is_paid=is_paid,
             price=_escape_html(raw_price) if raw_price else None,
-            age_group=_escape_html(raw_age_group) if raw_age_group else None,
+            age_group=_escape_html(display_age_group) if display_age_group else None,
             i18n=i18n,
         )
 

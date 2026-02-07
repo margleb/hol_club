@@ -14,7 +14,7 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
-from app.bot.dialogs.registration.getters import AGE_GROUPS
+from app.bot.dialogs.events.constants import EVENT_AGE_GROUP_ALL, EVENT_AGE_GROUPS
 from app.bot.enums.roles import UserRole
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
@@ -372,7 +372,7 @@ async def on_event_age_selected(
     item_id: str,
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    if item_id not in AGE_GROUPS:
+    if item_id not in EVENT_AGE_GROUPS:
         await callback.answer(i18n.partner.event.age.invalid(), show_alert=True)
         return
 
@@ -564,8 +564,12 @@ async def _broadcast_event_announcement(
     db: DB,
     event_payload: dict[str, object],
 ) -> None:
-    user_ids = await db.users.get_active_user_ids_by_role(role=UserRole.USER)
-    for user_id in user_ids:
+    target_age_group = str(event_payload.get("age_group") or "").strip()
+    send_to_all = not target_age_group or target_age_group == EVENT_AGE_GROUP_ALL
+    user_profiles = await db.users.get_active_user_profiles_by_role(role=UserRole.USER)
+    for user_id, _gender, user_age_group in user_profiles:
+        if not send_to_all and user_age_group != target_age_group:
+            continue
         try:
             await _send_event_announcement_to_user(
                 bot=bot,
