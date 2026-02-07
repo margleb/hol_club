@@ -1,3 +1,4 @@
+import logging
 import os
 
 from aiogram import Router
@@ -16,6 +17,7 @@ from app.bot.states.attendance import AttendanceSG
 from config.config import settings
 
 event_chats_router = Router()
+logger = logging.getLogger(__name__)
 
 EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
 EVENT_JOIN_CHAT_GENDER_CALLBACK = "event_join_chat_gender"
@@ -27,6 +29,32 @@ EVENT_PREPAY_CONFIRM_CALLBACK = "event_prepay_confirm"
 EVENT_ATTEND_CONFIRM_CALLBACK = "event_attend_confirm"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 INTENT_OPTIONS = ("hot", "warm", "cold")
+
+
+def _format_username(
+    *,
+    username: str | None,
+    fallback_name: str | None = None,
+    user_id: int | None = None,
+) -> str:
+    if username:
+        return f"@{username}"
+    if fallback_name:
+        return fallback_name
+    if user_id is not None:
+        return f"id:{user_id}"
+    return "-"
+
+
+def _format_event_price(event) -> str:
+    if not event:
+        return "-"
+    if not event.is_paid:
+        return "бесплатно"
+    raw_price = str(event.price).strip() if event.price is not None else ""
+    if not raw_price:
+        return "-"
+    return f"{raw_price} ₽"
 
 
 def _parse_callback_parts(
@@ -940,40 +968,123 @@ async def process_event_register_confirm(
         await callback.answer(i18n.partner.event.prepay.cancelled())
         return
 
-    await db.event_registrations.update_status(
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    if not callback.bot:
+        await callback.answer()
+        return
+
+    moved_to_pending = await db.event_registrations.update_status_if_current(
         event_id=event_id,
         user_id=user.id,
-        status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+        current_status=EventRegistrationStatus.PENDING_PAYMENT,
+        new_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
     )
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event and callback.bot:
-        username = f"@{user.username}" if user.username else user.full_name
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=i18n.partner.event.registrations.pending.approve.button(),
-                        callback_data=(
-                            f"{EVENT_PREPAY_CONFIRM_CALLBACK}:{event_id}:{user.id}:approve"
-                        ),
+    if not moved_to_pending:
+        registration = await db.event_registrations.get_by_user_event(
+            event_id=event_id,
+            user_id=user.id,
+        )
+        if registration and registration.status == EventRegistrationStatus.PAID_CONFIRM_PENDING:
+            if callback.message:
+                await callback.message.answer(i18n.partner.event.prepay.waiting())
+            await callback.answer()
+            return
+        await callback.answer(i18n.partner.event.prepay.already.processed())
+        return
+
+    payer_username = _format_username(
+        username=user.username,
+        fallback_name=user.full_name,
+        user_id=user.id,
+    )
+    partner_record = await db.users.get_user_record(user_id=event.partner_user_id)
+    partner_username = _format_username(
+        username=partner_record.username if partner_record else None,
+        user_id=event.partner_user_id,
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.registrations.pending.approve.button(),
+                    callback_data=(
+                        f"{EVENT_PREPAY_CONFIRM_CALLBACK}:{event_id}:{user.id}:approve"
                     ),
-                    InlineKeyboardButton(
-                        text=i18n.partner.event.registrations.pending.decline.button(),
-                        callback_data=(
-                            f"{EVENT_PREPAY_CONFIRM_CALLBACK}:{event_id}:{user.id}:decline"
-                        ),
+                ),
+                InlineKeyboardButton(
+                    text=i18n.partner.event.registrations.pending.decline.button(),
+                    callback_data=(
+                        f"{EVENT_PREPAY_CONFIRM_CALLBACK}:{event_id}:{user.id}:decline"
                     ),
-                ]
+                ),
             ]
+        ]
+    )
+    admin_ids = await db.users.get_admin_user_ids()
+    if not admin_ids:
+        logger.warning(
+            "No admins found for prepay confirmation of event %s",
+            event_id,
         )
-        await callback.bot.send_message(
-            event.partner_user_id,
-            i18n.partner.event.prepay.notify(
-                username=username,
-                event_name=event.name,
-            ),
-            reply_markup=keyboard,
+        reverted = await db.event_registrations.update_status_if_current(
+            event_id=event_id,
+            user_id=user.id,
+            current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+            new_status=EventRegistrationStatus.PENDING_PAYMENT,
         )
+        if not reverted:
+            logger.warning(
+                "Failed to revert prepay status to pending_payment for event %s and user %s",
+                event_id,
+                user.id,
+            )
+        if callback.message:
+            await callback.message.answer(i18n.partner.event.prepay.admin.missing())
+        await callback.answer()
+        return
+    notify_text = i18n.partner.event.prepay.notify(
+        username=payer_username,
+        event_name=event.name,
+        partner_username=partner_username,
+        event_price=_format_event_price(event),
+    )
+    successful_notifications = 0
+    for recipient_id in admin_ids:
+        try:
+            await callback.bot.send_message(
+                recipient_id,
+                notify_text,
+                reply_markup=keyboard,
+            )
+            successful_notifications += 1
+        except Exception as exc:
+            logger.warning(
+                "Failed to notify user %s about payment confirmation for event %s: %s",
+                recipient_id,
+                event_id,
+                exc,
+            )
+    if not successful_notifications:
+        reverted = await db.event_registrations.update_status_if_current(
+            event_id=event_id,
+            user_id=user.id,
+            current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+            new_status=EventRegistrationStatus.PENDING_PAYMENT,
+        )
+        if not reverted:
+            logger.warning(
+                "Failed to revert prepay status after notification errors for event %s and user %s",
+                event_id,
+                user.id,
+            )
+        if callback.message:
+            await callback.message.answer(i18n.partner.event.prepay.admin.missing())
+        await callback.answer()
+        return
+
     if callback.message:
         await callback.message.answer(i18n.partner.event.prepay.sent())
     await callback.answer()
@@ -1008,31 +1119,32 @@ async def process_event_prepay_confirm(
         return
 
     approver_record = await db.users.get_user_record(user_id=approver.id)
-    if not approver_record or approver_record.role not in {UserRole.PARTNER, UserRole.ADMIN}:
-        await callback.answer(i18n.partner.event.forbidden())
+    if not approver_record or approver_record.role != UserRole.ADMIN:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
         return
 
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
-    if approver_record.role == UserRole.PARTNER and event.partner_user_id != approver.id:
-        await callback.answer(i18n.partner.event.forbidden())
-        return
 
-    reg = await db.event_registrations.get_by_user_event(
+    registration = await db.event_registrations.get_by_user_event(
         event_id=event_id,
         user_id=user_id,
     )
-    if reg is None:
+    if registration is None:
         await callback.answer(i18n.partner.event.registrations.pending.details.missing())
         return
 
     if decision == "approve":
-        await db.event_registrations.mark_paid_confirmed(
+        approved = await db.event_registrations.mark_paid_confirmed_if_current(
             event_id=event_id,
             user_id=user_id,
+            current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
         )
+        if not approved:
+            await callback.answer(i18n.partner.event.prepay.already.processed())
+            return
         user_record = await db.users.get_user_record(user_id=user_id)
         if user_record:
             await db.users.update_profile(
@@ -1054,13 +1166,36 @@ async def process_event_prepay_confirm(
                 user_id=user_id,
                 gender=gender,
             )
+            payer_username = _format_username(
+                username=user_record.username if user_record else None,
+                user_id=user_id,
+            )
+            try:
+                await callback.bot.send_message(
+                    event.partner_user_id,
+                    i18n.partner.event.prepay.approved.partner.notify(
+                        username=payer_username,
+                        event_name=event.name,
+                    ),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to notify partner %s about approved payment for event %s: %s",
+                    event.partner_user_id,
+                    event_id,
+                    exc,
+                )
         await callback.answer(i18n.partner.event.prepay.approved.partner())
     else:
-        await db.event_registrations.update_status(
+        declined = await db.event_registrations.update_status_if_current(
             event_id=event_id,
             user_id=user_id,
-            status=EventRegistrationStatus.DECLINED,
+            current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+            new_status=EventRegistrationStatus.DECLINED,
         )
+        if not declined:
+            await callback.answer(i18n.partner.event.prepay.already.processed())
+            return
         if callback.bot:
             await callback.bot.send_message(
                 user_id,

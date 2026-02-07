@@ -84,6 +84,35 @@ class _EventRegistrationsDB:
             status.value,
         )
 
+    async def update_status_if_current(
+        self,
+        *,
+        event_id: int,
+        user_id: int,
+        current_status: EventRegistrationStatus,
+        new_status: EventRegistrationStatus,
+    ) -> bool:
+        stmt = (
+            update(EventRegistrationsModel)
+            .where(EventRegistrationsModel.event_id == event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+            .where(EventRegistrationsModel.status == current_status)
+            .values(status=new_status)
+        )
+        result = await self.session.execute(stmt)
+        updated = bool(result.rowcount)
+        if updated:
+            logger.info(
+                "Event registration updated conditionally. db='%s', event_id=%d, "
+                "user_id=%d, from_status=%s, to_status=%s",
+                self.__tablename__,
+                event_id,
+                user_id,
+                current_status.value,
+                new_status.value,
+            )
+        return updated
+
     async def mark_paid_confirmed(
         self,
         *,
@@ -106,6 +135,36 @@ class _EventRegistrationsDB:
             event_id,
             user_id,
         )
+
+    async def mark_paid_confirmed_if_current(
+        self,
+        *,
+        event_id: int,
+        user_id: int,
+        current_status: EventRegistrationStatus,
+    ) -> bool:
+        stmt = (
+            update(EventRegistrationsModel)
+            .where(EventRegistrationsModel.event_id == event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+            .where(EventRegistrationsModel.status == current_status)
+            .values(
+                status=EventRegistrationStatus.CONFIRMED,
+                paid_confirmed_at=datetime.now(timezone.utc),
+            )
+        )
+        result = await self.session.execute(stmt)
+        updated = bool(result.rowcount)
+        if updated:
+            logger.info(
+                "Event registration payment confirmed conditionally. db='%s', "
+                "event_id=%d, user_id=%d, from_status=%s",
+                self.__tablename__,
+                event_id,
+                user_id,
+                current_status.value,
+            )
+        return updated
 
     async def mark_attended_confirmed(
         self,
