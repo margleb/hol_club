@@ -115,7 +115,6 @@ async def get_event_age_group(
             (i18n.general.registration.age.group(range=age_group), age_group)
             for age_group in AGE_GROUPS
         ],
-        "skip_button": i18n.partner.event.skip.button(),
         "back_button": i18n.back.button(),
     }
 

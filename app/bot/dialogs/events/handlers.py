@@ -383,19 +383,6 @@ async def on_event_age_selected(
         return
     await dialog_manager.switch_to(EventsSG.preview)
 
-
-async def skip_event_age(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    dialog_manager.dialog_data["age_group"] = None
-    if _is_edit_mode(dialog_manager):
-        await _return_to_preview(dialog_manager)
-        return
-    await dialog_manager.switch_to(EventsSG.preview)
-
-
 async def edit_event_name(
     callback: CallbackQuery,
     button: Button,

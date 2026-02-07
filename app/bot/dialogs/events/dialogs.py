@@ -43,7 +43,6 @@ from app.bot.dialogs.events.handlers import (
     on_event_photo_input,
     on_event_price_input,
     publish_event,
-    skip_event_age,
     skip_event_photo,
 )
 from app.bot.states.events import EventsSG
@@ -192,11 +191,6 @@ events_dialog = Dialog(
                 text=Format("{back_button}"),
                 id="back_from_event_age_group",
                 on_click=back_from_event_age_group,
-            ),
-            Button(
-                text=Format("{skip_button}"),
-                id="skip_event_age",
-                on_click=skip_event_age,
             ),
         ),
         state=EventsSG.age_group,
