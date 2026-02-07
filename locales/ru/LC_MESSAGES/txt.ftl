@@ -243,6 +243,7 @@ partner-event-join-chat-button = Зарегистрироваться
 partner-event-join-chat-text = Вот ссылка на чат мероприятия:
 partner-event-join-chat-missing = Не удалось найти чат для этого события.
 partner-event-join-chat-self-forbidden = Вы не можете регистрироваться на своё мероприятие.
+partner-event-join-chat-role-forbidden = Партнёры и администраторы не могут регистрироваться на мероприятия.
 partner-event-join-chat-hint = Пол и возраст можно изменить в личном кабинете.
 partner-event-prepay-text = Для регистрации нужна предоплата — это гарантирует, что участники действительно придут.
 
@@ -256,14 +257,23 @@ partner-event-prepay-paid-button = Я оплатил
 partner-event-prepay-confirm-prompt = Вы подтверждаете, что внесли предоплату?
 partner-event-prepay-confirm-yes = Да
 partner-event-prepay-confirm-no = Нет
-partner-event-prepay-sent = Спасибо! Ожидаем подтверждение оплаты от организатора.
+partner-event-prepay-sent = Спасибо! Ожидаем подтверждение оплаты от администратора.
 partner-event-prepay-cancelled = Хорошо, подтвердите оплату, когда будете готовы.
-partner-event-prepay-waiting = Оплата уже ожидает подтверждения организатора.
-partner-event-prepay-notify = { $username } сообщил(а) об оплате предоплаты за мероприятие «{ $event_name }».
+partner-event-prepay-waiting = Оплата уже ожидает подтверждения администратора.
+partner-event-prepay-notify =
+    Требуется подтверждение оплаты мероприятия.
+    Мероприятие: «{ $event_name }»
+    Партнер: { $partner_username }
+    Стоимость мероприятия: { $event_price }
+    Пользователь: { $username }
 partner-event-prepay-approved = Ваша предоплата подтверждена. Вы зарегистрированы на мероприятие.
 partner-event-prepay-approved-partner = Предоплата подтверждена.
-partner-event-prepay-declined = Оплата отклонена организатором. Если есть вопросы — напишите ему.
+partner-event-prepay-approved-partner-notify = Пользователь { $username } зарегистрирован на мероприятие «{ $event_name }».
+partner-event-prepay-declined = Оплата отклонена администратором. Если есть вопросы — напишите в поддержку.
 partner-event-prepay-declined-partner = Оплата отклонена.
+partner-event-prepay-already-processed = Эта оплата уже обработана.
+partner-event-prepay-admin-only = Подтверждать или отклонять оплату может только администратор.
+partner-event-prepay-admin-missing = Сейчас нет администраторов для подтверждения оплаты. Напишите в поддержку.
 
 partner-event-registrations-pending-button = Ожидают подтверждения
 partner-event-registrations-confirmed-button = Зарегистрированные

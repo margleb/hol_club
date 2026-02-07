@@ -219,6 +219,10 @@ async def approve_pending_registration(
     db: DB = dialog_manager.middleware_data.get("db")
     i18n = dialog_manager.middleware_data.get("i18n")
     bot = dialog_manager.middleware_data.get("bot")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
+        return
     event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
     user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
     if not event_id or not user_id:
@@ -262,6 +266,10 @@ async def decline_pending_registration(
     db: DB = dialog_manager.middleware_data.get("db")
     i18n = dialog_manager.middleware_data.get("i18n")
     bot = dialog_manager.middleware_data.get("bot")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
+        return
     event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
     user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
     if not event_id or not user_id:

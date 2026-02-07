@@ -272,6 +272,7 @@ start_dialog = Dialog(
     ),
     Window(
         Format("{details_text}"),
+        Format("{admin_only_note}", when="not can_confirm_payment"),
         Row(
             Button(
                 text=Format("{approve_button}"),
@@ -283,6 +284,7 @@ start_dialog = Dialog(
                 id="pending_reg_decline",
                 on_click=decline_pending_registration,
             ),
+            when="can_confirm_payment",
         ),
         Row(
             Button(

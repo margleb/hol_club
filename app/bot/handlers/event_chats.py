@@ -383,7 +383,9 @@ def _calc_prepay_amount(event) -> int | None:
             price = int(str(event.price).replace(" ", ""))
         except ValueError:
             return None
-        percent = event.prepay_percent or 0
+        if event.prepay_percent is None and event.prepay_fixed_free is not None:
+            return max(0, int(event.prepay_fixed_free))
+        percent = event.prepay_percent if event.prepay_percent is not None else 100
         return max(0, int(round(price * percent / 100)))
     return event.prepay_fixed_free
 
@@ -428,6 +430,11 @@ async def _maybe_start_registration(
     user_id: int,
     gender: str | None,
 ) -> None:
+    user_record = await db.users.get_user_record(user_id=user_id)
+    if user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}:
+        await message.answer(i18n.partner.event.join.chat.role.forbidden())
+        return
+
     if event and event.partner_user_id == user_id:
         await message.answer(i18n.partner.event.join.chat.self.forbidden())
         return

@@ -46,13 +46,14 @@ async def get_hello(
         user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
     )
     is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
+    is_user = bool(user_record and user_record.role == UserRole.USER)
     return {
         "hello": i18n.start.hello(username=username),
         "create_event_button": i18n.partner.event.create.button(),
         "can_create_event": is_partner,
         "my_account_button": i18n.account.button(),
         "user_events_list_button": i18n.start.events.list.button(),
-        "can_view_user_events": True,
+        "can_view_user_events": is_user,
         "partner_events_list_button": i18n.partner.events.list.button(),
         "can_view_partner_events": is_partner,
         "partner_requests_button": i18n.partner.request.list.button(),
@@ -310,6 +311,8 @@ async def get_partner_pending_registration_details(
             "details_text": i18n.partner.event.registrations.pending.details.missing(),
             "approve_button": i18n.partner.event.registrations.pending.approve.button(),
             "decline_button": i18n.partner.event.registrations.pending.decline.button(),
+            "can_confirm_payment": False,
+            "admin_only_note": i18n.partner.event.prepay.admin.only(),
             "back_button": i18n.back.button(),
         }
 
@@ -318,6 +321,8 @@ async def get_partner_pending_registration_details(
         user_id=user_id,
     )
     user = await db.users.get_user_record(user_id=user_id)
+    viewer = await db.users.get_user_record(user_id=event_from_user.id)
+    can_confirm_payment = bool(viewer and viewer.role == UserRole.ADMIN)
     username = f"@{user.username}" if user and user.username else f"id:{user_id}"
     amount = reg.amount if reg else "-"
     text = i18n.partner.event.registrations.pending.details.text(
@@ -328,6 +333,8 @@ async def get_partner_pending_registration_details(
         "details_text": text,
         "approve_button": i18n.partner.event.registrations.pending.approve.button(),
         "decline_button": i18n.partner.event.registrations.pending.decline.button(),
+        "can_confirm_payment": can_confirm_payment,
+        "admin_only_note": i18n.partner.event.prepay.admin.only(),
         "back_button": i18n.back.button(),
     }
 

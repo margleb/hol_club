@@ -24,6 +24,8 @@ from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
 _AGE_GROUP_RE = re.compile(r"^\s*(\d{1,2}\+|\d{1,2}\s*-\s*\d{1,2})\s*$")
+EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
+EVENT_CHAT_START_PREFIX = "event_chat_"
 
 
 def _is_valid_age_group(value: str) -> bool:
@@ -299,17 +301,6 @@ async def back_from_event_price(
     await dialog_manager.switch_to(EventsSG.description)
 
 
-async def back_from_event_prepay(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    if _is_edit_mode(dialog_manager):
-        await _return_to_preview(dialog_manager)
-        return
-    await dialog_manager.switch_to(EventsSG.price)
-
-
 async def back_from_event_age_group(
     callback: CallbackQuery,
     button: Button,
@@ -318,7 +309,7 @@ async def back_from_event_age_group(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    await dialog_manager.switch_to(EventsSG.prepay)
+    await dialog_manager.switch_to(EventsSG.price)
 
 
 
@@ -382,69 +373,12 @@ async def on_event_price_input(
 
     dialog_manager.dialog_data["price"] = price
     dialog_manager.dialog_data["is_paid"] = True
+    dialog_manager.dialog_data["prepay_percent"] = 100
     dialog_manager.dialog_data["prepay_fixed_free"] = None
-    if _is_edit_mode(dialog_manager) and dialog_manager.dialog_data.get("prepay_percent") is not None:
-        await _return_to_preview(dialog_manager)
-        return
-    await dialog_manager.switch_to(EventsSG.prepay)
-
-
-async def skip_event_price(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    dialog_manager.dialog_data["price"] = None
-    dialog_manager.dialog_data["is_paid"] = False
-    dialog_manager.dialog_data["prepay_percent"] = None
-    if _is_edit_mode(dialog_manager) and dialog_manager.dialog_data.get("prepay_fixed_free") is not None:
-        await _return_to_preview(dialog_manager)
-        return
-    await dialog_manager.switch_to(EventsSG.prepay)
-
-
-async def on_event_prepay_input(
-    message: Message,
-    widget,
-    dialog_manager: DialogManager,
-    data: str,
-) -> None:
-    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    value = (data or "").strip()
-    normalized_value = value.replace(" ", "")
-    if not normalized_value or not normalized_value.isdigit():
-        if bool(dialog_manager.dialog_data.get("is_paid")):
-            await message.answer(i18n.partner.event.prepay.percent.invalid())
-        else:
-            await message.answer(
-                i18n.partner.event.prepay.free.invalid(
-                    max=settings.events.price_max,
-                )
-            )
-        return
-    amount = int(normalized_value)
-    if bool(dialog_manager.dialog_data.get("is_paid")):
-        if amount < 0 or amount > 100:
-            await message.answer(i18n.partner.event.prepay.percent.invalid())
-            return
-        dialog_manager.dialog_data["prepay_percent"] = amount
-        dialog_manager.dialog_data["prepay_fixed_free"] = None
-    else:
-        if amount < 0 or amount > settings.events.price_max:
-            await message.answer(
-                i18n.partner.event.prepay.free.invalid(
-                    max=settings.events.price_max,
-                )
-            )
-            return
-        dialog_manager.dialog_data["prepay_fixed_free"] = amount
-        dialog_manager.dialog_data["prepay_percent"] = None
-
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
     await dialog_manager.switch_to(EventsSG.age_group)
-
 
 async def on_event_age_input(
     message: Message,
@@ -538,15 +472,6 @@ async def edit_event_price(
     await dialog_manager.switch_to(EventsSG.price)
 
 
-async def edit_event_prepay(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    dialog_manager.dialog_data["edit_mode"] = True
-    await dialog_manager.switch_to(EventsSG.prepay)
-
-
 async def edit_event_age(
     callback: CallbackQuery,
     button: Button,
@@ -585,6 +510,24 @@ def _build_channel_post_link_by_id(
     return f"https://t.me/c/{channel_id_str}/{message_id}"
 
 
+async def _build_event_join_start_link(
+    *,
+    bot,
+    event_id: int | None,
+) -> str | None:
+    if not event_id:
+        return None
+    try:
+        me = await bot.get_me()
+    except Exception as exc:
+        logger.warning("Failed to get bot username for event registration link: %s", exc)
+        return None
+    username = getattr(me, "username", None)
+    if not username:
+        return None
+    return f"https://t.me/{username}?start={EVENT_CHAT_START_PREFIX}{event_id}"
+
+
 async def _send_event_announcement_to_user(
     *,
     bot,
@@ -608,7 +551,17 @@ async def _send_event_announcement_to_user(
         event_payload.get("channel_id"),
         event_payload.get("channel_message_id"),
     )
+    event_id = event_payload.get("id")
     keyboard_rows = []
+    if isinstance(event_id, int):
+        keyboard_rows.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.join.chat.button(),
+                    callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
+                )
+            ]
+        )
     if post_url:
         keyboard_rows.append(
             [
@@ -724,17 +677,36 @@ async def publish_event(
         )
         return
 
+    join_url = await _build_event_join_start_link(
+        bot=callback.bot,
+        event_id=event_id,
+    )
+    channel_keyboard = None
+    if join_url:
+        channel_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.join.chat.button(),
+                        url=join_url,
+                    )
+                ]
+            ]
+        )
+
     try:
         if photo_id:
             channel_message = await callback.bot.send_photo(
                 channel,
                 photo=photo_id,
                 caption=text,
+                reply_markup=channel_keyboard,
             )
         else:
             channel_message = await callback.bot.send_message(
                 channel,
                 text=text,
+                reply_markup=channel_keyboard,
             )
     except Exception as exc:
         logger.warning("Failed to publish event: %s", exc)

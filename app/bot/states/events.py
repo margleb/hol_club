@@ -9,6 +9,5 @@ class EventsSG(StatesGroup):
     address_select = State()
     description = State()
     price = State()
-    prepay = State()
     age_group = State()
     preview = State()

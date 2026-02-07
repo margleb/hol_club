@@ -99,25 +99,6 @@ async def get_event_price(
         "prompt": i18n.partner.event.price.prompt(
             max=settings.events.price_max,
         ),
-        "skip_button": i18n.partner.event.skip.button(),
-        "back_button": i18n.back.button(),
-    }
-
-
-async def get_event_prepay(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    **kwargs,
-) -> dict[str, str]:
-    is_paid = bool(dialog_manager.dialog_data.get("is_paid"))
-    if is_paid:
-        prompt = i18n.partner.event.prepay.percent.prompt()
-    else:
-        prompt = i18n.partner.event.prepay.free.prompt(
-            max=settings.events.price_max,
-        )
-    return {
-        "prompt": prompt,
         "back_button": i18n.back.button(),
     }
 
@@ -165,7 +146,6 @@ async def get_event_preview(
         "edit_address_button": i18n.partner.event.edit.address.button(),
         "edit_description_button": i18n.partner.event.edit.description.button(),
         "edit_price_button": i18n.partner.event.edit.price.button(),
-        "edit_prepay_button": i18n.partner.event.edit.prepay.button(),
         "edit_age_button": i18n.partner.event.edit.age.button(),
         "is_paid": bool(dialog_manager.dialog_data.get("is_paid")),
         "back_button": i18n.back.button(),

@@ -15,7 +15,6 @@ from app.bot.dialogs.events.getters import (
     get_event_name,
     get_event_preview,
     get_event_price,
-    get_event_prepay,
 )
 from app.bot.dialogs.events.handlers import (
     back_from_event_address_query,
@@ -26,7 +25,6 @@ from app.bot.dialogs.events.handlers import (
     back_from_event_name,
     back_from_event_preview,
     back_from_event_price,
-    back_from_event_prepay,
     back_to_address_query,
     edit_event_address,
     edit_event_age,
@@ -35,7 +33,6 @@ from app.bot.dialogs.events.handlers import (
     edit_event_image,
     edit_event_name,
     edit_event_price,
-    edit_event_prepay,
     ensure_partner_access,
     on_event_address_input,
     on_event_address_selected,
@@ -45,10 +42,8 @@ from app.bot.dialogs.events.handlers import (
     on_event_name_input,
     on_event_photo_input,
     on_event_price_input,
-    on_event_prepay_input,
     publish_event,
     skip_event_age,
-    skip_event_price,
     skip_event_photo,
 )
 from app.bot.states.events import EventsSG
@@ -176,30 +171,9 @@ events_dialog = Dialog(
                 id="back_from_event_price",
                 on_click=back_from_event_price,
             ),
-            Button(
-                text=Format("{skip_button}"),
-                id="skip_event_price",
-                on_click=skip_event_price,
-            ),
         ),
         state=EventsSG.price,
         getter=get_event_price,
-    ),
-    Window(
-        Format("{prompt}"),
-        TextInput(
-            id="event_prepay_input",
-            on_success=on_event_prepay_input,
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="back_from_event_prepay",
-                on_click=back_from_event_prepay,
-            ),
-        ),
-        state=EventsSG.prepay,
-        getter=get_event_prepay,
     ),
     Window(
         Format("{prompt}"),
@@ -255,12 +229,6 @@ events_dialog = Dialog(
                 text=Format("{edit_price_button}"),
                 id="edit_event_price",
                 on_click=edit_event_price,
-                when="is_paid",
-            ),
-            Button(
-                text=Format("{edit_prepay_button}"),
-                id="edit_event_prepay",
-                on_click=edit_event_prepay,
             ),
             Button(
                 text=Format("{edit_age_button}"),
