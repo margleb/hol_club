@@ -185,8 +185,8 @@ def _get_user_i18n(
     Returns:
         Переводчик для языка пользователя или fallback
     """
-    if user_record and user_record.language:
-        return translator_hub.get_translator_by_locale(user_record.language)
+    _ = translator_hub
+    _ = user_record
     return fallback
 
 
@@ -216,7 +216,6 @@ async def _ensure_user_record(db: DB, user: User) -> UsersModel:
     await db.users.add(
         user_id=user.id,
         username=user.username,
-        language=user.language_code,  # Язык пользователя из Telegram
         role=UserRole.USER,  # Роль по умолчанию
     )
     return await db.users.get_user_record(user_id=user.id)

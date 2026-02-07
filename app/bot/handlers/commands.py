@@ -41,7 +41,6 @@ async def process_start_command(
         await db.users.add(
             user_id=message.from_user.id,
             username=message.from_user.username,
-            language=message.from_user.language_code,
             role=UserRole.USER
         )
         user_role = UserRole.USER

@@ -162,14 +162,12 @@ async def _ensure_user_record(
     db: DB,
     user_id: int,
     username: str | None,
-    language: str | None,
 ) -> None:
     record = await db.users.get_user_record(user_id=user_id)
     if record is None:
         await db.users.add(
             user_id=user_id,
             username=username,
-            language=language or "en",
             role=UserRole.USER,
         )
 
@@ -539,7 +537,6 @@ async def handle_event_chat_start(
         db=db,
         user_id=user.id,
         username=user.username,
-        language=user.language_code,
     )
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
@@ -607,7 +604,6 @@ async def process_event_join_chat(
         db=db,
         user_id=user.id,
         username=user.username,
-        language=user.language_code,
     )
 
     event = await db.events.get_event_by_id(event_id=event_id)
@@ -690,7 +686,6 @@ async def process_event_join_chat_gender(
         db=db,
         user_id=user.id,
         username=user.username,
-        language=user.language_code,
     )
     user_record = await db.users.get_user_record(user_id=user.id)
     age_group = user_record.age_group if user_record else None
@@ -769,7 +764,6 @@ async def process_event_join_chat_age(
         db=db,
         user_id=user.id,
         username=user.username,
-        language=user.language_code,
     )
     user_record = await db.users.get_user_record(user_id=user.id)
     gender = user_record.gender if user_record else None
@@ -848,7 +842,6 @@ async def process_event_join_chat_intent(
         db=db,
         user_id=user.id,
         username=user.username,
-        language=user.language_code,
     )
     user_record = await db.users.get_user_record(user_id=user.id)
     gender = user_record.gender if user_record else None

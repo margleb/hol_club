@@ -22,7 +22,6 @@ class _UsersDB:
             *,
             user_id: int,
             username: str | None,
-            language: str,
             gender: str | None = None,
             age_group: str | None = None,
             intent: str | None = None,
@@ -35,7 +34,6 @@ class _UsersDB:
             .values(
                 user_id=user_id,
                 username=username,
-                language=language,
                 gender=gender,
                 age_group=age_group,
                 intent=intent,
@@ -48,13 +46,12 @@ class _UsersDB:
         await self.session.execute(stmt)
         logger.info(
             "User added. db='%s', user_id=%d, date_time='%s', "
-            "username='%s', language='%s', gender='%s', age_group='%s', "
+            "username='%s', gender='%s', age_group='%s', "
             "role=%s, is_alive=%s, is_blocked=%s",
             self.__tablename__,
             user_id,
             datetime.now(timezone.utc),
             username,
-            language,
             gender,
             age_group,
             role.value,
@@ -87,18 +84,6 @@ class _UsersDB:
             self.__tablename__, user_id, is_alive
         )
     
-    async def update_user_lang(self, *, user_id: int, user_lang: str) -> None:
-        stmt = (
-            update(UsersModel)
-            .where(UsersModel.user_id == user_id)
-            .values(language=user_lang)
-        )
-        await self.session.execute(stmt)
-        logger.info(
-            "User updated. db='%s', user_id=%d, language=%s",
-            self.__tablename__, user_id, user_lang
-        )
-
     async def update_username(
         self,
         *,

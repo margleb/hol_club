@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.bot.enums.roles import UserRole
@@ -18,11 +18,6 @@ class UsersModel(BaseModel):
         server_default=func.now(),
         nullable=False,
     )
-    tz_region: Mapped[str | None] = mapped_column(String(50))
-    tz_offset: Mapped[str | None] = mapped_column(String(10))
-    longitude: Mapped[float | None] = mapped_column(Float)
-    latitude: Mapped[float | None] = mapped_column(Float)
-    language: Mapped[str | None] = mapped_column(String(10))
     gender: Mapped[str | None] = mapped_column(String(16))
     age_group: Mapped[str | None] = mapped_column(String(32))
     intent: Mapped[str | None] = mapped_column(String(16))
