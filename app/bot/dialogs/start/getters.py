@@ -46,7 +46,7 @@ async def get_hello(
         user_record and user_record.role == UserRole.PARTNER
     )
     can_view_partner_events = bool(
-        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
+        user_record and user_record.role == UserRole.PARTNER
     )
     is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
     is_user = bool(user_record and user_record.role == UserRole.USER)
@@ -74,7 +74,7 @@ async def get_partner_events(
 ) -> dict[str, str | list[tuple[str, str]] | bool]:
     user_record = await db.users.get_user_record(user_id=event_from_user.id)
     is_partner = bool(
-        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
+        user_record and user_record.role == UserRole.PARTNER
     )
     all_events = []
     if is_partner:
@@ -195,7 +195,7 @@ async def get_partner_event_details(
 
     user_record = await db.users.get_user_record(user_id=event_from_user.id)
     is_partner = bool(
-        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
+        user_record and user_record.role == UserRole.PARTNER
     )
     if not is_partner:
         return {
@@ -211,7 +211,7 @@ async def get_partner_event_details(
             "back_button": i18n.back.button(),
             "has_post_url": False,
         }
-    if user_record.role == UserRole.PARTNER and event.partner_user_id != event_from_user.id:
+    if event.partner_user_id != event_from_user.id:
         return {
             "event_details_text": i18n.partner.event.forbidden(),
             "back_button": i18n.back.button(),
