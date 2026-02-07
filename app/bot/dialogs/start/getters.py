@@ -256,7 +256,6 @@ async def get_partner_event_details(
         "view_post_button": i18n.partner.event.view.post.button(),
         "event_post_url": post_url or "",
         "has_post_url": bool(post_url),
-        "pending_regs_button": i18n.partner.event.registrations.pending.button(),
         "confirmed_regs_button": i18n.partner.event.registrations.confirmed.button(),
     }
 

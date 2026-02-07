@@ -223,11 +223,6 @@ start_dialog = Dialog(
         ),
         Row(
             Button(
-                text=Format("{pending_regs_button}"),
-                id="partner_event_pending_regs",
-                on_click=show_partner_pending_registrations,
-            ),
-            Button(
                 text=Format("{confirmed_regs_button}"),
                 id="partner_event_confirmed_regs",
                 on_click=show_partner_confirmed_registrations,
