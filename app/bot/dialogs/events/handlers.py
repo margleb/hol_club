@@ -55,7 +55,7 @@ async def ensure_partner_access(_, dialog_manager: DialogManager) -> None:
         return
 
     user_record = await db.users.get_user_record(user_id=user.id)
-    if not user_record or user_record.role not in {UserRole.PARTNER, UserRole.ADMIN}:
+    if not user_record or user_record.role != UserRole.PARTNER:
         await dialog_manager.event.bot.send_message(
             user.id,
             i18n.partner.event.forbidden(),

@@ -42,7 +42,10 @@ async def get_hello(
 ) -> dict[str, str]:
     username = event_from_user.full_name or event_from_user.username or i18n.stranger()
     user_record = await db.users.get_user_record(user_id=event_from_user.id)
-    is_partner = bool(
+    can_create_event = bool(
+        user_record and user_record.role == UserRole.PARTNER
+    )
+    can_view_partner_events = bool(
         user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
     )
     is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
@@ -50,12 +53,12 @@ async def get_hello(
     return {
         "hello": i18n.start.hello(username=username),
         "create_event_button": i18n.partner.event.create.button(),
-        "can_create_event": is_partner,
+        "can_create_event": can_create_event,
         "my_account_button": i18n.account.button(),
         "user_events_list_button": i18n.start.events.list.button(),
         "can_view_user_events": is_user,
         "partner_events_list_button": i18n.partner.events.list.button(),
-        "can_view_partner_events": is_partner,
+        "can_view_partner_events": can_view_partner_events,
         "partner_requests_button": i18n.partner.request.list.button(),
         "can_manage_partner_requests": is_admin,
         "back_button": i18n.back.button(),
