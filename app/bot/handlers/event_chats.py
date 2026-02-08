@@ -1,5 +1,6 @@
 import logging
 import os
+import html
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
@@ -13,6 +14,7 @@ from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
+from app.bot.states.admin_contact import AdminContactSG
 from app.bot.states.attendance import AttendanceSG
 from config.config import settings
 
@@ -25,6 +27,8 @@ EVENT_JOIN_CHAT_AGE_CALLBACK = "event_join_chat_age"
 EVENT_REGISTER_PAY_CALLBACK = "event_register_pay"
 EVENT_REGISTER_CONFIRM_CALLBACK = "event_register_confirm"
 EVENT_PREPAY_CONFIRM_CALLBACK = "event_prepay_confirm"
+EVENT_MESSAGE_USER_CALLBACK = "event_message_user"
+EVENT_REPLY_ADMIN_CALLBACK = "event_reply_admin"
 EVENT_ATTEND_CONFIRM_CALLBACK = "event_attend_confirm"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 
@@ -42,17 +46,6 @@ def _format_username(
     if user_id is not None:
         return f"id:{user_id}"
     return "-"
-
-
-def _format_event_price(event) -> str:
-    if not event:
-        return "-"
-    if not event.is_paid:
-        return "бесплатно"
-    raw_price = str(event.price).strip() if event.price is not None else ""
-    if not raw_price:
-        return "-"
-    return f"{raw_price} ₽"
 
 
 def _parse_callback_parts(
@@ -868,6 +861,13 @@ async def process_event_register_confirm(
                     ),
                 ),
             ]
+            ,
+            [
+                InlineKeyboardButton(
+                    text=i18n.start.admin.registrations.pending.write.button(),
+                    callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user.id}",
+                )
+            ]
         ]
     )
     admin_ids = await db.users.get_admin_user_ids()
@@ -892,11 +892,12 @@ async def process_event_register_confirm(
             await callback.message.answer(i18n.partner.event.prepay.admin.missing())
         await callback.answer()
         return
+    prepay_amount = _calc_prepay_amount(event)
     notify_text = i18n.partner.event.prepay.notify(
         username=payer_username,
         event_name=event.name,
         partner_username=partner_username,
-        event_price=_format_event_price(event),
+        amount=prepay_amount if prepay_amount is not None else "-",
     )
     successful_notifications = 0
     for recipient_id in admin_ids:
@@ -933,8 +934,204 @@ async def process_event_register_confirm(
         return
 
     if callback.message:
-        await callback.message.answer(i18n.partner.event.prepay.sent())
+        status_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.prepay.contact.button(),
+                        url=f"tg://user?id={admin_ids[0]}",
+                    )
+                ]
+            ]
+        )
+        await callback.message.answer(
+            i18n.partner.event.prepay.sent(),
+            reply_markup=status_keyboard,
+        )
     await callback.answer()
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_MESSAGE_USER_CALLBACK}:")
+)
+async def process_event_message_user(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    db: DB,
+    state: FSMContext,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_MESSAGE_USER_CALLBACK, 2)
+    if not parts:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    try:
+        target_user_id = int(parts[1])
+    except ValueError:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    admin = callback.from_user
+    if not admin:
+        return
+    admin_record = await db.users.get_user_record(user_id=admin.id)
+    if not admin_record or admin_record.role != UserRole.ADMIN:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
+        return
+
+    target_user = await db.users.get_user_record(user_id=target_user_id)
+    username = (
+        f"@{target_user.username}"
+        if target_user and target_user.username
+        else f"id:{target_user_id}"
+    )
+    await state.set_state(AdminContactSG.waiting_admin_text)
+    await state.update_data(message_user_id=target_user_id)
+    if callback.message:
+        await callback.message.answer(
+            i18n.start.admin.registrations.pending.message.prompt(
+                username=username,
+            )
+        )
+    await callback.answer()
+
+
+@event_chats_router.message(AdminContactSG.waiting_admin_text)
+async def process_event_message_user_text(
+    message: Message,
+    i18n: TranslatorRunner,
+    state: FSMContext,
+) -> None:
+    data = await state.get_data()
+    target_user_id = data.get("message_user_id")
+    payload = (message.text or "").strip()
+    if not payload:
+        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+    if not isinstance(target_user_id, int):
+        await state.clear()
+        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+
+    sender = message.from_user
+    if not sender:
+        await state.clear()
+        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+    admin_label = _format_username(
+        username=sender.username,
+        fallback_name=sender.full_name,
+        user_id=sender.id,
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.start.admin.registrations.pending.reply.button(),
+                    callback_data=f"{EVENT_REPLY_ADMIN_CALLBACK}:{sender.id}",
+                )
+            ]
+        ]
+    )
+    try:
+        await message.bot.send_message(
+            target_user_id,
+            i18n.start.admin.registrations.pending.message.to.user(
+                admin=html.escape(admin_label),
+                text=html.escape(payload),
+            ),
+            reply_markup=keyboard,
+        )
+    except Exception:
+        await state.clear()
+        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+
+    await state.clear()
+    await message.answer(i18n.start.admin.registrations.pending.message.sent())
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_REPLY_ADMIN_CALLBACK}:")
+)
+async def process_event_reply_admin(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    state: FSMContext,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_REPLY_ADMIN_CALLBACK, 2)
+    if not parts:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    try:
+        admin_user_id = int(parts[1])
+    except ValueError:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    await state.set_state(AdminContactSG.waiting_reply_text)
+    await state.update_data(reply_admin_user_id=admin_user_id)
+    if callback.message:
+        await callback.message.answer(
+            i18n.start.admin.registrations.pending.reply.prompt()
+        )
+    await callback.answer()
+
+
+@event_chats_router.message(AdminContactSG.waiting_reply_text)
+async def process_event_reply_admin_text(
+    message: Message,
+    i18n: TranslatorRunner,
+    state: FSMContext,
+) -> None:
+    data = await state.get_data()
+    admin_user_id = data.get("reply_admin_user_id")
+    payload = (message.text or "").strip()
+    if not payload:
+        await message.answer(i18n.start.admin.registrations.pending.reply.prompt())
+        return
+    if not isinstance(admin_user_id, int):
+        await state.clear()
+        await message.answer(i18n.start.admin.registrations.pending.reply.failed())
+        return
+
+    sender = message.from_user
+    if not sender:
+        await state.clear()
+        await message.answer(i18n.start.admin.registrations.pending.reply.failed())
+        return
+    sender_label = _format_username(
+        username=sender.username,
+        fallback_name=sender.full_name,
+        user_id=sender.id,
+    )
+    reply_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.start.admin.registrations.pending.reply.back.button(),
+                    callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{sender.id}",
+                )
+            ]
+        ]
+    )
+    try:
+        await message.bot.send_message(
+            admin_user_id,
+            i18n.start.admin.registrations.pending.reply.admin.received(
+                username=html.escape(sender_label),
+                text=html.escape(payload),
+            ),
+            reply_markup=reply_keyboard,
+        )
+    except Exception:
+        await state.clear()
+        await message.answer(i18n.start.admin.registrations.pending.reply.failed())
+        return
+
+    await state.clear()
+    await message.answer(i18n.start.admin.registrations.pending.reply.sent())
 
 
 @event_chats_router.callback_query(

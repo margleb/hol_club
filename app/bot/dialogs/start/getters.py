@@ -565,6 +565,8 @@ async def get_partner_pending_registration_details(
             "approve_button": i18n.partner.event.registrations.pending.approve.button(),
             "decline_button": i18n.partner.event.registrations.pending.decline.button(),
             "can_confirm_payment": False,
+            "show_contact_user_button": False,
+            "contact_user_button": "",
             "admin_only_note": i18n.partner.event.prepay.admin.only(),
             "back_button": i18n.back.button(),
         }
@@ -587,7 +589,39 @@ async def get_partner_pending_registration_details(
         "approve_button": i18n.partner.event.registrations.pending.approve.button(),
         "decline_button": i18n.partner.event.registrations.pending.decline.button(),
         "can_confirm_payment": can_confirm_payment,
+        "show_contact_user_button": can_confirm_payment,
+        "contact_user_button": i18n.start.admin.registrations.pending.contact.button(),
         "admin_only_note": i18n.partner.event.prepay.admin.only(),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_registration_message_prompt(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    selected_user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin or not isinstance(selected_user_id, int):
+        return {
+            "prompt": i18n.start.admin.registrations.pending.message.invalid(),
+            "back_button": i18n.back.button(),
+        }
+
+    user = await db.users.get_user_record(user_id=selected_user_id)
+    username = (
+        f"@{user.username}"
+        if user and user.username
+        else f"id:{selected_user_id}"
+    )
+    return {
+        "prompt": i18n.start.admin.registrations.pending.message.prompt(
+            username=username,
+        ),
         "back_button": i18n.back.button(),
     }
 

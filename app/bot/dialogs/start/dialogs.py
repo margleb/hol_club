@@ -5,6 +5,7 @@ from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
+    get_admin_registration_message_prompt,
     get_admin_partner_commission_edit,
     get_admin_partner_commissions,
     get_admin_registration_partners,
@@ -22,8 +23,10 @@ from app.bot.dialogs.start.getters import (
     get_user_attend_prompt,
 )
 from app.bot.dialogs.start.handlers import (
+    back_to_pending_registration_details,
     back_to_admin_partner_commissions,
     approve_admin_partner_request,
+    on_admin_registration_message_input,
     on_admin_partner_commission_input,
     back_to_admin_registration_partners,
     back_to_admin_partner_requests,
@@ -42,6 +45,7 @@ from app.bot.dialogs.start.handlers import (
     show_partner_pending_registrations,
     show_partner_confirmed_registrations,
     show_pending_registration_details,
+    start_message_registration_user,
     approve_pending_registration,
     decline_pending_registration,
     show_next_partner_events_page,
@@ -448,6 +452,14 @@ start_dialog = Dialog(
         Format("{admin_only_note}", when="not can_confirm_payment"),
         Row(
             Button(
+                text=Format("{contact_user_button}"),
+                id="pending_reg_contact_user",
+                on_click=start_message_registration_user,
+                when="show_contact_user_button",
+            ),
+        ),
+        Row(
+            Button(
                 text=Format("{approve_button}"),
                 id="pending_reg_approve",
                 on_click=approve_pending_registration,
@@ -468,6 +480,22 @@ start_dialog = Dialog(
         ),
         getter=get_partner_pending_registration_details,
         state=StartSG.partner_event_pending_details,
+    ),
+    Window(
+        Format("{prompt}"),
+        TextInput(
+            id="admin_registration_message_input",
+            on_success=on_admin_registration_message_input,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_registration_message_back",
+                on_click=back_to_pending_registration_details,
+            ),
+        ),
+        getter=get_admin_registration_message_prompt,
+        state=StartSG.admin_registration_message_user,
     ),
     Window(
         Format("{title}"),

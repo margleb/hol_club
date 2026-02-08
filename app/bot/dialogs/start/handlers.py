@@ -1,12 +1,18 @@
+import html
+
 from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import Button, Select
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from fluentogram import TranslatorRunner
 
 from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.bot.enums.roles import UserRole
 from app.bot.enums.event_registrations import EventRegistrationStatus
-from app.bot.handlers.event_chats import send_event_topic_link_to_user
+from app.bot.handlers.event_chats import (
+    EVENT_REPLY_ADMIN_CALLBACK,
+    send_event_topic_link_to_user,
+)
 from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
@@ -476,6 +482,94 @@ async def back_to_pending_registrations_source(
         await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
         return
     await dialog_manager.switch_to(StartSG.partner_event_pending_list)
+
+
+async def back_to_pending_registration_details(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.partner_event_pending_details)
+
+
+async def start_message_registration_user(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
+        return
+    user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
+    if not isinstance(user_id, int):
+        await callback.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_registration_message_user)
+
+
+async def on_admin_registration_message_input(
+    message: Message,
+    widget: object,
+    dialog_manager: DialogManager,
+    data: str,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    bot = dialog_manager.middleware_data.get("bot") or message.bot
+    user = message.from_user
+    if not user:
+        return
+
+    admin_record = await db.users.get_user_record(user_id=user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await message.answer(i18n.partner.event.prepay.admin.only())
+        return
+
+    target_user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
+    if not isinstance(target_user_id, int):
+        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        await dialog_manager.switch_to(StartSG.partner_event_pending_details)
+        return
+
+    payload = (data or "").strip()
+    if not payload:
+        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+
+    safe_payload = html.escape(payload)
+    admin_label = (
+        f"@{user.username}" if user.username else user.full_name or f"id:{user.id}"
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.start.admin.registrations.pending.reply.button(),
+                    callback_data=f"{EVENT_REPLY_ADMIN_CALLBACK}:{user.id}",
+                )
+            ]
+        ]
+    )
+    try:
+        await bot.send_message(
+            target_user_id,
+            i18n.start.admin.registrations.pending.message.to.user(
+                admin=html.escape(admin_label),
+                text=safe_payload,
+            ),
+            reply_markup=keyboard,
+        )
+    except Exception:
+        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+
+    await message.answer(i18n.start.admin.registrations.pending.message.sent())
+    await dialog_manager.switch_to(StartSG.partner_event_pending_details)
 
 
 async def _switch_after_pending_action(dialog_manager: DialogManager) -> None:

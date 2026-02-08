@@ -46,6 +46,22 @@ start-admin-registrations-partners-item = { $username } • { $count }
 start-admin-registrations-pending-title = Ожидают подтверждения оплаты ({ $partner })
 start-admin-registrations-pending-empty = По выбранному партнеру нет ожидающих подтверждения оплат.
 start-admin-registrations-pending-item = { $username } • { $event_name } • { $amount } ₽
+start-admin-registrations-pending-contact-button = Написать
+start-admin-registrations-pending-message-prompt = Напишите сообщение пользователю { $username }.
+start-admin-registrations-pending-message-invalid = Не удалось отправить сообщение пользователю.
+start-admin-registrations-pending-message-sent = Сообщение отправлено пользователю.
+start-admin-registrations-pending-message-to-user =
+    Сообщение от администратора { $admin }:
+    { $text }
+start-admin-registrations-pending-reply-button = Ответить
+start-admin-registrations-pending-reply-back-button = Ответить
+start-admin-registrations-pending-reply-prompt = Напишите ответ администратору.
+start-admin-registrations-pending-reply-sent = Сообщение отправлено администратору.
+start-admin-registrations-pending-reply-failed = Не удалось отправить сообщение администратору.
+start-admin-registrations-pending-reply-admin-received =
+    Ответ от пользователя { $username }:
+    { $text }
+start-admin-registrations-pending-write-button = Написать
 start-event-paid-tag = [оплачено]
 start-event-past-tag = [уже прошло]
 partner-events-title = Ваши события
@@ -285,13 +301,14 @@ partner-event-prepay-confirm-prompt = Вы подтверждаете, что в
 partner-event-prepay-confirm-yes = Да
 partner-event-prepay-confirm-no = Нет
 partner-event-prepay-sent = Спасибо! Ожидаем подтверждение оплаты от администратора.
+partner-event-prepay-contact-button = Уточнить статус оплаты
 partner-event-prepay-cancelled = Хорошо, подтвердите оплату, когда будете готовы.
 partner-event-prepay-waiting = Оплата уже ожидает подтверждения администратора.
 partner-event-prepay-notify =
     Требуется подтверждение оплаты мероприятия.
     Мероприятие: «{ $event_name }»
     Партнер: { $partner_username }
-    Стоимость мероприятия: { $event_price }
+    Сумма к оплате: { $amount } ₽
     Пользователь: { $username }
 partner-event-prepay-approved = Ваша предоплата подтверждена. Вы зарегистрированы на мероприятие.
 partner-event-prepay-approved-partner = Предоплата подтверждена.
