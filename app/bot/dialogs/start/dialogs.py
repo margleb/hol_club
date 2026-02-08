@@ -5,6 +5,8 @@ from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
+    get_admin_partner_commission_edit,
+    get_admin_partner_commissions,
     get_admin_registration_partners,
     get_admin_registration_pending,
     get_admin_partner_request_details,
@@ -20,7 +22,9 @@ from app.bot.dialogs.start.getters import (
     get_user_attend_prompt,
 )
 from app.bot.dialogs.start.handlers import (
+    back_to_admin_partner_commissions,
     approve_admin_partner_request,
+    on_admin_partner_commission_input,
     back_to_admin_registration_partners,
     back_to_admin_partner_requests,
     back_to_pending_registrations_source,
@@ -31,6 +35,8 @@ from app.bot.dialogs.start.handlers import (
     back_to_user_event_details,
     reject_admin_partner_request,
     show_admin_partner_request_details,
+    show_admin_partner_commission_edit,
+    show_admin_partner_commissions,
     show_admin_registration_partners,
     show_admin_registration_pending_list,
     show_partner_pending_registrations,
@@ -89,6 +95,12 @@ start_dialog = Dialog(
             when="can_manage_partner_requests",
         ),
         Button(
+            text=Format("{admin_partner_commissions_button}"),
+            id="admin_partner_commissions_list",
+            on_click=show_admin_partner_commissions,
+            when="can_manage_partner_commissions",
+        ),
+        Button(
             text=Format("{admin_registrations_button}"),
             id="admin_registrations_list",
             on_click=show_admin_registration_partners,
@@ -96,6 +108,49 @@ start_dialog = Dialog(
         ),
         getter=get_hello,
         state=StartSG.start
+    ),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="admin_partner_commissions_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_admin_partner_commission_edit,
+            ),
+            id="admin_partner_commissions_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_partner_commissions_back",
+                on_click=back_to_start,
+            ),
+        ),
+        getter=get_admin_partner_commissions,
+        state=StartSG.admin_partner_commissions_list,
+    ),
+    Window(
+        Format("{prompt}"),
+        TextInput(
+            id="admin_partner_commission_input",
+            on_success=on_admin_partner_commission_input,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_partner_commission_edit_back",
+                on_click=back_to_admin_partner_commissions,
+            ),
+        ),
+        getter=get_admin_partner_commission_edit,
+        state=StartSG.admin_partner_commission_edit,
     ),
     Window(
         Format("{user_events_title}"),

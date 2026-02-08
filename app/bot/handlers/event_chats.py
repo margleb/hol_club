@@ -993,13 +993,13 @@ async def process_event_prepay_confirm(
             await callback.answer(i18n.partner.event.prepay.already.processed())
             return
         user_record = await db.users.get_user_record(user_id=user_id)
-    if user_record:
-        await db.users.update_profile(
-            user_id=user_id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="warm",
-        )
+        if user_record:
+            await db.users.update_profile(
+                user_id=user_id,
+                gender=user_record.gender,
+                age_group=user_record.age_group,
+                temperature="warm",
+            )
         if callback.bot:
             await callback.bot.send_message(
                 user_id,
@@ -1033,22 +1033,23 @@ async def process_event_prepay_confirm(
                     exc,
                 )
         await callback.answer(i18n.partner.event.prepay.approved.partner())
-    else:
-        declined = await db.event_registrations.update_status_if_current(
-            event_id=event_id,
-            user_id=user_id,
-            current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
-            new_status=EventRegistrationStatus.DECLINED,
+        return
+
+    declined = await db.event_registrations.update_status_if_current(
+        event_id=event_id,
+        user_id=user_id,
+        current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+        new_status=EventRegistrationStatus.DECLINED,
+    )
+    if not declined:
+        await callback.answer(i18n.partner.event.prepay.already.processed())
+        return
+    if callback.bot:
+        await callback.bot.send_message(
+            user_id,
+            i18n.partner.event.prepay.declined(),
         )
-        if not declined:
-            await callback.answer(i18n.partner.event.prepay.already.processed())
-            return
-        if callback.bot:
-            await callback.bot.send_message(
-                user_id,
-                i18n.partner.event.prepay.declined(),
-            )
-        await callback.answer(i18n.partner.event.prepay.declined.partner())
+    await callback.answer(i18n.partner.event.prepay.declined.partner())
 
 @event_chats_router.callback_query(
     lambda callback: callback.data

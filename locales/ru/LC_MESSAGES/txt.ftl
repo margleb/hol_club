@@ -22,6 +22,18 @@ start-events-page = Страница { $current } из { $total }
 start-events-prev-button = ◀️
 start-events-next-button = ▶️
 start-admin-registrations-button = Список регистраций
+start-admin-partner-commissions-button = Комиссия партнеров
+start-admin-partner-commissions-title = Комиссия партнеров
+start-admin-partner-commissions-empty = Партнеров пока нет.
+start-admin-partner-commissions-item = { $username } • { $percent }%
+start-admin-partner-commission-edit-prompt =
+    Партнер: { $username }
+    Текущая комиссия: { $percent }%
+
+    Введите новый процент комиссии (0-100):
+start-admin-partner-commission-edit-invalid = Не удалось определить партнера для изменения комиссии.
+start-admin-partner-commission-invalid = Некорректный процент. Введите число от 0 до 100.
+start-admin-partner-commission-updated = Комиссия обновлена: { $percent }%.
 start-admin-partner-requests-title = Заявки на партнерство
 start-admin-partner-requests-empty = Заявок на партнерство нет.
 start-admin-partner-requests-item = { $username } (id:{ $user_id })
@@ -197,7 +209,7 @@ partner-event-participation-free = Бесплатно
 
 partner-event-participation-paid = Платно
 
-partner-event-price-prompt = Введите стоимость (до <b>{ $max }</b> ₽).
+partner-event-price-prompt = Введите базовую стоимость (до <b>{ $max }</b> ₽). Комиссия <b>{ $commission_percent }%</b> будет добавлена автоматически.
 
 partner-event-price-invalid = Некорректная стоимость. Максимум <b>{ $max }</b> ₽.
 

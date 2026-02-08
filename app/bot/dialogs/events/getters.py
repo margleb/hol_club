@@ -1,9 +1,11 @@
-from aiogram.types import ContentType
+from aiogram.types import ContentType, User
 from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.events.constants import EVENT_AGE_GROUPS, EVENT_AGE_GROUP_ALL
+from app.bot.enums.roles import UserRole
+from app.infrastructure.database.database.db import DB
 from config.config import settings
 from app.bot.dialogs.events.utils import build_event_text
 
@@ -94,11 +96,19 @@ async def get_event_description(
 async def get_event_price(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
     **kwargs,
 ) -> dict[str, str]:
+    commission_percent = 0
+    partner_record = await db.users.get_user_record(user_id=event_from_user.id)
+    if partner_record and partner_record.role == UserRole.PARTNER:
+        commission_percent = int(partner_record.commission_percent or 0)
+
     return {
         "prompt": i18n.partner.event.price.prompt(
             max=settings.events.price_max,
+            commission_percent=commission_percent,
         ),
         "back_button": i18n.back.button(),
     }

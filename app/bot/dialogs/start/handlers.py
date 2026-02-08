@@ -1,4 +1,4 @@
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
@@ -27,6 +27,102 @@ async def show_partner_requests_list(
     dialog_manager.dialog_data.pop("selected_partner_request_user_id", None)
     await callback.answer()
     await dialog_manager.switch_to(StartSG.admin_partner_requests_list)
+
+
+async def show_admin_partner_commissions(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(text=i18n.partner.approve.forbidden())
+        return
+
+    dialog_manager.dialog_data.pop("selected_partner_commission_user_id", None)
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+
+
+async def show_admin_partner_commission_edit(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(text=i18n.partner.approve.forbidden())
+        return
+
+    try:
+        partner_user_id = int(item_id)
+    except ValueError:
+        await callback.answer()
+        return
+    dialog_manager.dialog_data["selected_partner_commission_user_id"] = partner_user_id
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_commission_edit)
+
+
+async def back_to_admin_partner_commissions(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+
+
+async def on_admin_partner_commission_input(
+    message: Message,
+    widget: object,
+    dialog_manager: DialogManager,
+    data: str,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    if not message.from_user:
+        return
+
+    admin_record = await db.users.get_user_record(user_id=message.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await message.answer(i18n.partner.approve.forbidden())
+        return
+
+    partner_user_id = dialog_manager.dialog_data.get("selected_partner_commission_user_id")
+    if not isinstance(partner_user_id, int):
+        await message.answer(i18n.start.admin.partner.commission.edit.invalid())
+        await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+        return
+
+    value = (data or "").strip()
+    if not value.isdigit():
+        await message.answer(i18n.start.admin.partner.commission.invalid())
+        return
+    commission_percent = int(value)
+    if commission_percent < 0 or commission_percent > 100:
+        await message.answer(i18n.start.admin.partner.commission.invalid())
+        return
+
+    partner = await db.users.get_user_record(user_id=partner_user_id)
+    if partner is None or partner.role != UserRole.PARTNER:
+        await message.answer(i18n.start.admin.partner.commission.edit.invalid())
+        await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+        return
+
+    await db.users.update_partner_commission_percent(
+        user_id=partner_user_id,
+        commission_percent=commission_percent,
+    )
+    await message.answer(
+        i18n.start.admin.partner.commission.updated(percent=commission_percent)
+    )
+    await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
 
 
 async def show_admin_partner_request_details(

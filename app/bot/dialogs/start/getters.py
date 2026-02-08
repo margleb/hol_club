@@ -62,8 +62,82 @@ async def get_hello(
         "can_view_partner_events": can_view_partner_events,
         "admin_registrations_button": i18n.start.admin.registrations.button(),
         "can_manage_registrations": is_admin,
+        "admin_partner_commissions_button": i18n.start.admin.partner.commissions.button(),
+        "can_manage_partner_commissions": is_admin,
         "partner_requests_button": i18n.partner.request.list.button(),
         "can_manage_partner_requests": is_admin,
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_partner_commissions(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin:
+        return {
+            "title": i18n.start.admin.partner.commissions.title(),
+            "items": [],
+            "empty_text": i18n.start.admin.partner.commissions.empty(),
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    partners = await db.users.list_partners_with_commission()
+    items: list[tuple[str, str]] = []
+    for partner_user_id, partner_username, commission_percent in partners:
+        partner_label = (
+            f"@{partner_username}" if partner_username else f"id:{partner_user_id}"
+        )
+        label = i18n.start.admin.partner.commissions.item(
+            username=partner_label,
+            percent=commission_percent,
+        )
+        items.append((label, str(partner_user_id)))
+
+    return {
+        "title": i18n.start.admin.partner.commissions.title(),
+        "items": items,
+        "empty_text": i18n.start.admin.partner.commissions.empty(),
+        "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_partner_commission_edit(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    selected_user_id = dialog_manager.dialog_data.get("selected_partner_commission_user_id")
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin or not isinstance(selected_user_id, int):
+        return {
+            "prompt": i18n.start.admin.partner.commission.edit.invalid(),
+            "back_button": i18n.back.button(),
+        }
+
+    partner = await db.users.get_user_record(user_id=selected_user_id)
+    if partner is None or partner.role != UserRole.PARTNER:
+        return {
+            "prompt": i18n.start.admin.partner.commission.edit.invalid(),
+            "back_button": i18n.back.button(),
+        }
+
+    username = f"@{partner.username}" if partner.username else f"id:{partner.user_id}"
+    return {
+        "prompt": i18n.start.admin.partner.commission.edit.prompt(
+            username=username,
+            percent=int(partner.commission_percent or 0),
+        ),
         "back_button": i18n.back.button(),
     }
 

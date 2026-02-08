@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.bot.enums.roles import UserRole
@@ -24,6 +24,11 @@ class UsersModel(BaseModel):
         String(16),
         nullable=False,
         server_default="cold",
+    )
+    commission_percent: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="0",
     )
     role: Mapped[UserRole] = mapped_column(
         Enum(
