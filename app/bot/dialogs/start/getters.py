@@ -498,45 +498,6 @@ async def get_partner_event_details(
     }
 
 
-async def get_partner_pending_registrations(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    event_from_user: User,
-    db: DB,
-    **kwargs,
-) -> dict[str, object]:
-    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
-    if not event_id:
-        return {
-            "title": i18n.partner.event.registrations.pending.title(),
-            "items": [],
-            "empty_text": i18n.partner.event.registrations.pending.empty(),
-            "has_items": False,
-            "back_button": i18n.back.button(),
-        }
-
-    items = await db.event_registrations.list_by_event_and_status(
-        event_id=event_id,
-        status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
-    )
-    formatted = []
-    for user_id, username, status, amount in items:
-        label = i18n.partner.event.registrations.pending.item(
-            user_id=user_id,
-            username=f"@{username}" if username else f"id:{user_id}",
-            amount=amount if amount is not None else "-",
-        )
-        formatted.append((label, str(user_id)))
-
-    return {
-        "title": i18n.partner.event.registrations.pending.title(),
-        "items": formatted,
-        "empty_text": i18n.partner.event.registrations.pending.empty(),
-        "has_items": bool(formatted),
-        "back_button": i18n.back.button(),
-    }
-
-
 async def get_partner_pending_registration_details(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,

@@ -11,10 +11,9 @@ from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.bot.enums.roles import UserRole
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.handlers.event_chats import (
-    EVENT_CONTACT_PARTNER_CALLBACK,
     EVENT_MESSAGE_USER_CALLBACK,
     EVENT_REPLY_ADMIN_CALLBACK,
-    send_event_topic_link_to_user,
+    approve_event_registration_payment,
 )
 from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
@@ -408,16 +407,6 @@ async def on_user_event_message_partner_input(
     await dialog_manager.switch_to(StartSG.user_event_message_partner_done)
 
 
-async def show_partner_pending_registrations(
-    callback: CallbackQuery,
-    widget: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    dialog_manager.dialog_data["pending_source"] = "partner_event"
-    await callback.answer()
-    await dialog_manager.switch_to(StartSG.partner_event_pending_list)
-
-
 async def show_partner_confirmed_registrations(
     callback: CallbackQuery,
     widget: Button,
@@ -495,16 +484,7 @@ async def back_to_pending_registrations_source(
     if source == "admin_partner":
         await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
         return
-    await dialog_manager.switch_to(StartSG.partner_event_pending_list)
-
-
-async def back_to_pending_registration_details(
-    callback: CallbackQuery,
-    widget: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    await callback.answer()
-    await dialog_manager.switch_to(StartSG.partner_event_pending_details)
+    await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
 
 
 async def back_to_registration_message_source(
@@ -674,7 +654,7 @@ async def _switch_after_pending_action(dialog_manager: DialogManager) -> None:
     if source == "admin_partner":
         await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
         return
-    await dialog_manager.switch_to(StartSG.partner_event_pending_list)
+    await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
 
 
 async def approve_pending_registration(
@@ -694,45 +674,17 @@ async def approve_pending_registration(
     if not event_id or not user_id:
         await callback.answer()
         return
-    await db.event_registrations.mark_paid_confirmed(
+
+    approved = await approve_event_registration_payment(
+        db=db,
+        i18n=i18n,
+        bot=bot,
         event_id=event_id,
         user_id=user_id,
     )
-    user_record = await db.users.get_user_record(user_id=user_id)
-    if user_record:
-        await db.users.update_profile(
-            user_id=user_id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="hot",
-        )
-    if bot:
-        event = await db.events.get_event_by_id(event_id=event_id)
-        approved_keyboard = None
-        if event and isinstance(event.partner_user_id, int):
-            approved_keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text=i18n.partner.event.prepay.contact.partner.button(),
-                            callback_data=f"{EVENT_CONTACT_PARTNER_CALLBACK}:{event.partner_user_id}",
-                        )
-                    ]
-                ]
-            )
-        await bot.send_message(
-            user_id,
-            i18n.partner.event.prepay.approved(),
-            reply_markup=approved_keyboard,
-        )
-        if event and user_record:
-            await send_event_topic_link_to_user(
-                bot=bot,
-                i18n=i18n,
-                event=event,
-                user_id=user_id,
-                gender=user_record.gender,
-            )
+    if not approved:
+        await callback.answer(i18n.partner.event.prepay.already.processed())
+        return
     await callback.answer(i18n.partner.event.prepay.approved.partner())
     await _switch_after_pending_action(dialog_manager)
 

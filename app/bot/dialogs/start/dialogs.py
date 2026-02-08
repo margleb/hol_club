@@ -15,7 +15,6 @@ from app.bot.dialogs.start.getters import (
     get_hello,
     get_partner_event_details,
     get_partner_events,
-    get_partner_pending_registrations,
     get_partner_pending_registration_details,
     get_partner_confirmed_registrations,
     get_admin_registration_message_done_prompt,
@@ -26,7 +25,6 @@ from app.bot.dialogs.start.getters import (
 )
 from app.bot.dialogs.start.handlers import (
     back_to_registration_message_source,
-    back_to_pending_registration_details,
     back_to_admin_partner_commissions,
     approve_admin_partner_request,
     on_admin_registration_message_input,
@@ -45,7 +43,6 @@ from app.bot.dialogs.start.handlers import (
     show_admin_partner_commissions,
     show_admin_registration_partners,
     show_admin_registration_pending_list,
-    show_partner_pending_registrations,
     show_partner_confirmed_registrations,
     start_message_confirmed_user,
     show_pending_registration_details,
@@ -65,7 +62,6 @@ from app.bot.dialogs.start.handlers import (
     on_user_event_message_partner_input,
     start_my_account,
 )
-from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.bot.states.events import EventsSG
 
@@ -435,33 +431,6 @@ start_dialog = Dialog(
         ),
         getter=get_admin_registration_pending,
         state=StartSG.admin_registration_pending_list,
-    ),
-    Window(
-        Format("{title}"),
-        Format("{empty_text}", when="not has_items"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="pending_regs_select",
-                item_id_getter=lambda item: item[1],
-                items="items",
-                on_click=show_pending_registration_details,
-            ),
-            id="pending_regs_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_items",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="pending_regs_back",
-                on_click=back_to_partner_event_details,
-            ),
-        ),
-        getter=get_partner_pending_registrations,
-        state=StartSG.partner_event_pending_list,
     ),
     Window(
         Format("{details_text}"),

@@ -19,7 +19,6 @@ class EventsModel(BaseModel):
     price: Mapped[str | None] = mapped_column(String(32))
     prepay_percent: Mapped[int | None] = mapped_column(Integer)
     prepay_fixed_free: Mapped[int | None] = mapped_column(Integer)
-    attendance_code: Mapped[str | None] = mapped_column(String(32))
     age_group: Mapped[str | None] = mapped_column(String(32))
     photo_file_id: Mapped[str | None] = mapped_column(String(255))
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)

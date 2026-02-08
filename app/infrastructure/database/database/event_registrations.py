@@ -166,29 +166,6 @@ class _EventRegistrationsDB:
             )
         return updated
 
-    async def mark_attended_confirmed(
-        self,
-        *,
-        event_id: int,
-        user_id: int,
-    ) -> None:
-        stmt = (
-            update(EventRegistrationsModel)
-            .where(EventRegistrationsModel.event_id == event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
-            .values(
-                status=EventRegistrationStatus.ATTENDED_CONFIRMED,
-                attended_confirmed_at=datetime.now(timezone.utc),
-            )
-        )
-        await self.session.execute(stmt)
-        logger.info(
-            "Event attendance confirmed. db='%s', event_id=%d, user_id=%d",
-            self.__tablename__,
-            event_id,
-            user_id,
-        )
-
     async def list_by_event_and_status(
         self,
         *,
@@ -287,21 +264,3 @@ class _EventRegistrationsDB:
             (row[0], row[1], row[2], row[3], row[4])
             for row in result.all()
         ]
-
-    async def find_user_event_by_attendance_code(
-        self,
-        *,
-        user_id: int,
-        attendance_code: str,
-        statuses: list[EventRegistrationStatus],
-    ) -> int | None:
-        stmt = (
-            select(EventRegistrationsModel.event_id)
-            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
-            .where(EventRegistrationsModel.user_id == user_id)
-            .where(EventRegistrationsModel.status.in_(statuses))
-            .where(EventsModel.attendance_code == attendance_code)
-            .limit(1)
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()

@@ -215,6 +215,103 @@ async def send_event_topic_link_to_user(
     )
 
 
+async def approve_event_registration_payment(
+    *,
+    db: DB,
+    i18n: TranslatorRunner,
+    bot,
+    event_id: int,
+    user_id: int,
+) -> bool:
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        return False
+
+    approved = await db.event_registrations.mark_paid_confirmed_if_current(
+        event_id=event_id,
+        user_id=user_id,
+        current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+    )
+    if not approved:
+        return False
+
+    user_record = await db.users.get_user_record(user_id=user_id)
+    if user_record:
+        await db.users.update_profile(
+            user_id=user_id,
+            gender=user_record.gender,
+            age_group=user_record.age_group,
+            temperature="hot",
+        )
+
+    if not bot:
+        return True
+
+    partner_contact_keyboard = None
+    if isinstance(event.partner_user_id, int):
+        partner_contact_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.prepay.contact.partner.button(),
+                        callback_data=f"{EVENT_CONTACT_PARTNER_CALLBACK}:{event.partner_user_id}",
+                    )
+                ]
+            ]
+        )
+    await bot.send_message(
+        user_id,
+        i18n.partner.event.prepay.approved(),
+        reply_markup=partner_contact_keyboard,
+    )
+    gender = user_record.gender if user_record else None
+    await send_event_topic_link_to_user(
+        bot=bot,
+        i18n=i18n,
+        event=event,
+        user_id=user_id,
+        gender=gender,
+    )
+    payer_username = _format_username(
+        username=user_record.username if user_record else None,
+        user_id=user_id,
+    )
+    partner_reply_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.start.admin.registrations.pending.contact.button(),
+                    callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user_id}",
+                )
+            ]
+        ]
+    )
+    if isinstance(event.partner_user_id, int):
+        try:
+            await bot.send_message(
+                event.partner_user_id,
+                i18n.partner.event.prepay.approved.partner.notify(
+                    username=payer_username,
+                    event_name=event.name,
+                ),
+                reply_markup=partner_reply_keyboard,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to notify partner %s about approved payment for event %s: %s",
+                event.partner_user_id,
+                event_id,
+                exc,
+            )
+    else:
+        logger.warning(
+            "Skipped partner notification for event %s: missing partner_user_id",
+            event_id,
+        )
+
+    return True
+
+
 def parse_event_chat_start_payload(message_text: str | None) -> int | None:
     if not message_text:
         return None
@@ -837,8 +934,7 @@ async def process_event_register_confirm(
                         f"{EVENT_PREPAY_CONFIRM_CALLBACK}:{event_id}:{user.id}:decline"
                     ),
                 ),
-            ]
-            ,
+            ],
             [
                 InlineKeyboardButton(
                     text=i18n.start.admin.registrations.pending.write.button(),
@@ -1236,84 +1332,16 @@ async def process_event_prepay_confirm(
         return
 
     if decision == "approve":
-        approved = await db.event_registrations.mark_paid_confirmed_if_current(
+        approved = await approve_event_registration_payment(
+            db=db,
+            i18n=i18n,
+            bot=callback.bot,
             event_id=event_id,
             user_id=user_id,
-            current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
         )
         if not approved:
             await callback.answer(i18n.partner.event.prepay.already.processed())
             return
-        user_record = await db.users.get_user_record(user_id=user_id)
-        if user_record:
-            await db.users.update_profile(
-                user_id=user_id,
-                gender=user_record.gender,
-                age_group=user_record.age_group,
-                temperature="hot",
-            )
-        if callback.bot:
-            partner_contact_keyboard = None
-            if isinstance(event.partner_user_id, int):
-                partner_contact_keyboard = InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [
-                            InlineKeyboardButton(
-                                text=i18n.partner.event.prepay.contact.partner.button(),
-                                callback_data=f"{EVENT_CONTACT_PARTNER_CALLBACK}:{event.partner_user_id}",
-                            )
-                        ]
-                    ]
-                )
-            await callback.bot.send_message(
-                user_id,
-                i18n.partner.event.prepay.approved(),
-                reply_markup=partner_contact_keyboard,
-            )
-            gender = user_record.gender if user_record else None
-            await send_event_topic_link_to_user(
-                bot=callback.bot,
-                i18n=i18n,
-                event=event,
-                user_id=user_id,
-                gender=gender,
-            )
-            payer_username = _format_username(
-                username=user_record.username if user_record else None,
-                user_id=user_id,
-            )
-            partner_reply_keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text=i18n.start.admin.registrations.pending.contact.button(),
-                            callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user_id}",
-                        )
-                    ]
-                ]
-            )
-            if isinstance(event.partner_user_id, int):
-                try:
-                    await callback.bot.send_message(
-                        event.partner_user_id,
-                        i18n.partner.event.prepay.approved.partner.notify(
-                            username=payer_username,
-                            event_name=event.name,
-                        ),
-                        reply_markup=partner_reply_keyboard,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "Failed to notify partner %s about approved payment for event %s: %s",
-                        event.partner_user_id,
-                        event_id,
-                        exc,
-                    )
-            else:
-                logger.warning(
-                    "Skipped partner notification for event %s: missing partner_user_id",
-                    event_id,
-                )
         await callback.answer(i18n.partner.event.prepay.approved.partner())
         return
 
