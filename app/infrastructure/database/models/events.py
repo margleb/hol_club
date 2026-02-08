@@ -32,6 +32,7 @@ class EventsModel(BaseModel):
     female_thread_id: Mapped[int | None] = mapped_column(BigInteger)
     female_message_id: Mapped[int | None] = mapped_column(BigInteger)
     female_chat_username: Mapped[str | None] = mapped_column(String(255))
+    private_chat_invite_link: Mapped[str | None] = mapped_column(String(255))
     created: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

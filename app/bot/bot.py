@@ -24,6 +24,7 @@ from app.infrastructure.database.connect_to_pg import get_pg_pool
 from app.infrastructure.storage.storage.nats_storage import NatsStorage
 from app.infrastructure.storage.storage.nats_key_builder import NatsKeyBuilder
 from app.infrastructure.storage.nats_connect import connect_to_nats
+from app.services.telegram.private_event_chats import EventPrivateChatService
 from config.config import settings
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,18 @@ async def main():
         user=settings.postgres_user,
         password=settings.postgres_password,
     )
+    telethon_api_id_raw = settings.get("telethon_api_id")
+    try:
+        telethon_api_id = int(telethon_api_id_raw or 0)
+    except (TypeError, ValueError):
+        telethon_api_id = 0
+    event_private_chat_service = EventPrivateChatService(
+        api_id=telethon_api_id,
+        api_hash=str(settings.get("telethon_api_hash") or ""),
+        session=str(settings.get("telethon_session") or ""),
+    )
+    if not await event_private_chat_service.connect():
+        logger.warning("Event private chat service is disabled")
 
     translator_hub: TranslatorHub = create_translator_hub()
 
@@ -104,6 +117,7 @@ async def main():
             bot_locales=sorted(settings.i18n.locales),
             translator_hub=translator_hub,
             _db_sessionmaker=db_session_maker,
+            event_private_chat_service=event_private_chat_service,
         )
     except Exception as e:
         logger.exception(e)
@@ -112,6 +126,7 @@ async def main():
         logger.info('Connection to NATS closed')
         await db_engine.dispose()
         logger.info('Connection to Postgres closed')
+        await event_private_chat_service.disconnect()
         if dp.workflow_data.get('_cache_pool'):
             await cache_pool.close()
             logger.info('Connection to Redis closed')

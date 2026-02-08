@@ -2,7 +2,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from aiogram_dialog import DialogManager
 from fluentogram import TranslatorRunner
 
-from app.bot.states.general_registration import GeneralRegistrationSG
+from app.bot.states.registration import GeneralRegistrationSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
 

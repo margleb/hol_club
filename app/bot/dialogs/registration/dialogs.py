@@ -10,7 +10,7 @@ from app.bot.dialogs.registration.handlers import (
     on_general_age_selected,
     on_general_gender_selected,
 )
-from app.bot.states.general_registration import GeneralRegistrationSG
+from app.bot.states.registration import GeneralRegistrationSG
 
 general_registration_dialog = Dialog(
     Window(

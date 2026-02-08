@@ -19,6 +19,7 @@ from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
 from app.bot.dialogs.events.utils import build_event_text
+from app.services.telegram.private_event_chats import EventPrivateChatService
 from app.services.geocoders.geocoder import fetch_address_suggestions
 
 logger = logging.getLogger(__name__)
@@ -605,10 +606,20 @@ async def publish_event(
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     db: DB | None = dialog_manager.middleware_data.get("db")
     user: User | None = dialog_manager.middleware_data.get("event_from_user")
+    event_private_chat_service: EventPrivateChatService | None = (
+        dialog_manager.middleware_data.get("event_private_chat_service")
+    )
     channel = _get_events_channel()
 
     if not channel:
         await callback.answer(i18n.partner.event.channel.missing(), show_alert=True)
+        return
+
+    if event_private_chat_service is None or not event_private_chat_service.enabled:
+        await callback.answer(
+            i18n.partner.event.private.chat.missing(),
+            show_alert=True,
+        )
         return
 
     if not db or not user:
@@ -655,6 +666,26 @@ async def publish_event(
         )
         return
 
+    private_chat = await event_private_chat_service.create_event_chat(
+        event_id=event_id,
+        event_name=data.get("name") or "",
+        partner_user_id=user.id,
+        partner_username=user.username,
+    )
+    if private_chat is None:
+        await db.events.delete_event(event_id=event_id)
+        await callback.answer(
+            i18n.partner.event.private.chat.create.failed(),
+            show_alert=True,
+        )
+        return
+
+    await db.events.mark_event_private_chat(
+        event_id=event_id,
+        chat_id=private_chat.chat_id,
+        invite_link=private_chat.invite_link,
+    )
+
     join_url = await _build_event_join_start_link(
         bot=callback.bot,
         event_id=event_id,
@@ -688,6 +719,7 @@ async def publish_event(
             )
     except Exception as exc:
         logger.warning("Failed to publish event: %s", exc)
+        await event_private_chat_service.delete_event_chat(chat_id=private_chat.chat_id)
         await db.events.delete_event(event_id=event_id)
         await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
         return
@@ -723,18 +755,30 @@ async def publish_event(
         channel_message.message_id,
     )
     message_text = i18n.partner.event.publish.success()
-    partner_keyboard = None
+    keyboard_rows = []
     if post_link:
-        partner_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=i18n.partner.event.view.post.button(),
-                        url=post_link,
-                    )
-                ]
+        keyboard_rows.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.view.post.button(),
+                    url=post_link,
+                )
             ]
         )
+    if private_chat.invite_link:
+        keyboard_rows.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.view.chat.button(),
+                    url=private_chat.invite_link,
+                )
+            ]
+        )
+    partner_keyboard = (
+        InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+        if keyboard_rows
+        else None
+    )
 
     await callback.message.answer(message_text, reply_markup=partner_keyboard)
     await dialog_manager.done()

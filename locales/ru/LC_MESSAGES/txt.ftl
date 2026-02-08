@@ -327,6 +327,7 @@ partner-event-registrations-confirmed-empty = Пока нет подтвержд
 partner-event-registrations-confirmed-item = { $username }
 partner-event-view-post-button = Смотреть пост
 partner-event-view-topic-button = Смотреть топик
+partner-event-view-chat-button = Смотреть чат
 
 partner-event-publish-success = Событие опубликовано.
 
@@ -337,6 +338,8 @@ partner-event-publish-already = Событие уже опубликовано.
 partner-event-publish-in-progress = Публикация уже выполняется.
 
 partner-event-channel-missing = Не указан канал для событий. Добавьте EVENTS_CHANNEL в .env.
+partner-event-private-chat-missing = Не настроен Telethon. Добавьте TELETHON_API_ID, TELETHON_API_HASH и TELETHON_SESSION в .env.
+partner-event-private-chat-create-failed = Не удалось создать приватный чат события через Telethon. Проверьте сессию и права аккаунта.
 
 
 partner-event-label-datetime = <b>Дата и время:</b> { $value }

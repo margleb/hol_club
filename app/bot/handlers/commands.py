@@ -11,9 +11,9 @@ from app.bot.handlers.event_chats import (
     handle_event_chat_start,
     parse_event_chat_start_payload,
 )
-from app.bot.services.general_registration import parse_general_start_payload
+from app.bot.services.registration import parse_general_start_payload
 from app.bot.states.account import AccountSG
-from app.bot.states.general_registration import GeneralRegistrationSG
+from app.bot.states.registration import GeneralRegistrationSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.users import UsersModel

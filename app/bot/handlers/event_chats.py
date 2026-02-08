@@ -373,6 +373,9 @@ def build_topic_message_link(
 
 
 def _get_event_topic_link(event, gender: str | None) -> str | None:
+    invite_link = getattr(event, "private_chat_invite_link", None)
+    if invite_link:
+        return invite_link
     if gender == "female":
         return build_topic_message_link(
             event.female_chat_id,

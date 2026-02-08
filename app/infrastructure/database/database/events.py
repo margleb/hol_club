@@ -98,36 +98,31 @@ class _EventsDB:
             channel_message_id,
         )
 
-    async def mark_event_chat_topics(
+    async def mark_event_private_chat(
         self,
         *,
         event_id: int,
-        male_chat_id: int,
-        male_thread_id: int,
-        male_message_id: int,
-        male_chat_username: str | None,
-        female_chat_id: int,
-        female_thread_id: int,
-        female_message_id: int,
-        female_chat_username: str | None,
+        chat_id: int,
+        invite_link: str,
     ) -> None:
         stmt = (
             update(EventsModel)
             .where(EventsModel.id == event_id)
             .values(
-                male_chat_id=male_chat_id,
-                male_thread_id=male_thread_id,
-                male_message_id=male_message_id,
-                male_chat_username=male_chat_username,
-                female_chat_id=female_chat_id,
-                female_thread_id=female_thread_id,
-                female_message_id=female_message_id,
-                female_chat_username=female_chat_username,
+                male_chat_id=chat_id,
+                male_thread_id=None,
+                male_message_id=None,
+                male_chat_username=None,
+                female_chat_id=chat_id,
+                female_thread_id=None,
+                female_message_id=None,
+                female_chat_username=None,
+                private_chat_invite_link=invite_link,
             )
         )
         await self.session.execute(stmt)
         logger.info(
-            "Event chat topics saved. db='%s', event_id=%d",
+            "Event private chat saved. db='%s', event_id=%d",
             self.__tablename__,
             event_id,
         )
