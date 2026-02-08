@@ -20,9 +20,9 @@ from app.bot.dialogs.start.getters import (
     get_partner_confirmed_registrations,
     get_user_events,
     get_user_event_details,
-    get_user_attend_prompt,
 )
 from app.bot.dialogs.start.handlers import (
+    back_to_registration_message_source,
     back_to_pending_registration_details,
     back_to_admin_partner_commissions,
     approve_admin_partner_request,
@@ -35,7 +35,6 @@ from app.bot.dialogs.start.handlers import (
     back_to_partner_event_details,
     back_to_partner_events_list,
     back_to_user_events_list,
-    back_to_user_event_details,
     reject_admin_partner_request,
     show_admin_partner_request_details,
     show_admin_partner_commission_edit,
@@ -44,6 +43,7 @@ from app.bot.dialogs.start.handlers import (
     show_admin_registration_pending_list,
     show_partner_pending_registrations,
     show_partner_confirmed_registrations,
+    start_message_confirmed_user,
     show_pending_registration_details,
     start_message_registration_user,
     approve_pending_registration,
@@ -57,8 +57,6 @@ from app.bot.dialogs.start.handlers import (
     show_prev_user_events_page,
     show_user_event_details,
     show_user_events_list,
-    start_user_attend_confirm,
-    on_user_event_attend_code,
     start_my_account,
 )
 from app.bot.states.account import AccountSG
@@ -212,14 +210,6 @@ start_dialog = Dialog(
         ),
         Row(
             Button(
-                text=Format("{attend_button}"),
-                id="user_event_attend_confirm",
-                on_click=start_user_attend_confirm,
-                when="show_attend_button",
-            ),
-        ),
-        Row(
-            Button(
                 text=Format("{back_button}"),
                 id="user_event_back",
                 on_click=back_to_user_events_list,
@@ -227,22 +217,6 @@ start_dialog = Dialog(
         ),
         getter=get_user_event_details,
         state=StartSG.user_event_details,
-    ),
-    Window(
-        Format("{prompt}"),
-        TextInput(
-            id="user_event_attend_code_input",
-            on_success=on_user_event_attend_code,
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="user_event_attend_back",
-                on_click=back_to_user_event_details,
-            ),
-        ),
-        getter=get_user_attend_prompt,
-        state=StartSG.user_event_attend_code,
     ),
     Window(
         Format("{partner_events_title}"),
@@ -491,7 +465,7 @@ start_dialog = Dialog(
             Button(
                 text=Format("{back_button}"),
                 id="admin_registration_message_back",
-                on_click=back_to_pending_registration_details,
+                on_click=back_to_registration_message_source,
             ),
         ),
         getter=get_admin_registration_message_prompt,
@@ -506,6 +480,7 @@ start_dialog = Dialog(
                 id="confirmed_regs_select",
                 item_id_getter=lambda item: item[1],
                 items="items",
+                on_click=start_message_confirmed_user,
             ),
             id="confirmed_regs_scroll",
             width=1,

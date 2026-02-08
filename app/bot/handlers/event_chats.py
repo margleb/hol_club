@@ -16,7 +16,6 @@ from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 from app.bot.states.admin_contact import AdminContactSG
-from app.bot.states.attendance import AttendanceSG
 from config.config import settings
 
 event_chats_router = Router()
@@ -30,7 +29,7 @@ EVENT_REGISTER_CONFIRM_CALLBACK = "event_register_confirm"
 EVENT_PREPAY_CONFIRM_CALLBACK = "event_prepay_confirm"
 EVENT_MESSAGE_USER_CALLBACK = "event_message_user"
 EVENT_REPLY_ADMIN_CALLBACK = "event_reply_admin"
-EVENT_ATTEND_CONFIRM_CALLBACK = "event_attend_confirm"
+EVENT_CONTACT_PARTNER_CALLBACK = "event_contact_partner"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 
 
@@ -133,12 +132,10 @@ async def _send_chat_link_message(
     message: Message,
     i18n: TranslatorRunner,
     topic_link: str,
-    event_id: int | None = None,
 ) -> None:
     keyboard = _build_chat_link_keyboard(
         i18n=i18n,
         topic_link=topic_link,
-        event_id=event_id,
     )
     text = "\n\n".join(
         [
@@ -153,7 +150,6 @@ def _build_chat_link_keyboard(
     *,
     i18n: TranslatorRunner,
     topic_link: str,
-    event_id: int | None = None,
 ) -> InlineKeyboardMarkup:
     rows = [
         [
@@ -163,15 +159,6 @@ def _build_chat_link_keyboard(
             )
         ]
     ]
-    if event_id is not None:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=i18n.partner.event.attend.confirm.button(),
-                    callback_data=f"{EVENT_ATTEND_CONFIRM_CALLBACK}:{event_id}",
-                )
-            ]
-        )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -181,12 +168,10 @@ async def _send_chat_link_notification(
     i18n: TranslatorRunner,
     user_id: int,
     topic_link: str,
-    event_id: int | None = None,
 ) -> None:
     keyboard = _build_chat_link_keyboard(
         i18n=i18n,
         topic_link=topic_link,
-        event_id=event_id,
     )
     text = "\n\n".join(
         [
@@ -213,7 +198,6 @@ async def send_event_topic_link_to_user(
         i18n=i18n,
         user_id=user_id,
         topic_link=topic_link,
-        event_id=event.id,
     )
 
 
@@ -293,34 +277,6 @@ def _get_event_topic_link(event, gender: str | None) -> str | None:
             event.male_chat_username,
         )
     return None
-
-
-async def _handle_attendance_confirmation(
-    *,
-    message: Message,
-    i18n: TranslatorRunner,
-    db: DB,
-    event_id: int,
-    user_id: int,
-    state: FSMContext,
-) -> None:
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None:
-        await message.answer(i18n.partner.event.attend.confirm.missing())
-        return
-    registration = await db.event_registrations.get_by_user_event(
-        event_id=event_id,
-        user_id=user_id,
-    )
-    if registration is None or registration.status not in {
-        EventRegistrationStatus.CONFIRMED,
-        EventRegistrationStatus.ATTENDED_CONFIRMED,
-    }:
-        await message.answer(i18n.partner.event.attend.confirm.forbidden())
-        return
-    await state.set_state(AttendanceSG.waiting_code)
-    await state.update_data(event_id=event_id)
-    await message.answer(i18n.partner.event.attend.confirm.prompt())
 
 
 def _get_card_number() -> str:
@@ -415,7 +371,6 @@ async def _maybe_start_registration(
             message=message,
             i18n=i18n,
             topic_link=topic_link,
-            event_id=event.id,
         )
         return
 
@@ -972,11 +927,11 @@ async def process_event_message_user(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    admin = callback.from_user
-    if not admin:
+    sender = callback.from_user
+    if not sender:
         return
-    admin_record = await db.users.get_user_record(user_id=admin.id)
-    if not admin_record or admin_record.role != UserRole.ADMIN:
+    sender_record = await db.users.get_user_record(user_id=sender.id)
+    if not sender_record or sender_record.role not in {UserRole.ADMIN, UserRole.PARTNER}:
         await callback.answer(i18n.partner.event.prepay.admin.only())
         return
 
@@ -1061,6 +1016,7 @@ async def process_event_message_user_text(
 async def process_event_reply_admin(
     callback: CallbackQuery,
     i18n: TranslatorRunner,
+    db: DB,
     state: FSMContext,
 ) -> None:
     parts = _parse_callback_parts(callback.data, EVENT_REPLY_ADMIN_CALLBACK, 2)
@@ -1068,17 +1024,26 @@ async def process_event_reply_admin(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
     try:
-        admin_user_id = int(parts[1])
+        target_user_id = int(parts[1])
     except ValueError:
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
+    target_user_record = await db.users.get_user_record(user_id=target_user_id)
+    target_role = target_user_record.role if target_user_record else UserRole.ADMIN
+    prompt = (
+        i18n.partner.event.prepay.contact.partner.prompt()
+        if target_role == UserRole.PARTNER
+        else i18n.start.admin.registrations.pending.reply.prompt()
+    )
+
     await state.set_state(AdminContactSG.waiting_reply_text)
-    await state.update_data(reply_admin_user_id=admin_user_id)
+    await state.update_data(
+        reply_admin_user_id=target_user_id,
+        reply_target_role=target_role.value,
+    )
     if callback.message:
-        await callback.message.answer(
-            i18n.start.admin.registrations.pending.reply.prompt()
-        )
+        await callback.message.answer(prompt)
     await callback.answer()
 
 
@@ -1090,19 +1055,36 @@ async def process_event_reply_admin_text(
 ) -> None:
     data = await state.get_data()
     admin_user_id = data.get("reply_admin_user_id")
+    reply_target_role = data.get("reply_target_role")
+    is_partner_target = reply_target_role == UserRole.PARTNER.value
+    prompt_text = (
+        i18n.partner.event.prepay.contact.partner.prompt()
+        if is_partner_target
+        else i18n.start.admin.registrations.pending.reply.prompt()
+    )
+    failed_text = (
+        i18n.partner.event.prepay.contact.partner.failed()
+        if is_partner_target
+        else i18n.start.admin.registrations.pending.reply.failed()
+    )
+    sent_text = (
+        i18n.partner.event.prepay.contact.partner.sent()
+        if is_partner_target
+        else i18n.start.admin.registrations.pending.reply.sent()
+    )
     payload = (message.text or "").strip()
     if not payload:
-        await message.answer(i18n.start.admin.registrations.pending.reply.prompt())
+        await message.answer(prompt_text)
         return
     if not isinstance(admin_user_id, int):
         await state.clear()
-        await message.answer(i18n.start.admin.registrations.pending.reply.failed())
+        await message.answer(failed_text)
         return
 
     sender = message.from_user
     if not sender:
         await state.clear()
-        await message.answer(i18n.start.admin.registrations.pending.reply.failed())
+        await message.answer(failed_text)
         return
     sender_label = _format_username(
         username=sender.username,
@@ -1132,11 +1114,40 @@ async def process_event_reply_admin_text(
         )
     except Exception:
         await state.clear()
-        await message.answer(i18n.start.admin.registrations.pending.reply.failed())
+        await message.answer(failed_text)
         return
 
     await state.clear()
-    await message.answer(i18n.start.admin.registrations.pending.reply.sent())
+    await message.answer(sent_text)
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data
+    and callback.data.startswith(f"{EVENT_CONTACT_PARTNER_CALLBACK}:")
+)
+async def process_event_contact_partner(
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    state: FSMContext,
+) -> None:
+    parts = _parse_callback_parts(callback.data, EVENT_CONTACT_PARTNER_CALLBACK, 2)
+    if not parts:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    try:
+        partner_user_id = int(parts[1])
+    except ValueError:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    await state.set_state(AdminContactSG.waiting_reply_text)
+    await state.update_data(
+        reply_admin_user_id=partner_user_id,
+        reply_target_role=UserRole.PARTNER.value,
+    )
+    if callback.message:
+        await callback.message.answer(i18n.partner.event.prepay.contact.partner.prompt())
+    await callback.answer()
 
 
 @event_chats_router.callback_query(
@@ -1203,9 +1214,22 @@ async def process_event_prepay_confirm(
                 temperature="warm",
             )
         if callback.bot:
+            partner_contact_keyboard = None
+            if isinstance(event.partner_user_id, int):
+                partner_contact_keyboard = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            InlineKeyboardButton(
+                                text=i18n.partner.event.prepay.contact.partner.button(),
+                                callback_data=f"{EVENT_CONTACT_PARTNER_CALLBACK}:{event.partner_user_id}",
+                            )
+                        ]
+                    ]
+                )
             await callback.bot.send_message(
                 user_id,
                 i18n.partner.event.prepay.approved(),
+                reply_markup=partner_contact_keyboard,
             )
             gender = user_record.gender if user_record else None
             await send_event_topic_link_to_user(
@@ -1219,20 +1243,37 @@ async def process_event_prepay_confirm(
                 username=user_record.username if user_record else None,
                 user_id=user_id,
             )
-            try:
-                await callback.bot.send_message(
-                    event.partner_user_id,
-                    i18n.partner.event.prepay.approved.partner.notify(
-                        username=payer_username,
-                        event_name=event.name,
-                    ),
-                )
-            except Exception as exc:
+            partner_reply_keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text=i18n.start.admin.registrations.pending.contact.button(),
+                            callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user_id}",
+                        )
+                    ]
+                ]
+            )
+            if isinstance(event.partner_user_id, int):
+                try:
+                    await callback.bot.send_message(
+                        event.partner_user_id,
+                        i18n.partner.event.prepay.approved.partner.notify(
+                            username=payer_username,
+                            event_name=event.name,
+                        ),
+                        reply_markup=partner_reply_keyboard,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to notify partner %s about approved payment for event %s: %s",
+                        event.partner_user_id,
+                        event_id,
+                        exc,
+                    )
+            else:
                 logger.warning(
-                    "Failed to notify partner %s about approved payment for event %s: %s",
-                    event.partner_user_id,
+                    "Skipped partner notification for event %s: missing partner_user_id",
                     event_id,
-                    exc,
                 )
         await callback.answer(i18n.partner.event.prepay.approved.partner())
         return
@@ -1252,115 +1293,3 @@ async def process_event_prepay_confirm(
             i18n.partner.event.prepay.declined(),
         )
     await callback.answer(i18n.partner.event.prepay.declined.partner())
-
-@event_chats_router.callback_query(
-    lambda callback: callback.data
-    and callback.data.startswith(f"{EVENT_ATTEND_CONFIRM_CALLBACK}:")
-)
-async def process_event_attend_confirm(
-    callback: CallbackQuery,
-    i18n: TranslatorRunner,
-    db: DB,
-    state: FSMContext,
-) -> None:
-    parts = _parse_callback_parts(callback.data, EVENT_ATTEND_CONFIRM_CALLBACK, 2)
-    if not parts:
-        await callback.answer(i18n.partner.event.attend.confirm.missing())
-        return
-    try:
-        event_id = int(parts[1])
-    except ValueError:
-        await callback.answer(i18n.partner.event.attend.confirm.missing())
-        return
-
-    user = callback.from_user
-    if not user:
-        return
-
-    if callback.message:
-        await _handle_attendance_confirmation(
-            message=callback.message,
-            i18n=i18n,
-            db=db,
-            event_id=event_id,
-            user_id=user.id,
-            state=state,
-        )
-    await callback.answer()
-
-
-@event_chats_router.message(AttendanceSG.waiting_code)
-async def process_attendance_code(
-    message: Message,
-    i18n: TranslatorRunner,
-    db: DB,
-    state: FSMContext,
-) -> None:
-    data = await state.get_data()
-    event_id = data.get("event_id")
-    if not isinstance(event_id, int):
-        await state.clear()
-        await message.answer(i18n.partner.event.attend.confirm.missing())
-        return
-
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None or not event.attendance_code:
-        await state.clear()
-        await message.answer(i18n.partner.event.attend.confirm.missing())
-        return
-
-    user = message.from_user
-    if not user:
-        await state.clear()
-        return
-
-    reg = await db.event_registrations.get_by_user_event(
-        event_id=event_id,
-        user_id=user.id,
-    )
-    if reg is None or reg.status not in {
-        EventRegistrationStatus.CONFIRMED,
-        EventRegistrationStatus.ATTENDED_CONFIRMED,
-    }:
-        await state.clear()
-        await message.answer(i18n.partner.event.attend.confirm.forbidden())
-        return
-
-    if reg.status == EventRegistrationStatus.ATTENDED_CONFIRMED:
-        await state.clear()
-        await message.answer(i18n.partner.event.attend.confirm.already())
-        return
-
-    code = (message.text or "").strip()
-    if code != event.attendance_code:
-        await message.answer(i18n.partner.event.attend.confirm.invalid())
-        return
-
-    await db.event_registrations.mark_attended_confirmed(
-        event_id=event_id,
-        user_id=user.id,
-    )
-
-    user_record = await db.users.get_user_record(user_id=user.id)
-    if user_record:
-        await db.users.update_profile(
-            user_id=user.id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="hot",
-        )
-
-    username = f"@{user.username}" if user.username else user.full_name
-    await message.answer(i18n.partner.event.attend.confirm.ok())
-    try:
-        await message.bot.send_message(
-            event.partner_user_id,
-            i18n.partner.event.attend.confirm.notify(
-                username=username,
-                event_name=event.name,
-            ),
-        )
-    except Exception:
-        pass
-
-    await state.clear()

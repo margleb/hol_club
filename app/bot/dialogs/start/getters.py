@@ -481,14 +481,6 @@ async def get_partner_event_details(
         },
         i18n,
     )
-    if event.attendance_code:
-        event_text = "\n\n".join(
-            [
-                event_text,
-                i18n.partner.event.attendance.code(value=event.attendance_code),
-            ]
-        )
-
     post_url = _build_channel_post_link(
         event.channel_id, event.channel_message_id
     )
@@ -603,14 +595,44 @@ async def get_admin_registration_message_prompt(
     db: DB,
     **kwargs,
 ) -> dict[str, object]:
-    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    sender_record = await db.users.get_user_record(user_id=event_from_user.id)
     selected_user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
-    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
-    if not is_admin or not isinstance(selected_user_id, int):
+    if sender_record is None or not isinstance(selected_user_id, int):
         return {
             "prompt": i18n.start.admin.registrations.pending.message.invalid(),
             "back_button": i18n.back.button(),
         }
+    if sender_record.role not in {UserRole.ADMIN, UserRole.PARTNER}:
+        return {
+            "prompt": i18n.start.admin.registrations.pending.message.invalid(),
+            "back_button": i18n.back.button(),
+        }
+
+    if sender_record.role == UserRole.PARTNER:
+        event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+        if not isinstance(event_id, int):
+            return {
+                "prompt": i18n.start.admin.registrations.pending.message.invalid(),
+                "back_button": i18n.back.button(),
+            }
+        event = await db.events.get_event_by_id(event_id=event_id)
+        if event is None or event.partner_user_id != event_from_user.id:
+            return {
+                "prompt": i18n.start.admin.registrations.pending.message.invalid(),
+                "back_button": i18n.back.button(),
+            }
+        reg = await db.event_registrations.get_by_user_event(
+            event_id=event_id,
+            user_id=selected_user_id,
+        )
+        if reg is None or reg.status not in {
+            EventRegistrationStatus.CONFIRMED,
+            EventRegistrationStatus.ATTENDED_CONFIRMED,
+        }:
+            return {
+                "prompt": i18n.start.admin.registrations.pending.message.invalid(),
+                "back_button": i18n.back.button(),
+            }
 
     user = await db.users.get_user_record(user_id=selected_user_id)
     username = (
@@ -677,7 +699,6 @@ async def get_user_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
-            "show_attend_button": False,
         }
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
@@ -685,7 +706,6 @@ async def get_user_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
-            "show_attend_button": False,
         }
     reg = await db.event_registrations.get_by_user_event(
         event_id=event_id,
@@ -731,23 +751,4 @@ async def get_user_event_details(
         "view_post_button": i18n.partner.event.view.post.button(),
         "event_post_url": post_url or "",
         "has_post_url": bool(post_url),
-        "attend_button": i18n.partner.event.attend.confirm.button(),
-        "show_attend_button": bool(
-            reg
-            and reg.status in {
-                EventRegistrationStatus.CONFIRMED,
-                EventRegistrationStatus.ATTENDED_CONFIRMED,
-            }
-        ),
-    }
-
-
-async def get_user_attend_prompt(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    **kwargs,
-) -> dict[str, str]:
-    return {
-        "prompt": i18n.partner.event.attend.confirm.prompt(),
-        "back_button": i18n.back.button(),
     }

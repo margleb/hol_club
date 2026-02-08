@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import secrets
 from datetime import datetime
 
 from aiogram.types import (
@@ -29,10 +28,6 @@ EVENT_CHAT_START_PREFIX = "event_chat_"
 
 def _get_events_channel() -> str | None:
     return settings.get("events_channel")
-
-
-def _generate_attendance_code() -> str:
-    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def _is_edit_mode(dialog_manager: DialogManager) -> bool:
@@ -639,8 +634,6 @@ async def publish_event(
         ]
     )
     fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
-    attendance_code = _generate_attendance_code()
-
     event_id = await db.events.create_event(
         partner_user_id=user.id,
         name=data.get("name") or "",
@@ -654,7 +647,6 @@ async def publish_event(
         age_group=data.get("age_group"),
         photo_file_id=photo_id,
         fingerprint=fingerprint,
-        attendance_code=attendance_code,
     )
     if event_id is None:
         await callback.answer(

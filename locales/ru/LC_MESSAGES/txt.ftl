@@ -51,7 +51,7 @@ start-admin-registrations-pending-message-prompt = Напишите сообще
 start-admin-registrations-pending-message-invalid = Не удалось отправить сообщение пользователю.
 start-admin-registrations-pending-message-sent = Сообщение отправлено пользователю.
 start-admin-registrations-pending-message-to-user =
-    Сообщение от администратора { $admin }:
+    Сообщение от { $admin }:
     { $text }
 start-admin-registrations-pending-reply-button = Ответить
 start-admin-registrations-pending-reply-back-button = Ответить
@@ -302,6 +302,10 @@ partner-event-prepay-confirm-yes = Да
 partner-event-prepay-confirm-no = Нет
 partner-event-prepay-sent = Спасибо! Ожидаем подтверждение оплаты от администратора.
 partner-event-prepay-contact-button = Уточнить статус оплаты
+partner-event-prepay-contact-partner-button = Написать организатору
+partner-event-prepay-contact-partner-prompt = Напишите сообщение организатору.
+partner-event-prepay-contact-partner-sent = Сообщение отправлено организатору.
+partner-event-prepay-contact-partner-failed = Не удалось отправить сообщение организатору.
 partner-event-prepay-cancelled = Хорошо, подтвердите оплату, когда будете готовы.
 partner-event-prepay-waiting = Оплата уже ожидает подтверждения администратора.
 partner-event-prepay-notify =
@@ -333,16 +337,6 @@ partner-event-registrations-pending-decline-button = Отклонить
 partner-event-registrations-confirmed-title = Зарегистрированные пользователи
 partner-event-registrations-confirmed-empty = Пока нет подтвержденных регистраций.
 partner-event-registrations-confirmed-item = { $username }
-partner-event-attendance-code = Пароль посещения: { $value }
-partner-event-attend-confirm-button = Подтвердить посещение
-partner-event-attend-confirm-prompt = Введите пароль посещения:
-partner-event-attend-confirm-missing = Не удалось найти мероприятие.
-partner-event-attend-confirm-forbidden = Подтвердить посещение можно только после подтверждения оплаты.
-partner-event-attend-confirm-invalid = Неверный пароль. Попробуйте еще раз.
-partner-event-attend-confirm-already = Посещение уже подтверждено.
-partner-event-attend-confirm-ok = Посещение подтверждено. Спасибо!
-partner-event-attend-confirm-notify = { $username } подтвердил(а) посещение мероприятия «{ $event_name }».
-
 partner-event-view-post-button = Смотреть пост
 partner-event-view-topic-button = Смотреть топик
 

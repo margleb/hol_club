@@ -11,6 +11,7 @@ from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.bot.enums.roles import UserRole
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.handlers.event_chats import (
+    EVENT_CONTACT_PARTNER_CALLBACK,
     EVENT_REPLY_ADMIN_CALLBACK,
     send_event_topic_link_to_user,
 )
@@ -288,113 +289,6 @@ async def show_user_event_details(
     await dialog_manager.switch_to(StartSG.user_event_details)
 
 
-async def start_user_attend_confirm(
-    callback: CallbackQuery,
-    widget: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    await callback.answer()
-    await dialog_manager.switch_to(StartSG.user_event_attend_code)
-
-
-async def on_user_event_attend_code(
-    message,
-    widget,
-    dialog_manager: DialogManager,
-    data: str,
-) -> None:
-    db: DB = dialog_manager.middleware_data.get("db")
-    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    event_id = dialog_manager.dialog_data.get("selected_user_event_id")
-    if not event_id:
-        await message.answer(i18n.partner.event.attend.confirm.missing())
-        return
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None or not event.attendance_code:
-        await message.answer(i18n.partner.event.attend.confirm.missing())
-        return
-    user = message.from_user
-    if not user:
-        return
-    reg = await db.event_registrations.get_by_user_event(
-        event_id=event_id,
-        user_id=user.id,
-    )
-    if reg is None or reg.status not in {
-        EventRegistrationStatus.CONFIRMED,
-        EventRegistrationStatus.ATTENDED_CONFIRMED,
-    }:
-        await message.answer(i18n.partner.event.attend.confirm.forbidden())
-        return
-    if reg.status == EventRegistrationStatus.ATTENDED_CONFIRMED:
-        await message.answer(i18n.partner.event.attend.confirm.already())
-        return
-    code = (data or "").strip()
-    normalized_code = "".join(ch for ch in code if ch.isdigit())
-    expected_code = "".join(ch for ch in (event.attendance_code or "") if ch.isdigit())
-    if normalized_code != expected_code:
-        alt_event_id = await db.event_registrations.find_user_event_by_attendance_code(
-            user_id=user.id,
-            attendance_code=normalized_code,
-            statuses=[
-                EventRegistrationStatus.CONFIRMED,
-                EventRegistrationStatus.ATTENDED_CONFIRMED,
-            ],
-        )
-        if not alt_event_id:
-            await message.answer(i18n.partner.event.attend.confirm.invalid())
-            return
-        event_id = alt_event_id
-        dialog_manager.dialog_data["selected_user_event_id"] = event_id
-        event = await db.events.get_event_by_id(event_id=event_id)
-        if event is None or not event.attendance_code:
-            await message.answer(i18n.partner.event.attend.confirm.invalid())
-            return
-        reg = await db.event_registrations.get_by_user_event(
-            event_id=event_id,
-            user_id=user.id,
-        )
-        if reg is None or reg.status not in {
-            EventRegistrationStatus.CONFIRMED,
-            EventRegistrationStatus.ATTENDED_CONFIRMED,
-        }:
-            await message.answer(i18n.partner.event.attend.confirm.forbidden())
-            return
-        if reg.status == EventRegistrationStatus.ATTENDED_CONFIRMED:
-            await message.answer(i18n.partner.event.attend.confirm.already())
-            return
-
-    await db.event_registrations.mark_attended_confirmed(
-        event_id=event_id,
-        user_id=user.id,
-    )
-
-    user_record = await db.users.get_user_record(user_id=user.id)
-    if user_record:
-        await db.users.update_profile(
-            user_id=user.id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="hot",
-        )
-
-    username = f"@{user.username}" if user.username else user.full_name
-    await message.answer(i18n.partner.event.attend.confirm.ok())
-    bot = dialog_manager.middleware_data.get("bot")
-    if bot:
-        try:
-            await bot.send_message(
-                event.partner_user_id,
-                i18n.partner.event.attend.confirm.notify(
-                    username=username,
-                    event_name=event.name,
-                ),
-            )
-        except Exception:
-            pass
-    await dialog_manager.switch_to(StartSG.user_event_details)
-
-
 async def show_partner_pending_registrations(
     callback: CallbackQuery,
     widget: Button,
@@ -494,6 +388,19 @@ async def back_to_pending_registration_details(
     await dialog_manager.switch_to(StartSG.partner_event_pending_details)
 
 
+async def back_to_registration_message_source(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    source = dialog_manager.dialog_data.get("message_source")
+    if source == "partner_confirmed":
+        await dialog_manager.switch_to(StartSG.partner_event_confirmed_list)
+        return
+    await dialog_manager.switch_to(StartSG.partner_event_pending_details)
+
+
 async def start_message_registration_user(
     callback: CallbackQuery,
     widget: Button,
@@ -509,6 +416,51 @@ async def start_message_registration_user(
     if not isinstance(user_id, int):
         await callback.answer(i18n.start.admin.registrations.pending.message.invalid())
         return
+    dialog_manager.dialog_data["message_source"] = "pending_details"
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_registration_message_user)
+
+
+async def start_message_confirmed_user(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    user_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if user_record is None or user_record.role != UserRole.PARTNER:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
+        return
+
+    try:
+        target_user_id = int(item_id)
+    except ValueError:
+        await callback.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+
+    event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+    if not isinstance(event_id, int):
+        await callback.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None or event.partner_user_id != callback.from_user.id:
+        await callback.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=target_user_id,
+    )
+    if reg is None or reg.status not in {
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    }:
+        await callback.answer(i18n.start.admin.registrations.pending.message.invalid())
+        return
+
+    dialog_manager.dialog_data["selected_registration_user_id"] = target_user_id
+    dialog_manager.dialog_data["message_source"] = "partner_confirmed"
     await callback.answer()
     await dialog_manager.switch_to(StartSG.admin_registration_message_user)
 
@@ -526,16 +478,40 @@ async def on_admin_registration_message_input(
     if not user:
         return
 
-    admin_record = await db.users.get_user_record(user_id=user.id)
-    if admin_record is None or admin_record.role != UserRole.ADMIN:
+    sender_record = await db.users.get_user_record(user_id=user.id)
+    if sender_record is None or sender_record.role not in {UserRole.ADMIN, UserRole.PARTNER}:
         await message.answer(i18n.partner.event.prepay.admin.only())
         return
 
     target_user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
     if not isinstance(target_user_id, int):
         await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+        source = dialog_manager.dialog_data.get("message_source")
+        if source == "partner_confirmed":
+            await dialog_manager.switch_to(StartSG.partner_event_confirmed_list)
+            return
         await dialog_manager.switch_to(StartSG.partner_event_pending_details)
         return
+
+    if sender_record.role == UserRole.PARTNER:
+        event_id = dialog_manager.dialog_data.get("selected_partner_event_id")
+        if not isinstance(event_id, int):
+            await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+            return
+        event = await db.events.get_event_by_id(event_id=event_id)
+        if event is None or event.partner_user_id != user.id:
+            await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+            return
+        reg = await db.event_registrations.get_by_user_event(
+            event_id=event_id,
+            user_id=target_user_id,
+        )
+        if reg is None or reg.status not in {
+            EventRegistrationStatus.CONFIRMED,
+            EventRegistrationStatus.ATTENDED_CONFIRMED,
+        }:
+            await message.answer(i18n.start.admin.registrations.pending.message.invalid())
+            return
 
     payload = (data or "").strip()
     if not payload:
@@ -572,6 +548,10 @@ async def on_admin_registration_message_input(
         return
 
     await message.answer(i18n.start.admin.registrations.pending.message.sent())
+    source = dialog_manager.dialog_data.get("message_source")
+    if source == "partner_confirmed":
+        await dialog_manager.switch_to(StartSG.partner_event_confirmed_list)
+        return
     await dialog_manager.switch_to(StartSG.partner_event_pending_details)
 
 
@@ -613,11 +593,24 @@ async def approve_pending_registration(
             temperature="warm",
         )
     if bot:
+        event = await db.events.get_event_by_id(event_id=event_id)
+        approved_keyboard = None
+        if event and isinstance(event.partner_user_id, int):
+            approved_keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text=i18n.partner.event.prepay.contact.partner.button(),
+                            callback_data=f"{EVENT_CONTACT_PARTNER_CALLBACK}:{event.partner_user_id}",
+                        )
+                    ]
+                ]
+            )
         await bot.send_message(
             user_id,
             i18n.partner.event.prepay.approved(),
+            reply_markup=approved_keyboard,
         )
-        event = await db.events.get_event_by_id(event_id=event_id)
         if event and user_record:
             await send_event_topic_link_to_user(
                 bot=bot,
@@ -699,15 +692,6 @@ async def back_to_user_events_list(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.user_events_list)
-
-
-async def back_to_user_event_details(
-    callback: CallbackQuery,
-    widget: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    await callback.answer()
-    await dialog_manager.switch_to(StartSG.user_event_details)
 
 
 async def back_to_partner_event_details(
