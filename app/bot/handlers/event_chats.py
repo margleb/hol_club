@@ -146,6 +146,7 @@ async def _send_chat_link_message(
     message: Message,
     i18n: TranslatorRunner,
     topic_link: str,
+    event_name: str | None,
 ) -> None:
     keyboard = _build_chat_link_keyboard(
         i18n=i18n,
@@ -153,7 +154,7 @@ async def _send_chat_link_message(
     )
     text = "\n\n".join(
         [
-            i18n.partner.event.join.chat.text(),
+            i18n.partner.event.join.chat.text(event_name=event_name or "-"),
             i18n.partner.event.join.chat.hint(),
         ]
     )
@@ -168,7 +169,7 @@ def _build_chat_link_keyboard(
     rows = [
         [
             InlineKeyboardButton(
-                text=i18n.partner.event.join.chat.button(),
+                text=i18n.partner.event.join.chat.link.button(),
                 url=topic_link,
             )
         ]
@@ -182,6 +183,7 @@ async def _send_chat_link_notification(
     i18n: TranslatorRunner,
     user_id: int,
     topic_link: str,
+    event_name: str | None,
 ) -> None:
     keyboard = _build_chat_link_keyboard(
         i18n=i18n,
@@ -189,7 +191,7 @@ async def _send_chat_link_notification(
     )
     text = "\n\n".join(
         [
-            i18n.partner.event.join.chat.text(),
+            i18n.partner.event.join.chat.text(event_name=event_name or "-"),
             i18n.partner.event.join.chat.hint(),
         ]
     )
@@ -212,6 +214,7 @@ async def send_event_topic_link_to_user(
         i18n=i18n,
         user_id=user_id,
         topic_link=topic_link,
+        event_name=event.name if event else None,
     )
 
 
@@ -485,6 +488,7 @@ async def _maybe_start_registration(
             message=message,
             i18n=i18n,
             topic_link=topic_link,
+            event_name=event.name if event else None,
         )
         return
 
@@ -1076,6 +1080,7 @@ async def process_event_message_user(
 async def process_event_message_user_text(
     message: Message,
     i18n: TranslatorRunner,
+    db: DB,
     state: FSMContext,
 ) -> None:
     data = await state.get_data()
@@ -1099,6 +1104,10 @@ async def process_event_message_user_text(
         fallback_name=sender.full_name,
         user_id=sender.id,
     )
+    sender_record = await db.users.get_user_record(user_id=sender.id)
+    sender_role = i18n.start.admin.registrations.pending.message.sender.admin()
+    if sender_record and sender_record.role == UserRole.PARTNER:
+        sender_role = i18n.start.admin.registrations.pending.message.sender.partner()
     quoted_payload = f"<blockquote>{html.escape(payload)}</blockquote>"
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -1114,7 +1123,8 @@ async def process_event_message_user_text(
         await message.bot.send_message(
             target_user_id,
             i18n.start.admin.registrations.pending.message.to.user(
-                admin=html.escape(admin_label),
+                sender_role=sender_role,
+                sender=html.escape(admin_label),
                 text=quoted_payload,
             ),
             reply_markup=keyboard,

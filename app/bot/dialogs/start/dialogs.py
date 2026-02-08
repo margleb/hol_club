@@ -209,6 +209,12 @@ start_dialog = Dialog(
                 id="user_event_view_post",
                 when="has_post_url",
             ),
+            Url(
+                text=Format("{view_chat_button}"),
+                url=Format("{event_chat_url}"),
+                id="user_event_view_chat",
+                when="has_chat_url",
+            ),
         ),
         Row(
             Button(

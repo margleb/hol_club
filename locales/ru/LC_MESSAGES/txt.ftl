@@ -50,8 +50,10 @@ start-admin-registrations-pending-contact-button = Написать
 start-admin-registrations-pending-message-prompt = Напишите сообщение пользователю { $username }.
 start-admin-registrations-pending-message-invalid = Не удалось отправить сообщение пользователю.
 start-admin-registrations-pending-message-sent = Сообщение отправлено пользователю.
+start-admin-registrations-pending-message-sender-admin = администратора
+start-admin-registrations-pending-message-sender-partner = организатора
 start-admin-registrations-pending-message-to-user =
-    Сообщение от { $admin }:
+    Сообщение от { $sender_role } { $sender }:
     { $text }
 start-admin-registrations-pending-reply-button = Ответить
 start-admin-registrations-pending-reply-back-button = Ответить
@@ -271,7 +273,8 @@ partner-event-chat-female-edit-button = Редактировать женски�
 
 
 partner-event-join-chat-button = Зарегистрироваться
-partner-event-join-chat-text = Вот ссылка на чат мероприятия:
+partner-event-join-chat-link-button = Перейти в чат
+partner-event-join-chat-text = Вот ссылка на чат мероприятия «{ $event_name }»:
 partner-event-join-chat-missing = Не удалось найти чат для этого события.
 partner-event-join-chat-self-forbidden = Вы не можете регистрироваться на своё мероприятие.
 partner-event-join-chat-role-forbidden = Партнёры и администраторы не могут регистрироваться на мероприятия.
@@ -280,6 +283,7 @@ partner-event-prepay-text = Для регистрации нужна предо�
 
                 Сумма предоплаты: { $amount } ₽
                 Номер карты: { $card_number }
+                После подтверждения оплаты вы получите ссылку на приватный чат мероприятия.
 
                 { $refund_note }
 

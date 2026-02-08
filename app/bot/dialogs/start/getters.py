@@ -25,6 +25,29 @@ def _build_channel_post_link(channel_id: int | None, message_id: int | None) -> 
     return f"https://t.me/c/{channel_id_str}/{message_id}"
 
 
+def _build_topic_link(
+    *,
+    chat_id: int | None,
+    thread_id: int | None,
+    message_id: int | None,
+    chat_username: str | None,
+) -> str | None:
+    if not thread_id or not message_id:
+        return None
+    if chat_username:
+        username = chat_username.lstrip("@")
+        if username:
+            return f"https://t.me/{username}/{message_id}?thread={thread_id}"
+    if not chat_id:
+        return None
+    chat_id_str = str(chat_id)
+    if chat_id_str.startswith("-100"):
+        chat_id_str = chat_id_str[4:]
+    else:
+        chat_id_str = str(abs(chat_id))
+    return f"https://t.me/c/{chat_id_str}/{message_id}?thread={thread_id}"
+
+
 def _is_event_past(event_datetime: str | None) -> bool:
     if not event_datetime:
         return False
@@ -655,6 +678,9 @@ async def get_user_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
+            "view_chat_button": i18n.partner.event.view.chat.button(),
+            "event_chat_url": "",
+            "has_chat_url": False,
             "contact_partner_button": i18n.partner.event.prepay.contact.partner.button(),
             "show_contact_partner_button": False,
         }
@@ -664,6 +690,9 @@ async def get_user_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
+            "view_chat_button": i18n.partner.event.view.chat.button(),
+            "event_chat_url": "",
+            "has_chat_url": False,
             "contact_partner_button": i18n.partner.event.prepay.contact.partner.button(),
             "show_contact_partner_button": False,
         }
@@ -671,9 +700,27 @@ async def get_user_event_details(
         event_id=event_id,
         user_id=event_from_user.id,
     )
+    user_record = await db.users.get_user_record(user_id=event_from_user.id)
     post_url = _build_channel_post_link(
         event.channel_id, event.channel_message_id
     )
+    event_chat_url = event.private_chat_invite_link or ""
+    if not event_chat_url:
+        user_gender = user_record.gender if user_record else None
+        if user_gender == "female":
+            event_chat_url = _build_topic_link(
+                chat_id=event.female_chat_id,
+                thread_id=event.female_thread_id,
+                message_id=event.female_message_id,
+                chat_username=event.female_chat_username,
+            ) or ""
+        elif user_gender == "male":
+            event_chat_url = _build_topic_link(
+                chat_id=event.male_chat_id,
+                thread_id=event.male_thread_id,
+                message_id=event.male_message_id,
+                chat_username=event.male_chat_username,
+            ) or ""
     event_text = build_event_text(
         {
             "name": event.name,
@@ -714,6 +761,9 @@ async def get_user_event_details(
         "view_post_button": i18n.partner.event.view.post.button(),
         "event_post_url": post_url or "",
         "has_post_url": bool(post_url),
+        "view_chat_button": i18n.partner.event.view.chat.button(),
+        "event_chat_url": event_chat_url,
+        "has_chat_url": bool(event_chat_url),
         "contact_partner_button": i18n.partner.event.prepay.contact.partner.button(),
         "show_contact_partner_button": can_contact_partner,
     }

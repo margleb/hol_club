@@ -622,6 +622,9 @@ async def on_admin_registration_message_input(
     admin_label = (
         f"@{user.username}" if user.username else user.full_name or f"id:{user.id}"
     )
+    sender_role = i18n.start.admin.registrations.pending.message.sender.admin()
+    if sender_record.role == UserRole.PARTNER:
+        sender_role = i18n.start.admin.registrations.pending.message.sender.partner()
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -636,7 +639,8 @@ async def on_admin_registration_message_input(
         await bot.send_message(
             target_user_id,
             i18n.start.admin.registrations.pending.message.to.user(
-                admin=html.escape(admin_label),
+                sender_role=sender_role,
+                sender=html.escape(admin_label),
                 text=quoted_payload,
             ),
             reply_markup=keyboard,
