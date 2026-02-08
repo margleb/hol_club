@@ -704,7 +704,7 @@ async def approve_pending_registration(
             user_id=user_id,
             gender=user_record.gender,
             age_group=user_record.age_group,
-            temperature="warm",
+            temperature="hot",
         )
     if bot:
         event = await db.events.get_event_by_id(event_id=event_id)

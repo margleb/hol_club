@@ -400,6 +400,13 @@ async def _maybe_start_registration(
             status=EventRegistrationStatus.PENDING_PAYMENT,
             amount=amount,
         )
+    if user_record and user_record.temperature != "hot":
+        await db.users.update_profile(
+            user_id=user_id,
+            gender=user_record.gender,
+            age_group=user_record.age_group,
+            temperature="warm",
+        )
     await _send_prepay_message(message=message, i18n=i18n, event=event)
 
 
@@ -1243,7 +1250,7 @@ async def process_event_prepay_confirm(
                 user_id=user_id,
                 gender=user_record.gender,
                 age_group=user_record.age_group,
-                temperature="warm",
+                temperature="hot",
             )
         if callback.bot:
             partner_contact_keyboard = None
