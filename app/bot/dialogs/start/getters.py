@@ -218,13 +218,8 @@ async def get_user_events(
     page_items = all_events[start:end]
 
     event_items = []
-    for event_id, name, event_datetime, status, _is_paid in page_items:
+    for event_id, name, event_datetime, _status, _is_paid in page_items:
         tags = []
-        if status in {
-            EventRegistrationStatus.CONFIRMED,
-            EventRegistrationStatus.ATTENDED_CONFIRMED,
-        }:
-            tags.append(i18n.start.event.paid.tag())
         if _is_event_past(event_datetime):
             tags.append(i18n.start.event.past.tag())
         tags_text = f" {' '.join(tags)}" if tags else ""
@@ -707,10 +702,6 @@ async def get_user_event_details(
             "back_button": i18n.back.button(),
             "has_post_url": False,
         }
-    reg = await db.event_registrations.get_by_user_event(
-        event_id=event_id,
-        user_id=event_from_user.id,
-    )
     post_url = _build_channel_post_link(
         event.channel_id, event.channel_message_id
     )
@@ -727,11 +718,6 @@ async def get_user_event_details(
         i18n,
     )
     tags = []
-    if reg and reg.status in {
-        EventRegistrationStatus.CONFIRMED,
-        EventRegistrationStatus.ATTENDED_CONFIRMED,
-    }:
-        tags.append(i18n.start.event.paid.tag())
     if _is_event_past(event.event_datetime):
         tags.append(i18n.start.event.past.tag())
     if tags:
