@@ -30,6 +30,7 @@ EVENT_PREPAY_CONFIRM_CALLBACK = "event_prepay_confirm"
 EVENT_MESSAGE_USER_CALLBACK = "event_message_user"
 EVENT_REPLY_ADMIN_CALLBACK = "event_reply_admin"
 EVENT_CONTACT_PARTNER_CALLBACK = "event_contact_partner"
+EVENT_MESSAGE_DONE_BACK_CALLBACK = "event_message_done_back"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 
 
@@ -59,6 +60,19 @@ def _parse_callback_parts(
     if len(parts) not in {expected_parts, expected_parts + 1}:
         return None
     return parts
+
+
+def _build_done_back_keyboard(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.back.button(),
+                    callback_data=EVENT_MESSAGE_DONE_BACK_CALLBACK,
+                )
+            ]
+        ]
+    )
 
 
 def build_gender_keyboard(
@@ -1006,7 +1020,10 @@ async def process_event_message_user_text(
         return
 
     await state.clear()
-    await message.answer(i18n.start.admin.registrations.pending.message.sent())
+    await message.answer(
+        i18n.start.admin.registrations.pending.message.sent(),
+        reply_markup=_build_done_back_keyboard(i18n),
+    )
 
 
 @event_chats_router.callback_query(
@@ -1118,7 +1135,22 @@ async def process_event_reply_admin_text(
         return
 
     await state.clear()
-    await message.answer(sent_text)
+    await message.answer(
+        sent_text,
+        reply_markup=_build_done_back_keyboard(i18n),
+    )
+
+
+@event_chats_router.callback_query(
+    lambda callback: callback.data == EVENT_MESSAGE_DONE_BACK_CALLBACK
+)
+async def process_event_message_done_back(callback: CallbackQuery) -> None:
+    if callback.message:
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+    await callback.answer()
 
 
 @event_chats_router.callback_query(

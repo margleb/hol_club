@@ -694,6 +694,8 @@ async def get_user_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
+            "contact_partner_button": i18n.partner.event.prepay.contact.partner.button(),
+            "show_contact_partner_button": False,
         }
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
@@ -701,7 +703,13 @@ async def get_user_event_details(
             "event_details_text": i18n.start.event.details.missing(),
             "back_button": i18n.back.button(),
             "has_post_url": False,
+            "contact_partner_button": i18n.partner.event.prepay.contact.partner.button(),
+            "show_contact_partner_button": False,
         }
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=event_from_user.id,
+    )
     post_url = _build_channel_post_link(
         event.channel_id, event.channel_message_id
     )
@@ -722,6 +730,14 @@ async def get_user_event_details(
         tags.append(i18n.start.event.past.tag())
     if tags:
         event_text = "\n\n".join([event_text, " ".join(tags)])
+    can_contact_partner = bool(
+        reg
+        and reg.status in {
+            EventRegistrationStatus.CONFIRMED,
+            EventRegistrationStatus.ATTENDED_CONFIRMED,
+        }
+        and isinstance(event.partner_user_id, int)
+    )
 
     return {
         "event_details_text": event_text,
@@ -737,4 +753,39 @@ async def get_user_event_details(
         "view_post_button": i18n.partner.event.view.post.button(),
         "event_post_url": post_url or "",
         "has_post_url": bool(post_url),
+        "contact_partner_button": i18n.partner.event.prepay.contact.partner.button(),
+        "show_contact_partner_button": can_contact_partner,
+    }
+
+
+async def get_user_event_message_partner_prompt(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, str]:
+    return {
+        "prompt": i18n.partner.event.prepay.contact.partner.prompt(),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_user_event_message_partner_done_prompt(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, str]:
+    return {
+        "prompt": i18n.partner.event.prepay.contact.partner.sent(),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_registration_message_done_prompt(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, str]:
+    return {
+        "prompt": i18n.start.admin.registrations.pending.message.sent(),
+        "back_button": i18n.back.button(),
     }

@@ -12,6 +12,7 @@ from app.bot.enums.roles import UserRole
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.handlers.event_chats import (
     EVENT_CONTACT_PARTNER_CALLBACK,
+    EVENT_MESSAGE_USER_CALLBACK,
     EVENT_REPLY_ADMIN_CALLBACK,
     send_event_topic_link_to_user,
 )
@@ -289,6 +290,124 @@ async def show_user_event_details(
     await dialog_manager.switch_to(StartSG.user_event_details)
 
 
+async def start_user_message_partner(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    user = callback.from_user
+    if not user:
+        return
+    user_record = await db.users.get_user_record(user_id=user.id)
+    if user_record is None or user_record.role != UserRole.USER:
+        await callback.answer(i18n.partner.event.prepay.contact.partner.failed())
+        return
+
+    event_id = dialog_manager.dialog_data.get("selected_user_event_id")
+    if not isinstance(event_id, int):
+        await callback.answer(i18n.partner.event.prepay.contact.partner.failed())
+        return
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None or not isinstance(event.partner_user_id, int):
+        await callback.answer(i18n.partner.event.prepay.contact.partner.failed())
+        return
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user.id,
+    )
+    if reg is None or reg.status not in {
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    }:
+        await callback.answer(i18n.partner.event.prepay.contact.partner.failed())
+        return
+
+    dialog_manager.dialog_data["selected_user_event_partner_id"] = event.partner_user_id
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.user_event_message_partner)
+
+
+async def on_user_event_message_partner_input(
+    message: Message,
+    widget: object,
+    dialog_manager: DialogManager,
+    data: str,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    bot = dialog_manager.middleware_data.get("bot") or message.bot
+    user = message.from_user
+    if not user:
+        return
+    user_record = await db.users.get_user_record(user_id=user.id)
+    if user_record is None or user_record.role != UserRole.USER:
+        await message.answer(i18n.partner.event.prepay.contact.partner.failed())
+        return
+
+    event_id = dialog_manager.dialog_data.get("selected_user_event_id")
+    partner_user_id = dialog_manager.dialog_data.get("selected_user_event_partner_id")
+    if not isinstance(event_id, int) or not isinstance(partner_user_id, int):
+        await message.answer(i18n.partner.event.prepay.contact.partner.failed())
+        await dialog_manager.switch_to(StartSG.user_event_details)
+        return
+    event = await db.events.get_event_by_id(event_id=event_id)
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user.id,
+    )
+    if (
+        event is None
+        or event.partner_user_id != partner_user_id
+        or reg is None
+        or reg.status
+        not in {
+            EventRegistrationStatus.CONFIRMED,
+            EventRegistrationStatus.ATTENDED_CONFIRMED,
+        }
+    ):
+        await message.answer(i18n.partner.event.prepay.contact.partner.failed())
+        await dialog_manager.switch_to(StartSG.user_event_details)
+        return
+
+    payload = (data or "").strip()
+    if not payload:
+        await message.answer(i18n.partner.event.prepay.contact.partner.prompt())
+        return
+
+    sender_label = (
+        f"@{user.username}" if user.username else user.full_name or f"id:{user.id}"
+    )
+    quoted_payload = f"<blockquote>{html.escape(payload)}</blockquote>"
+    reply_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.start.admin.registrations.pending.reply.button(),
+                    callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user.id}",
+                )
+            ]
+        ]
+    )
+    try:
+        await bot.send_message(
+            partner_user_id,
+            i18n.start.user.event.message.partner.to.partner(
+                username=html.escape(sender_label),
+                event_name=html.escape(event.name or "-"),
+                text=quoted_payload,
+            ),
+            reply_markup=reply_keyboard,
+            parse_mode=ParseMode.HTML,
+        )
+    except Exception:
+        await message.answer(i18n.partner.event.prepay.contact.partner.failed())
+        return
+
+    await dialog_manager.switch_to(StartSG.user_event_message_partner_done)
+
+
 async def show_partner_pending_registrations(
     callback: CallbackQuery,
     widget: Button,
@@ -547,12 +666,7 @@ async def on_admin_registration_message_input(
         await message.answer(i18n.start.admin.registrations.pending.message.invalid())
         return
 
-    await message.answer(i18n.start.admin.registrations.pending.message.sent())
-    source = dialog_manager.dialog_data.get("message_source")
-    if source == "partner_confirmed":
-        await dialog_manager.switch_to(StartSG.partner_event_confirmed_list)
-        return
-    await dialog_manager.switch_to(StartSG.partner_event_pending_details)
+    await dialog_manager.switch_to(StartSG.admin_registration_message_done)
 
 
 async def _switch_after_pending_action(dialog_manager: DialogManager) -> None:
@@ -692,6 +806,15 @@ async def back_to_user_events_list(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.user_events_list)
+
+
+async def back_to_user_event_details(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.user_event_details)
 
 
 async def back_to_partner_event_details(

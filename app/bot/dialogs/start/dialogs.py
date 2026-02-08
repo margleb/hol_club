@@ -18,8 +18,11 @@ from app.bot.dialogs.start.getters import (
     get_partner_pending_registrations,
     get_partner_pending_registration_details,
     get_partner_confirmed_registrations,
+    get_admin_registration_message_done_prompt,
     get_user_events,
     get_user_event_details,
+    get_user_event_message_partner_done_prompt,
+    get_user_event_message_partner_prompt,
 )
 from app.bot.dialogs.start.handlers import (
     back_to_registration_message_source,
@@ -34,6 +37,7 @@ from app.bot.dialogs.start.handlers import (
     back_to_start,
     back_to_partner_event_details,
     back_to_partner_events_list,
+    back_to_user_event_details,
     back_to_user_events_list,
     reject_admin_partner_request,
     show_admin_partner_request_details,
@@ -57,6 +61,8 @@ from app.bot.dialogs.start.handlers import (
     show_prev_user_events_page,
     show_user_event_details,
     show_user_events_list,
+    start_user_message_partner,
+    on_user_event_message_partner_input,
     start_my_account,
 )
 from app.bot.states.account import AccountSG
@@ -210,6 +216,14 @@ start_dialog = Dialog(
         ),
         Row(
             Button(
+                text=Format("{contact_partner_button}"),
+                id="user_event_contact_partner",
+                on_click=start_user_message_partner,
+                when="show_contact_partner_button",
+            ),
+        ),
+        Row(
+            Button(
                 text=Format("{back_button}"),
                 id="user_event_back",
                 on_click=back_to_user_events_list,
@@ -217,6 +231,34 @@ start_dialog = Dialog(
         ),
         getter=get_user_event_details,
         state=StartSG.user_event_details,
+    ),
+    Window(
+        Format("{prompt}"),
+        TextInput(
+            id="user_event_message_partner_input",
+            on_success=on_user_event_message_partner_input,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="user_event_message_partner_back",
+                on_click=back_to_user_event_details,
+            ),
+        ),
+        getter=get_user_event_message_partner_prompt,
+        state=StartSG.user_event_message_partner,
+    ),
+    Window(
+        Format("{prompt}"),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="user_event_message_partner_done_back",
+                on_click=back_to_user_event_details,
+            ),
+        ),
+        getter=get_user_event_message_partner_done_prompt,
+        state=StartSG.user_event_message_partner_done,
     ),
     Window(
         Format("{partner_events_title}"),
@@ -470,6 +512,18 @@ start_dialog = Dialog(
         ),
         getter=get_admin_registration_message_prompt,
         state=StartSG.admin_registration_message_user,
+    ),
+    Window(
+        Format("{prompt}"),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_registration_message_done_back",
+                on_click=back_to_registration_message_source,
+            ),
+        ),
+        getter=get_admin_registration_message_done_prompt,
+        state=StartSG.admin_registration_message_done,
     ),
     Window(
         Format("{title}"),

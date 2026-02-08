@@ -62,6 +62,9 @@ start-admin-registrations-pending-reply-admin-received =
     Ответ от пользователя { $username }:
     { $text }
 start-admin-registrations-pending-write-button = Написать
+start-user-event-message-partner-to-partner =
+    Сообщение от участника { $username } по мероприятию «{ $event_name }»:
+    { $text }
 start-event-past-tag = [уже прошло]
 partner-events-title = Ваши события
 partner-events-list-button = Мои события
