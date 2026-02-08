@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -231,6 +231,56 @@ class _EventRegistrationsDB:
             .where(EventRegistrationsModel.user_id == user_id)
             .where(EventRegistrationsModel.status.in_(statuses))
             .order_by(EventsModel.event_datetime.asc())
+        )
+        result = await self.session.execute(stmt)
+        return [
+            (row[0], row[1], row[2], row[3], row[4])
+            for row in result.all()
+        ]
+
+    async def list_partners_with_pending_payment(
+        self,
+    ) -> list[tuple[int, str | None, int]]:
+        stmt = (
+            select(
+                EventsModel.partner_user_id,
+                UsersModel.username,
+                func.count().label("pending_count"),
+            )
+            .select_from(EventRegistrationsModel)
+            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .join(UsersModel, UsersModel.user_id == EventsModel.partner_user_id)
+            .where(
+                EventRegistrationsModel.status
+                == EventRegistrationStatus.PAID_CONFIRM_PENDING
+            )
+            .group_by(EventsModel.partner_user_id, UsersModel.username)
+            .order_by(func.count().desc(), EventsModel.partner_user_id.asc())
+        )
+        result = await self.session.execute(stmt)
+        return [(row[0], row[1], int(row[2])) for row in result.all()]
+
+    async def list_pending_by_partner(
+        self,
+        *,
+        partner_user_id: int,
+    ) -> list[tuple[int, int, str | None, str, int | None]]:
+        stmt = (
+            select(
+                EventRegistrationsModel.event_id,
+                EventRegistrationsModel.user_id,
+                UsersModel.username,
+                EventsModel.name,
+                EventRegistrationsModel.amount,
+            )
+            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .join(UsersModel, UsersModel.user_id == EventRegistrationsModel.user_id)
+            .where(EventsModel.partner_user_id == partner_user_id)
+            .where(
+                EventRegistrationsModel.status
+                == EventRegistrationStatus.PAID_CONFIRM_PENDING
+            )
+            .order_by(EventRegistrationsModel.created.asc())
         )
         result = await self.session.execute(stmt)
         return [

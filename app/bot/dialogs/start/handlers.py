@@ -3,10 +3,10 @@ from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
+from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.bot.enums.roles import UserRole
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.handlers.event_chats import send_event_topic_link_to_user
-from app.bot.services.partner_requests import send_partner_requests_list
 from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
@@ -19,19 +19,129 @@ async def show_partner_requests_list(
 ) -> None:
     db: DB = dialog_manager.middleware_data.get("db")
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    bot = dialog_manager.middleware_data.get("bot")
-
     admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
     if admin_record is None or admin_record.role != UserRole.ADMIN:
         await callback.answer(text=i18n.partner.approve.forbidden())
         return
 
+    dialog_manager.dialog_data.pop("selected_partner_request_user_id", None)
     await callback.answer()
-    await send_partner_requests_list(
-        admin_id=callback.from_user.id,
-        i18n=i18n,
-        db=db,
-        bot=bot,
+    await dialog_manager.switch_to(StartSG.admin_partner_requests_list)
+
+
+async def show_admin_partner_request_details(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    try:
+        target_user_id = int(item_id)
+    except ValueError:
+        await callback.answer()
+        return
+    dialog_manager.dialog_data["selected_partner_request_user_id"] = target_user_id
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_request_details)
+
+
+async def back_to_admin_partner_requests(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_requests_list)
+
+
+async def _process_admin_partner_request_decision(
+    *,
+    callback: CallbackQuery,
+    dialog_manager: DialogManager,
+    action: str,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    bot = dialog_manager.middleware_data.get("bot")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(i18n.partner.approve.forbidden())
+        return
+
+    target_user_id = dialog_manager.dialog_data.get("selected_partner_request_user_id")
+    if not isinstance(target_user_id, int):
+        await callback.answer(i18n.partner.request.invalid())
+        return
+
+    request = await db.partner_requests.get_request(user_id=target_user_id)
+    if request is None:
+        await callback.answer(i18n.partner.approve.missing())
+        await dialog_manager.switch_to(StartSG.admin_partner_requests_list)
+        return
+
+    if action == "approve":
+        if request.status == PartnerRequestStatus.APPROVED:
+            await callback.answer(i18n.partner.approve.already())
+            return
+        if request.status == PartnerRequestStatus.REJECTED:
+            await callback.answer(i18n.partner.request.already.rejected())
+            return
+
+        await db.partner_requests.set_approved(
+            user_id=target_user_id,
+            approved_by=callback.from_user.id,
+        )
+        await db.users.update_role(user_id=target_user_id, role=UserRole.PARTNER)
+        if bot:
+            try:
+                await bot.send_message(target_user_id, i18n.partner.request.approved())
+            except Exception:
+                pass
+        await callback.answer(i18n.partner.decision.approved())
+    else:
+        if request.status == PartnerRequestStatus.REJECTED:
+            await callback.answer(i18n.partner.request.already.rejected())
+            return
+        if request.status == PartnerRequestStatus.APPROVED:
+            await callback.answer(i18n.partner.approve.already())
+            return
+
+        await db.partner_requests.set_rejected(
+            user_id=target_user_id,
+            rejected_by=callback.from_user.id,
+        )
+        if bot:
+            try:
+                await bot.send_message(target_user_id, i18n.partner.request.rejected())
+            except Exception:
+                pass
+        await callback.answer(i18n.partner.decision.rejected())
+
+    dialog_manager.dialog_data.pop("selected_partner_request_user_id", None)
+    await dialog_manager.switch_to(StartSG.admin_partner_requests_list)
+
+
+async def approve_admin_partner_request(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await _process_admin_partner_request_decision(
+        callback=callback,
+        dialog_manager=dialog_manager,
+        action="approve",
+    )
+
+
+async def reject_admin_partner_request(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await _process_admin_partner_request_decision(
+        callback=callback,
+        dialog_manager=dialog_manager,
+        action="reject",
     )
 
 
@@ -187,6 +297,7 @@ async def show_partner_pending_registrations(
     widget: Button,
     dialog_manager: DialogManager,
 ) -> None:
+    dialog_manager.dialog_data["pending_source"] = "partner_event"
     await callback.answer()
     await dialog_manager.switch_to(StartSG.partner_event_pending_list)
 
@@ -206,9 +317,77 @@ async def show_pending_registration_details(
     dialog_manager: DialogManager,
     item_id: str,
 ) -> None:
-    dialog_manager.dialog_data["selected_registration_user_id"] = int(item_id)
+    try:
+        if ":" in item_id:
+            event_raw, user_raw = item_id.split(":", 1)
+            dialog_manager.dialog_data["selected_partner_event_id"] = int(event_raw)
+            dialog_manager.dialog_data["selected_registration_user_id"] = int(user_raw)
+        else:
+            dialog_manager.dialog_data["selected_registration_user_id"] = int(item_id)
+    except ValueError:
+        await callback.answer()
+        return
     await callback.answer()
     await dialog_manager.switch_to(StartSG.partner_event_pending_details)
+
+
+async def show_admin_registration_partners(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data.pop("selected_partner_user_id", None)
+    dialog_manager.dialog_data.pop("selected_partner_event_id", None)
+    dialog_manager.dialog_data.pop("selected_registration_user_id", None)
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
+
+
+async def show_admin_registration_pending_list(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    try:
+        partner_user_id = int(item_id)
+    except ValueError:
+        await callback.answer()
+        return
+    dialog_manager.dialog_data["selected_partner_user_id"] = partner_user_id
+    dialog_manager.dialog_data["pending_source"] = "admin_partner"
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
+
+
+async def back_to_admin_registration_partners(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
+
+
+async def back_to_pending_registrations_source(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    source = dialog_manager.dialog_data.get("pending_source")
+    if source == "admin_partner":
+        await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
+        return
+    await dialog_manager.switch_to(StartSG.partner_event_pending_list)
+
+
+async def _switch_after_pending_action(dialog_manager: DialogManager) -> None:
+    source = dialog_manager.dialog_data.get("pending_source")
+    if source == "admin_partner":
+        await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
+        return
+    await dialog_manager.switch_to(StartSG.partner_event_pending_list)
 
 
 async def approve_pending_registration(
@@ -255,7 +434,7 @@ async def approve_pending_registration(
                 gender=user_record.gender,
             )
     await callback.answer(i18n.partner.event.prepay.approved.partner())
-    await dialog_manager.switch_to(StartSG.partner_event_pending_list)
+    await _switch_after_pending_action(dialog_manager)
 
 
 async def decline_pending_registration(
@@ -286,7 +465,7 @@ async def decline_pending_registration(
             i18n.partner.event.prepay.declined(),
         )
     await callback.answer(i18n.partner.event.prepay.declined.partner())
-    await dialog_manager.switch_to(StartSG.partner_event_pending_list)
+    await _switch_after_pending_action(dialog_manager)
 
 
 async def start_my_account(

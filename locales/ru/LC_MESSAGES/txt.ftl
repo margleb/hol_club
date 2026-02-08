@@ -21,6 +21,19 @@ start-events-item = { $name } — { $datetime }{ $tags }
 start-events-page = Страница { $current } из { $total }
 start-events-prev-button = ◀️
 start-events-next-button = ▶️
+start-admin-registrations-button = Список регистраций
+start-admin-partner-requests-title = Заявки на партнерство
+start-admin-partner-requests-empty = Заявок на партнерство нет.
+start-admin-partner-requests-item = { $username } (id:{ $user_id })
+start-admin-partner-request-details =
+    Пользователь: { $username }
+    ID: { $user_id }
+start-admin-registrations-partners-title = Выберите партнера
+start-admin-registrations-partners-empty = Нет ожидающих подтверждения оплат.
+start-admin-registrations-partners-item = { $username } • { $count }
+start-admin-registrations-pending-title = Ожидают подтверждения оплаты ({ $partner })
+start-admin-registrations-pending-empty = По выбранному партнеру нет ожидающих подтверждения оплат.
+start-admin-registrations-pending-item = { $username } • { $event_name } • { $amount } ₽
 start-event-paid-tag = [оплачено]
 start-event-past-tag = [уже прошло]
 partner-events-title = Ваши события
@@ -283,7 +296,9 @@ partner-event-registrations-pending-title = Ожидают подтвержде�
 partner-event-registrations-pending-empty = Пока нет ожидающих подтверждения.
 partner-event-registrations-pending-item = { $username } • { $amount } ₽
 partner-event-registrations-pending-details-missing = Не удалось найти заявку.
-partner-event-registrations-pending-details-text = Пользователь: { $username }\nПредоплата: { $amount } ₽
+partner-event-registrations-pending-details-text =
+    Пользователь: { $username }
+    Стоимость: { $amount } ₽
 partner-event-registrations-pending-approve-button = Подтвердить
 partner-event-registrations-pending-decline-button = Отклонить
 partner-event-registrations-confirmed-title = Зарегистрированные пользователи

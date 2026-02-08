@@ -5,6 +5,7 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
+from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
@@ -59,6 +60,8 @@ async def get_hello(
         "can_view_user_events": is_user,
         "partner_events_list_button": i18n.partner.events.list.button(),
         "can_view_partner_events": can_view_partner_events,
+        "admin_registrations_button": i18n.start.admin.registrations.button(),
+        "can_manage_registrations": is_admin,
         "partner_requests_button": i18n.partner.request.list.button(),
         "can_manage_partner_requests": is_admin,
         "back_button": i18n.back.button(),
@@ -174,6 +177,182 @@ async def get_user_events(
         "user_events_next_button": i18n.start.events.next.button(),
         "has_user_prev_page": current_page > 0,
         "has_user_next_page": current_page < total_pages - 1,
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_registration_partners(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin:
+        return {
+            "title": i18n.start.admin.registrations.partners.title(),
+            "items": [],
+            "empty_text": i18n.start.admin.registrations.partners.empty(),
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    partners = await db.event_registrations.list_partners_with_pending_payment()
+    items: list[tuple[str, str]] = []
+    for partner_user_id, partner_username, pending_count in partners:
+        partner_label = (
+            f"@{partner_username}" if partner_username else f"id:{partner_user_id}"
+        )
+        label = i18n.start.admin.registrations.partners.item(
+            username=partner_label,
+            count=pending_count,
+        )
+        items.append((label, str(partner_user_id)))
+
+    return {
+        "title": i18n.start.admin.registrations.partners.title(),
+        "items": items,
+        "empty_text": i18n.start.admin.registrations.partners.empty(),
+        "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_registration_pending(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin:
+        return {
+            "title": i18n.start.admin.registrations.pending.title(partner="-"),
+            "items": [],
+            "empty_text": i18n.start.admin.registrations.pending.empty(),
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    partner_user_id = dialog_manager.dialog_data.get("selected_partner_user_id")
+    if not isinstance(partner_user_id, int):
+        return {
+            "title": i18n.start.admin.registrations.pending.title(partner="-"),
+            "items": [],
+            "empty_text": i18n.start.admin.registrations.pending.empty(),
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    partner = await db.users.get_user_record(user_id=partner_user_id)
+    partner_label = (
+        f"@{partner.username}" if partner and partner.username else f"id:{partner_user_id}"
+    )
+
+    pending = await db.event_registrations.list_pending_by_partner(
+        partner_user_id=partner_user_id
+    )
+    items: list[tuple[str, str]] = []
+    for event_id, user_id, username, event_name, amount in pending:
+        user_label = f"@{username}" if username else f"id:{user_id}"
+        amount_label = amount if amount is not None else "-"
+        label = i18n.start.admin.registrations.pending.item(
+            username=user_label,
+            event_name=event_name,
+            amount=amount_label,
+        )
+        items.append((label, f"{event_id}:{user_id}"))
+
+    return {
+        "title": i18n.start.admin.registrations.pending.title(partner=partner_label),
+        "items": items,
+        "empty_text": i18n.start.admin.registrations.pending.empty(),
+        "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_partner_requests(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin:
+        return {
+            "title": i18n.start.admin.partner.requests.title(),
+            "items": [],
+            "empty_text": i18n.start.admin.partner.requests.empty(),
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    requests = await db.partner_requests.list_pending_requests_with_usernames()
+    items: list[tuple[str, str]] = []
+    for user_id, username in requests:
+        user_label = f"@{username}" if username else f"id:{user_id}"
+        label = i18n.start.admin.partner.requests.item(
+            username=user_label,
+            user_id=user_id,
+        )
+        items.append((label, str(user_id)))
+
+    return {
+        "title": i18n.start.admin.partner.requests.title(),
+        "items": items,
+        "empty_text": i18n.start.admin.partner.requests.empty(),
+        "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_partner_request_details(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    selected_user_id = dialog_manager.dialog_data.get("selected_partner_request_user_id")
+    if not is_admin or not isinstance(selected_user_id, int):
+        return {
+            "details_text": i18n.partner.request.invalid(),
+            "approve_button": i18n.partner.request.approve.button(),
+            "reject_button": i18n.partner.request.reject.button(),
+            "back_button": i18n.back.button(),
+        }
+
+    request = await db.partner_requests.get_request(user_id=selected_user_id)
+    if request is None or request.status != PartnerRequestStatus.PENDING:
+        return {
+            "details_text": i18n.partner.approve.missing(),
+            "approve_button": i18n.partner.request.approve.button(),
+            "reject_button": i18n.partner.request.reject.button(),
+            "back_button": i18n.back.button(),
+        }
+
+    target_user = await db.users.get_user_record(user_id=selected_user_id)
+    username = (
+        f"@{target_user.username}"
+        if target_user and target_user.username
+        else f"id:{selected_user_id}"
+    )
+    return {
+        "details_text": i18n.start.admin.partner.request.details(
+            username=username,
+            user_id=selected_user_id,
+        ),
+        "approve_button": i18n.partner.request.approve.button(),
+        "reject_button": i18n.partner.request.reject.button(),
         "back_button": i18n.back.button(),
     }
 

@@ -5,6 +5,10 @@ from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
+    get_admin_registration_partners,
+    get_admin_registration_pending,
+    get_admin_partner_request_details,
+    get_admin_partner_requests,
     get_hello,
     get_partner_event_details,
     get_partner_events,
@@ -16,11 +20,19 @@ from app.bot.dialogs.start.getters import (
     get_user_attend_prompt,
 )
 from app.bot.dialogs.start.handlers import (
+    approve_admin_partner_request,
+    back_to_admin_registration_partners,
+    back_to_admin_partner_requests,
+    back_to_pending_registrations_source,
     back_to_start,
     back_to_partner_event_details,
     back_to_partner_events_list,
     back_to_user_events_list,
     back_to_user_event_details,
+    reject_admin_partner_request,
+    show_admin_partner_request_details,
+    show_admin_registration_partners,
+    show_admin_registration_pending_list,
     show_partner_pending_registrations,
     show_partner_confirmed_registrations,
     show_pending_registration_details,
@@ -75,6 +87,12 @@ start_dialog = Dialog(
             id="partner_requests_list",
             on_click=show_partner_requests_list,
             when="can_manage_partner_requests",
+        ),
+        Button(
+            text=Format("{admin_registrations_button}"),
+            id="admin_registrations_list",
+            on_click=show_admin_registration_partners,
+            when="can_manage_registrations",
         ),
         getter=get_hello,
         state=StartSG.start
@@ -244,6 +262,111 @@ start_dialog = Dialog(
         ScrollingGroup(
             Select(
                 Format("{item[0]}"),
+                id="admin_partner_requests_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_admin_partner_request_details,
+            ),
+            id="admin_partner_requests_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_partner_requests_back",
+                on_click=back_to_start,
+            ),
+        ),
+        getter=get_admin_partner_requests,
+        state=StartSG.admin_partner_requests_list,
+    ),
+    Window(
+        Format("{details_text}"),
+        Row(
+            Button(
+                text=Format("{approve_button}"),
+                id="admin_partner_request_approve",
+                on_click=approve_admin_partner_request,
+            ),
+            Button(
+                text=Format("{reject_button}"),
+                id="admin_partner_request_reject",
+                on_click=reject_admin_partner_request,
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_partner_request_back",
+                on_click=back_to_admin_partner_requests,
+            ),
+        ),
+        getter=get_admin_partner_request_details,
+        state=StartSG.admin_partner_request_details,
+    ),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="admin_partners_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_admin_registration_pending_list,
+            ),
+            id="admin_partners_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_partners_back",
+                on_click=back_to_start,
+            ),
+        ),
+        getter=get_admin_registration_partners,
+        state=StartSG.admin_registration_partners_list,
+    ),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="admin_pending_regs_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_pending_registration_details,
+            ),
+            id="admin_pending_regs_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_pending_regs_back",
+                on_click=back_to_admin_registration_partners,
+            ),
+        ),
+        getter=get_admin_registration_pending,
+        state=StartSG.admin_registration_pending_list,
+    ),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
                 id="pending_regs_select",
                 item_id_getter=lambda item: item[1],
                 items="items",
@@ -285,7 +408,7 @@ start_dialog = Dialog(
             Button(
                 text=Format("{back_button}"),
                 id="pending_reg_back",
-                on_click=show_partner_pending_registrations,
+                on_click=back_to_pending_registrations_source,
             ),
         ),
         getter=get_partner_pending_registration_details,

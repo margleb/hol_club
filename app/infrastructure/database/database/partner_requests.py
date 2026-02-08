@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.infrastructure.database.models.partner_requests import PartnerRequestsModel
+from app.infrastructure.database.models.users import UsersModel
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,21 @@ class _PartnerRequestsDB:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_pending_requests_with_usernames(
+        self,
+    ) -> list[tuple[int, str | None]]:
+        stmt = (
+            select(
+                PartnerRequestsModel.user_id,
+                UsersModel.username,
+            )
+            .join(UsersModel, UsersModel.user_id == PartnerRequestsModel.user_id)
+            .where(PartnerRequestsModel.status == PartnerRequestStatus.PENDING)
+            .order_by(PartnerRequestsModel.created.asc())
+        )
+        result = await self.session.execute(stmt)
+        return [(row[0], row[1]) for row in result.all()]
 
     async def set_pending(self, *, user_id: int) -> None:
         stmt = (
