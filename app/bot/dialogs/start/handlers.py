@@ -4,6 +4,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import Button, Select
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.enums import ParseMode
 from fluentogram import TranslatorRunner
 
 from app.bot.enums.partner_requests import PartnerRequestStatus
@@ -542,6 +543,7 @@ async def on_admin_registration_message_input(
         return
 
     safe_payload = html.escape(payload)
+    quoted_payload = f"<blockquote>{safe_payload}</blockquote>"
     admin_label = (
         f"@{user.username}" if user.username else user.full_name or f"id:{user.id}"
     )
@@ -560,9 +562,10 @@ async def on_admin_registration_message_input(
             target_user_id,
             i18n.start.admin.registrations.pending.message.to.user(
                 admin=html.escape(admin_label),
-                text=safe_payload,
+                text=quoted_payload,
             ),
             reply_markup=keyboard,
+            parse_mode=ParseMode.HTML,
         )
     except Exception:
         await message.answer(i18n.start.admin.registrations.pending.message.invalid())

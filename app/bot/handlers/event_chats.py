@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from urllib.parse import unquote
 
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.enums import ParseMode
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.registration.getters import AGE_GROUPS
@@ -1023,6 +1024,7 @@ async def process_event_message_user_text(
         fallback_name=sender.full_name,
         user_id=sender.id,
     )
+    quoted_payload = f"<blockquote>{html.escape(payload)}</blockquote>"
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -1038,9 +1040,10 @@ async def process_event_message_user_text(
             target_user_id,
             i18n.start.admin.registrations.pending.message.to.user(
                 admin=html.escape(admin_label),
-                text=html.escape(payload),
+                text=quoted_payload,
             ),
             reply_markup=keyboard,
+            parse_mode=ParseMode.HTML,
         )
     except Exception:
         await state.clear()
@@ -1106,6 +1109,7 @@ async def process_event_reply_admin_text(
         fallback_name=sender.full_name,
         user_id=sender.id,
     )
+    quoted_payload = f"<blockquote>{html.escape(payload)}</blockquote>"
     reply_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -1121,9 +1125,10 @@ async def process_event_reply_admin_text(
             admin_user_id,
             i18n.start.admin.registrations.pending.reply.admin.received(
                 username=html.escape(sender_label),
-                text=html.escape(payload),
+                text=quoted_payload,
             ),
             reply_markup=reply_keyboard,
+            parse_mode=ParseMode.HTML,
         )
     except Exception:
         await state.clear()
