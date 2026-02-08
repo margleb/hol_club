@@ -127,8 +127,6 @@ async def get_user_events(
     **kwargs,
 ) -> dict[str, str | list[tuple[str, str]] | bool]:
     statuses = [
-        EventRegistrationStatus.PENDING_PAYMENT,
-        EventRegistrationStatus.PAID_CONFIRM_PENDING,
         EventRegistrationStatus.CONFIRMED,
         EventRegistrationStatus.ATTENDED_CONFIRMED,
     ]
