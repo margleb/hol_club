@@ -67,7 +67,7 @@ async def get_hello(
     username = event_from_user.full_name or event_from_user.username or i18n.stranger()
     user_record = await db.users.get_user_record(user_id=event_from_user.id)
     can_create_event = bool(
-        user_record and user_record.role == UserRole.PARTNER
+        user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}
     )
     can_view_partner_events = bool(
         user_record and user_record.role == UserRole.PARTNER
