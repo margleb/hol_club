@@ -47,7 +47,6 @@ from app.bot.dialogs.events.handlers import (
     on_event_price_input,
     on_event_ticket_url_input,
     publish_event,
-    skip_event_ticket_url,
     skip_event_photo,
 )
 from app.bot.states.events import EventsSG
@@ -190,11 +189,6 @@ events_dialog = Dialog(
                 text=Format("{back_button}"),
                 id="back_from_event_ticket_url",
                 on_click=back_from_event_ticket_url,
-            ),
-            Button(
-                text=Format("{skip_button}"),
-                id="skip_event_ticket_url",
-                on_click=skip_event_ticket_url,
             ),
         ),
         state=EventsSG.ticket_url,

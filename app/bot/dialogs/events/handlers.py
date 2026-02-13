@@ -60,7 +60,7 @@ async def ensure_partner_access(_, dialog_manager: DialogManager) -> None:
         return
 
     user_record = await db.users.get_user_record(user_id=user.id)
-    if not user_record or user_record.role != UserRole.PARTNER:
+    if not user_record or user_record.role not in {UserRole.PARTNER, UserRole.ADMIN}:
         await dialog_manager.event.bot.send_message(
             user.id,
             i18n.partner.event.forbidden(),
@@ -419,6 +419,12 @@ async def on_event_ticket_url_input(
     data: str,
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    db: DB | None = dialog_manager.middleware_data.get("db")
+    if db and message.from_user:
+        user_record = await db.users.get_user_record(user_id=message.from_user.id)
+        if not user_record or user_record.role != UserRole.ADMIN:
+            await message.answer(i18n.partner.event.forbidden())
+            return
     ticket_url = (data or "").strip()
     if not _is_valid_ticket_url(ticket_url):
         await message.answer(i18n.partner.event.ticket.link.invalid())
@@ -519,6 +525,17 @@ async def edit_event_ticket(
     button: Button,
     dialog_manager: DialogManager,
 ) -> None:
+    user: User | None = dialog_manager.middleware_data.get("event_from_user")
+    db: DB | None = dialog_manager.middleware_data.get("db")
+    if not user or not db:
+        return
+    user_record = await db.users.get_user_record(user_id=user.id)
+    if not user_record or user_record.role != UserRole.ADMIN:
+        await callback.answer(
+            dialog_manager.middleware_data.get("i18n").partner.event.forbidden(),
+            show_alert=True,
+        )
+        return
     dialog_manager.dialog_data["edit_mode"] = True
     await dialog_manager.switch_to(EventsSG.ticket_url)
 
@@ -738,8 +755,16 @@ async def publish_event(
     data = dialog_manager.dialog_data
     user_record = await db.users.get_user_record(user_id=user.id)
     is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
+    ticket_url = (data.get("ticket_url") or "").strip()
     if not is_admin:
         data["ticket_url"] = None
+        ticket_url = ""
+    elif not ticket_url:
+        await callback.answer(
+            i18n.partner.event.ticket.link.missing(),
+            show_alert=True,
+        )
+        return
     photo_id = data.get("photo_file_id")
     text = build_event_text(data, i18n)
 

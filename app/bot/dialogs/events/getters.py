@@ -121,7 +121,6 @@ async def get_event_ticket_url(
 ) -> dict[str, str]:
     return {
         "prompt": i18n.partner.event.ticket.link.prompt(),
-        "skip_button": i18n.partner.event.skip.button(),
         "back_button": i18n.back.button(),
     }
 
