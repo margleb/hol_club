@@ -22,6 +22,7 @@ start-events-page = Страница { $current } из { $total }
 start-events-prev-button = ◀️
 start-events-next-button = ▶️
 start-admin-registrations-button = Список регистраций
+start-admin-partners-button = Партнеры
 start-admin-partner-commissions-button = Комиссия партнеров
 start-admin-partner-commissions-title = Комиссия партнеров
 start-admin-partner-commissions-empty = Партнеров пока нет.
@@ -40,9 +41,13 @@ start-admin-partner-requests-item = { $username } (id:{ $user_id })
 start-admin-partner-request-details =
     Пользователь: { $username }
     ID: { $user_id }
-start-admin-registrations-partners-title = Выберите партнера
-start-admin-registrations-partners-empty = Нет ожидающих подтверждения оплат.
-start-admin-registrations-partners-item = { $username } • { $count }
+start-admin-registrations-partners-title = Партнеры
+start-admin-registrations-partners-empty = Партнеров пока нет.
+start-admin-registrations-partners-item = { $username } • { $percent }% • { $pending }
+start-admin-partner-actions-title = Партнер: { $username }
+start-admin-partner-actions-invalid = Не удалось определить партнера.
+start-admin-partner-actions-commission-button = Установить комиссию
+start-admin-partner-actions-registrations-button = Список регистраций
 start-admin-registrations-pending-title = Ожидают подтверждения оплаты ({ $partner })
 start-admin-registrations-pending-empty = По выбранному партнеру нет ожидающих подтверждения оплат.
 start-admin-registrations-pending-item = { $username } • { $event_name } • { $amount } ₽

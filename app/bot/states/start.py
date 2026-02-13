@@ -12,6 +12,7 @@ class StartSG(StatesGroup):
     admin_partner_requests_list = State()
     admin_partner_request_details = State()
     admin_registration_partners_list = State()
+    admin_partner_actions = State()
     admin_registration_pending_list = State()
     admin_registration_message_user = State()
     admin_registration_message_done = State()

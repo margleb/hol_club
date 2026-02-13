@@ -77,13 +77,34 @@ async def show_admin_partner_commission_edit(
     await dialog_manager.switch_to(StartSG.admin_partner_commission_edit)
 
 
+async def show_admin_partner_commission_edit_for_selected(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(text=i18n.partner.approve.forbidden())
+        return
+    partner_user_id = dialog_manager.dialog_data.get("selected_partner_user_id")
+    if not isinstance(partner_user_id, int):
+        await callback.answer()
+        await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
+        return
+    dialog_manager.dialog_data["selected_partner_commission_user_id"] = partner_user_id
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_commission_edit)
+
+
 async def back_to_admin_partner_commissions(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
 ) -> None:
     await callback.answer()
-    await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+    await dialog_manager.switch_to(StartSG.admin_partner_actions)
 
 
 async def on_admin_partner_commission_input(
@@ -105,7 +126,7 @@ async def on_admin_partner_commission_input(
     partner_user_id = dialog_manager.dialog_data.get("selected_partner_commission_user_id")
     if not isinstance(partner_user_id, int):
         await message.answer(i18n.start.admin.partner.commission.edit.invalid())
-        await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+        await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
         return
 
     value = (data or "").strip()
@@ -120,7 +141,7 @@ async def on_admin_partner_commission_input(
     partner = await db.users.get_user_record(user_id=partner_user_id)
     if partner is None or partner.role != UserRole.PARTNER:
         await message.answer(i18n.start.admin.partner.commission.edit.invalid())
-        await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+        await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
         return
 
     await db.users.update_partner_commission_percent(
@@ -130,7 +151,7 @@ async def on_admin_partner_commission_input(
     await message.answer(
         i18n.start.admin.partner.commission.updated(percent=commission_percent)
     )
-    await dialog_manager.switch_to(StartSG.admin_partner_commissions_list)
+    await dialog_manager.switch_to(StartSG.admin_partner_actions)
 
 
 async def show_admin_partner_request_details(
@@ -442,10 +463,45 @@ async def show_admin_registration_partners(
     dialog_manager: DialogManager,
 ) -> None:
     dialog_manager.dialog_data.pop("selected_partner_user_id", None)
+    dialog_manager.dialog_data.pop("selected_partner_commission_user_id", None)
     dialog_manager.dialog_data.pop("selected_partner_event_id", None)
     dialog_manager.dialog_data.pop("selected_registration_user_id", None)
     await callback.answer()
     await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
+
+
+async def show_admin_partner_actions(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    try:
+        partner_user_id = int(item_id)
+    except ValueError:
+        await callback.answer()
+        return
+    dialog_manager.dialog_data["selected_partner_user_id"] = partner_user_id
+    dialog_manager.dialog_data["selected_partner_commission_user_id"] = partner_user_id
+    dialog_manager.dialog_data.pop("selected_partner_event_id", None)
+    dialog_manager.dialog_data.pop("selected_registration_user_id", None)
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_actions)
+
+
+async def show_admin_partner_pending_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    partner_user_id = dialog_manager.dialog_data.get("selected_partner_user_id")
+    if not isinstance(partner_user_id, int):
+        await callback.answer()
+        await dialog_manager.switch_to(StartSG.admin_registration_partners_list)
+        return
+    dialog_manager.dialog_data["pending_source"] = "admin_partner_actions"
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
 
 
 async def show_admin_registration_pending_list(
@@ -460,12 +516,30 @@ async def show_admin_registration_pending_list(
         await callback.answer()
         return
     dialog_manager.dialog_data["selected_partner_user_id"] = partner_user_id
-    dialog_manager.dialog_data["pending_source"] = "admin_partner"
+    dialog_manager.dialog_data["pending_source"] = "admin_partner_actions"
     await callback.answer()
     await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
 
 
 async def back_to_admin_registration_partners(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_actions)
+
+
+async def back_to_admin_partner_actions(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_partner_actions)
+
+
+async def back_to_admin_partners_list(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
@@ -481,7 +555,7 @@ async def back_to_pending_registrations_source(
 ) -> None:
     await callback.answer()
     source = dialog_manager.dialog_data.get("pending_source")
-    if source == "admin_partner":
+    if source in {"admin_partner", "admin_partner_actions"}:
         await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
         return
     await dialog_manager.switch_to(StartSG.admin_registration_partners_list)

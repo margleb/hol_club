@@ -83,10 +83,8 @@ async def get_hello(
         "can_view_user_events": is_user,
         "partner_events_list_button": i18n.partner.events.list.button(),
         "can_view_partner_events": can_view_partner_events,
-        "admin_registrations_button": i18n.start.admin.registrations.button(),
-        "can_manage_registrations": is_admin,
-        "admin_partner_commissions_button": i18n.start.admin.partner.commissions.button(),
-        "can_manage_partner_commissions": is_admin,
+        "admin_partners_button": i18n.start.admin.partners.button(),
+        "can_manage_partners": is_admin,
         "partner_requests_button": i18n.partner.request.list.button(),
         "can_manage_partner_requests": is_admin,
         "back_button": i18n.back.button(),
@@ -289,15 +287,22 @@ async def get_admin_registration_partners(
             "back_button": i18n.back.button(),
         }
 
-    partners = await db.event_registrations.list_partners_with_pending_payment()
+    partners = await db.users.list_partners_with_commission()
+    pending_partners = await db.event_registrations.list_partners_with_pending_payment()
+    pending_map: dict[int, int] = {}
+    for partner_user_id, _partner_username, pending_count in pending_partners:
+        pending_map[partner_user_id] = pending_count
     items: list[tuple[str, str]] = []
-    for partner_user_id, partner_username, pending_count in partners:
+    for partner_user_id, partner_username, commission_percent in partners:
         partner_label = (
             f"@{partner_username}" if partner_username else f"id:{partner_user_id}"
         )
+        pending_count = pending_map.get(partner_user_id, 0)
+        percent = int(commission_percent or 0)
         label = i18n.start.admin.registrations.partners.item(
             username=partner_label,
-            count=pending_count,
+            percent=percent,
+            pending=pending_count,
         )
         items.append((label, str(partner_user_id)))
 
@@ -306,6 +311,38 @@ async def get_admin_registration_partners(
         "items": items,
         "empty_text": i18n.start.admin.registrations.partners.empty(),
         "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_partner_actions(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    partner_user_id = dialog_manager.dialog_data.get("selected_partner_user_id")
+    if not is_admin or not isinstance(partner_user_id, int):
+        return {
+            "title": i18n.start.admin.partner.actions.invalid(),
+            "show_actions": False,
+            "set_commission_button": i18n.start.admin.partner.actions.commission.button(),
+            "registrations_button": i18n.start.admin.partner.actions.registrations.button(),
+            "back_button": i18n.back.button(),
+        }
+
+    partner = await db.users.get_user_record(user_id=partner_user_id)
+    partner_label = (
+        f"@{partner.username}" if partner and partner.username else f"id:{partner_user_id}"
+    )
+    return {
+        "title": i18n.start.admin.partner.actions.title(username=partner_label),
+        "show_actions": True,
+        "set_commission_button": i18n.start.admin.partner.actions.commission.button(),
+        "registrations_button": i18n.start.admin.partner.actions.registrations.button(),
         "back_button": i18n.back.button(),
     }
 
