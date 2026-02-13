@@ -1,10 +1,11 @@
 import logging
 import os
 import html
+import re
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
-from urllib.parse import unquote
+from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
 
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram.enums import ParseMode
@@ -32,6 +33,7 @@ EVENT_REPLY_ADMIN_CALLBACK = "event_reply_admin"
 EVENT_CONTACT_PARTNER_CALLBACK = "event_contact_partner"
 EVENT_MESSAGE_DONE_BACK_CALLBACK = "event_message_done_back"
 EVENT_CHAT_START_PREFIX = "event_chat_"
+EVENT_BUY_START_PREFIX = "event_buy_"
 
 
 def _format_username(
@@ -60,6 +62,30 @@ def _parse_callback_parts(
     if len(parts) not in {expected_parts, expected_parts + 1}:
         return None
     return parts
+
+
+_SUB1_PATTERN = re.compile(r"^e(\d+)u(\d+)$")
+
+
+def parse_sub1_event_user(value: str | None) -> tuple[int, int] | None:
+    if not value:
+        return None
+    match = _SUB1_PATTERN.match(value.strip())
+    if not match:
+        return None
+    return int(match.group(1)), int(match.group(2))
+
+
+def build_ticket_purchase_link(
+    base_url: str,
+    *,
+    event_id: int,
+    user_id: int,
+) -> str:
+    parsed = urlparse(base_url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query["sub1"] = f"e{event_id}u{user_id}"
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 def _build_done_back_keyboard(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
@@ -315,6 +341,93 @@ async def approve_event_registration_payment(
     return True
 
 
+async def approve_event_ticket_purchase(
+    *,
+    db: DB,
+    i18n: TranslatorRunner,
+    bot,
+    event_id: int,
+    user_id: int,
+) -> bool:
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        return False
+
+    confirmed = await db.event_registrations.mark_paid_confirmed_if_current(
+        event_id=event_id,
+        user_id=user_id,
+        current_status=EventRegistrationStatus.PENDING_PAYMENT,
+    )
+    if not confirmed:
+        registration = await db.event_registrations.get_by_user_event(
+            event_id=event_id,
+            user_id=user_id,
+        )
+        if registration and registration.status in {
+            EventRegistrationStatus.CONFIRMED,
+            EventRegistrationStatus.ATTENDED_CONFIRMED,
+        }:
+            return True
+        return False
+
+    user_record = await db.users.get_user_record(user_id=user_id)
+    if user_record:
+        await db.users.update_profile(
+            user_id=user_id,
+            gender=user_record.gender,
+            age_group=user_record.age_group,
+            temperature="hot",
+        )
+
+    if bot:
+        await bot.send_message(
+            user_id,
+            i18n.partner.event.ticket.approved(),
+        )
+        gender = user_record.gender if user_record else None
+        await send_event_topic_link_to_user(
+            bot=bot,
+            i18n=i18n,
+            event=event,
+            user_id=user_id,
+            gender=gender,
+        )
+
+    payer_username = _format_username(
+        username=user_record.username if user_record else None,
+        user_id=user_id,
+    )
+    if isinstance(event.partner_user_id, int) and bot:
+        partner_reply_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=i18n.start.admin.registrations.pending.contact.button(),
+                        callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user_id}",
+                    )
+                ]
+            ]
+        )
+        try:
+            await bot.send_message(
+                event.partner_user_id,
+                i18n.partner.event.ticket.approved.partner.notify(
+                    username=payer_username,
+                    event_name=event.name,
+                ),
+                reply_markup=partner_reply_keyboard,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to notify partner %s about approved ticket for event %s: %s",
+                event.partner_user_id,
+                event_id,
+                exc,
+            )
+
+    return True
+
+
 def parse_event_chat_start_payload(message_text: str | None) -> int | None:
     if not message_text:
         return None
@@ -332,6 +445,28 @@ def parse_event_chat_start_payload(message_text: str | None) -> int | None:
     if not payload.startswith(EVENT_CHAT_START_PREFIX):
         return None
     raw_event_id = payload[len(EVENT_CHAT_START_PREFIX):]
+    if not raw_event_id.isdigit():
+        return None
+    return int(raw_event_id)
+
+
+def parse_event_buy_start_payload(message_text: str | None) -> int | None:
+    if not message_text:
+        return None
+    text = message_text.strip()
+    payload = None
+    if " " in text:
+        _, payload = text.split(maxsplit=1)
+    elif "?" in text:
+        _, payload = text.split("?", 1)
+    if not payload:
+        return None
+    payload = unquote(payload.strip())
+    if payload.startswith("start="):
+        payload = payload.split("=", 1)[1]
+    if not payload.startswith(EVENT_BUY_START_PREFIX):
+        return None
+    raw_event_id = payload[len(EVENT_BUY_START_PREFIX):]
     if not raw_event_id.isdigit():
         return None
     return int(raw_event_id)
@@ -450,6 +585,60 @@ async def _send_prepay_message(
     await message.answer(text, reply_markup=keyboard)
 
 
+async def _send_ticket_purchase_message(
+    *,
+    message: Message,
+    i18n: TranslatorRunner,
+    db: DB,
+    event,
+    user_id: int,
+) -> None:
+    base_url = (getattr(event, "ticket_url", None) or "").strip()
+    if not base_url:
+        await message.answer(i18n.partner.event.ticket.link.missing())
+        return
+
+    registration = await db.event_registrations.get_by_user_event(
+        event_id=event.id,
+        user_id=user_id,
+    )
+    if registration is None:
+        await db.event_registrations.create(
+            event_id=event.id,
+            user_id=user_id,
+            status=EventRegistrationStatus.PENDING_PAYMENT,
+            amount=None,
+        )
+    user_record = await db.users.get_user_record(user_id=user_id)
+    if user_record and user_record.temperature != "hot":
+        await db.users.update_profile(
+            user_id=user_id,
+            gender=user_record.gender,
+            age_group=user_record.age_group,
+            temperature="warm",
+        )
+
+    purchase_url = build_ticket_purchase_link(
+        base_url,
+        event_id=event.id,
+        user_id=user_id,
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.buy.ticket.button(),
+                    url=purchase_url,
+                )
+            ]
+        ]
+    )
+    await message.answer(
+        i18n.partner.event.ticket.link.text(event_name=event.name),
+        reply_markup=keyboard,
+    )
+
+
 async def _maybe_start_registration(
     *,
     message: Message,
@@ -494,6 +683,18 @@ async def _maybe_start_registration(
 
     if registration and registration.status == EventRegistrationStatus.PAID_CONFIRM_PENDING:
         await message.answer(i18n.partner.event.prepay.waiting())
+        return
+
+    if (getattr(event, "ticket_url", None) or "").strip():
+        if registration and registration.status == EventRegistrationStatus.PENDING_PAYMENT:
+            await message.answer(i18n.partner.event.ticket.link.waiting())
+        await _send_ticket_purchase_message(
+            message=message,
+            i18n=i18n,
+            db=db,
+            event=event,
+            user_id=user_id,
+        )
         return
 
     amount = _calc_prepay_amount(event)
@@ -602,6 +803,54 @@ async def handle_event_chat_start(
             reply_markup=build_age_keyboard(i18n, event_id),
         )
         return
+    await _maybe_start_registration(
+        message=message,
+        i18n=i18n,
+        db=db,
+        event=event,
+        user_id=user.id,
+        gender=gender,
+    )
+
+
+async def handle_event_buy_start(
+    *,
+    message: Message,
+    i18n: TranslatorRunner,
+    db: DB,
+    event_id: int,
+) -> None:
+    user = message.from_user
+    if not user:
+        return
+
+    await _ensure_user_record(
+        db=db,
+        user_id=user.id,
+        username=user.username,
+    )
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await message.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    user_record = await db.users.get_user_record(user_id=user.id)
+    gender = user_record.gender if user_record else None
+    age_group = user_record.age_group if user_record else None
+
+    if not gender:
+        await message.answer(
+            i18n.general.registration.gender.prompt(),
+            reply_markup=build_gender_keyboard(i18n, event_id),
+        )
+        return
+    if not age_group:
+        await message.answer(
+            i18n.general.registration.age.prompt(),
+            reply_markup=build_age_keyboard(i18n, event_id),
+        )
+        return
+
     await _maybe_start_registration(
         message=message,
         i18n=i18n,

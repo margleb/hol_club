@@ -9,7 +9,9 @@ from fluentogram import TranslatorRunner
 from app.bot.enums.roles import UserRole
 from app.bot.handlers.event_chats import (
     handle_event_chat_start,
+    handle_event_buy_start,
     parse_event_chat_start_payload,
+    parse_event_buy_start_payload,
 )
 from app.bot.services.registration import parse_general_start_payload
 from app.bot.states.account import AccountSG
@@ -60,6 +62,17 @@ async def process_start_command(
             i18n=i18n,
             db=db,
             event_id=event_chat_id,
+        )
+        return
+
+    # 2.1 Попытка обработки event buy ссылки
+    event_buy_id = parse_event_buy_start_payload(message.text)
+    if event_buy_id is not None:
+        await handle_event_buy_start(
+            message=message,
+            i18n=i18n,
+            db=db,
+            event_id=event_buy_id,
         )
         return
 

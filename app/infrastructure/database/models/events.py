@@ -21,6 +21,7 @@ class EventsModel(BaseModel):
     prepay_fixed_free: Mapped[int | None] = mapped_column(Integer)
     age_group: Mapped[str | None] = mapped_column(String(32))
     photo_file_id: Mapped[str | None] = mapped_column(String(255))
+    ticket_url: Mapped[str | None] = mapped_column(String(1024))
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     channel_id: Mapped[int | None] = mapped_column(BigInteger)
     channel_message_id: Mapped[int | None] = mapped_column(BigInteger)

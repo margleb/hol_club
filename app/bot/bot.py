@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from contextlib import suppress
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -25,6 +27,7 @@ from app.infrastructure.storage.storage.nats_storage import NatsStorage
 from app.infrastructure.storage.storage.nats_key_builder import NatsKeyBuilder
 from app.infrastructure.storage.nats_connect import connect_to_nats
 from app.services.telegram.private_event_chats import EventPrivateChatService
+from app.services.advcake.poller import start_advcake_poller
 from config.config import settings
 
 logger = logging.getLogger(__name__)
@@ -79,6 +82,26 @@ async def main():
 
     translator_hub: TranslatorHub = create_translator_hub()
 
+    advcake_task = None
+    advcake_settings = settings.get("advcake", {}) or {}
+    advcake_api_key = str(advcake_settings.get("api_key") or "").strip()
+    advcake_interval = int(advcake_settings.get("poll_interval_seconds") or 600)
+    advcake_days = int(advcake_settings.get("days") or 2)
+    if advcake_api_key:
+        advcake_task = asyncio.create_task(
+            start_advcake_poller(
+                bot=bot,
+                db_sessionmaker=db_session_maker,
+                translator_hub=translator_hub,
+                api_key=advcake_api_key,
+                poll_interval_seconds=advcake_interval,
+                days=advcake_days,
+            )
+        )
+        logger.info("AdvCake poller started")
+    else:
+        logger.info("AdvCake poller disabled: missing api key")
+
     logger.info("Registering error handlers")
     dp.errors.register(
         on_unknown_intent,
@@ -122,6 +145,10 @@ async def main():
     except Exception as e:
         logger.exception(e)
     finally:
+        if advcake_task:
+            advcake_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await advcake_task
         await nc.close()
         logger.info('Connection to NATS closed')
         await db_engine.dispose()

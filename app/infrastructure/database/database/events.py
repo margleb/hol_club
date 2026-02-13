@@ -39,6 +39,7 @@ class _EventsDB:
         price: str | None,
         age_group: str | None,
         photo_file_id: str | None,
+        ticket_url: str | None,
         fingerprint: str,
         prepay_percent: int | None = None,
         prepay_fixed_free: int | None = None,
@@ -57,6 +58,7 @@ class _EventsDB:
                 prepay_percent=prepay_percent,
                 prepay_fixed_free=prepay_fixed_free,
                 photo_file_id=photo_file_id,
+                ticket_url=ticket_url,
                 fingerprint=fingerprint,
             )
             .on_conflict_do_nothing(index_elements=["fingerprint"])

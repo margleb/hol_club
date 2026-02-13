@@ -36,6 +36,11 @@
 [default.payments]
     card_number = ""
 
+[default.advcake]
+    api_key = ""
+    poll_interval_seconds = 600
+    days = 2
+
 [development]
 
     [development.logs]
