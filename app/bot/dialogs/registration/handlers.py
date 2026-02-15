@@ -100,18 +100,6 @@ async def on_general_age_selected(
             gender=gender,
             age_group=item_id,
         )
-        start_data = dialog_manager.start_data or {}
-        adv_payload = start_data.get("adv_payload") or {}
-        placement_date = adv_payload.get("placement_date")
-        channel_username = adv_payload.get("channel_username")
-        placement_price = adv_payload.get("placement_price")
-        if placement_date and channel_username and placement_price:
-            await db.adv_stats.register_general(
-                user_id=user.id,
-                placement_date=placement_date,
-                channel_username=channel_username,
-                placement_price=placement_price,
-            )
 
     chat_url = _get_chat_url(gender=gender)
     channel_url = _get_channel_url()

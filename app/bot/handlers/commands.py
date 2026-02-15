@@ -79,20 +79,19 @@ async def process_start_command(
     # 3. Попытка обработки рекламной ссылки
     general_payload = parse_general_start_payload(message.text)
     if general_payload and user_role == UserRole.USER:
+        placement_date, channel_username, placement_price = general_payload
+        await db.adv_stats.register_general(
+            user_id=message.from_user.id,
+            placement_date=placement_date,
+            channel_username=channel_username,
+            placement_price=placement_price,
+        )
         if user_record and user_record.gender and user_record.age_group:
             await message.answer(i18n.general.registration.already())
             return
-        placement_date, channel_username, placement_price = general_payload
         await dialog_manager.start(
             state=GeneralRegistrationSG.gender,
             mode=StartMode.RESET_STACK,
-            data={
-                "adv_payload": {
-                    "placement_date": placement_date,
-                    "channel_username": channel_username,
-                    "placement_price": placement_price,
-                }
-            },
         )
         return
 

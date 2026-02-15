@@ -18,6 +18,13 @@ def _extract_start_payload(text: str | None) -> str | None:
     return None
 
 
+def _strip_payload_query_suffix(payload: str) -> str:
+    # Ignore optional tracking params accidentally appended to start payload.
+    payload = payload.split("?", 1)[0]
+    payload = payload.split("&", 1)[0]
+    return payload.strip()
+
+
 def parse_general_start_payload(
     message_text: str | None,
 ) -> tuple[str, str, str] | None:
@@ -32,7 +39,7 @@ def parse_general_start_payload(
     if payload.startswith("start="):
         payload = payload.split("=", 1)[1]
 
-    payload = payload.strip()
+    payload = _strip_payload_query_suffix(payload)
     if not payload:
         return None
 
@@ -49,6 +56,13 @@ def parse_general_start_payload(
 
     channel_username = channel_username.lstrip("@")
     if not channel_username:
+        return None
+
+    if (
+        len(placement_date) > 32
+        or len(channel_username) > 64
+        or len(price) > 32
+    ):
         return None
 
     return placement_date, channel_username, price
