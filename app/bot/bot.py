@@ -28,9 +28,25 @@ from app.infrastructure.storage.storage.nats_key_builder import NatsKeyBuilder
 from app.infrastructure.storage.nats_connect import connect_to_nats
 from app.services.telegram.private_event_chats import EventPrivateChatService
 from app.services.advcake.poller import start_advcake_poller
+from app.services.profile_nudges.poller import start_profile_nudges_poller
 from config.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _to_int(value: object, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_bool(value: object, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 async def main():
@@ -102,6 +118,44 @@ async def main():
     else:
         logger.info("AdvCake poller disabled: missing api key")
 
+    profile_nudges_task = None
+    profile_nudges_settings = settings.get("profile_nudges", {}) or {}
+    profile_nudges_enabled = _to_bool(
+        profile_nudges_settings.get("enabled"),
+        True,
+    )
+    if profile_nudges_enabled:
+        profile_nudges_task = asyncio.create_task(
+            start_profile_nudges_poller(
+                bot=bot,
+                db_sessionmaker=db_session_maker,
+                translator_hub=translator_hub,
+                poll_interval_seconds=_to_int(
+                    profile_nudges_settings.get("poll_interval_seconds"),
+                    600,
+                ),
+                first_delay_minutes=_to_int(
+                    profile_nudges_settings.get("first_delay_minutes"),
+                    15,
+                ),
+                remind_delay_hours=_to_int(
+                    profile_nudges_settings.get("remind_delay_hours"),
+                    24,
+                ),
+                max_attempts=_to_int(
+                    profile_nudges_settings.get("max_attempts"),
+                    2,
+                ),
+                batch_size=_to_int(
+                    profile_nudges_settings.get("batch_size"),
+                    200,
+                ),
+            )
+        )
+        logger.info("Profile nudges poller started")
+    else:
+        logger.info("Profile nudges poller disabled")
+
     logger.info("Registering error handlers")
     dp.errors.register(
         on_unknown_intent,
@@ -145,6 +199,10 @@ async def main():
     except Exception as e:
         logger.exception(e)
     finally:
+        if profile_nudges_task:
+            profile_nudges_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await profile_nudges_task
         if advcake_task:
             advcake_task.cancel()
             with suppress(asyncio.CancelledError):

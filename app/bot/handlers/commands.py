@@ -2,7 +2,7 @@ import logging
 
 from aiogram import Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager, StartMode
 from fluentogram import TranslatorRunner
 
@@ -19,6 +19,7 @@ from app.bot.states.registration import GeneralRegistrationSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.users import UsersModel
+from app.services.profile_nudges.poller import PROFILE_NUDGE_CONTINUE_CALLBACK
 
 logger = logging.getLogger(__name__)
 
@@ -125,4 +126,36 @@ async def process_help_command(
 ) -> None:
     await message.answer(
         text=i18n.help.command(),
+    )
+
+
+@commands_router.callback_query(
+    lambda callback: callback.data == PROFILE_NUDGE_CONTINUE_CALLBACK
+)
+async def process_profile_nudge_continue(
+    callback: CallbackQuery,
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    db: DB,
+) -> None:
+    user = callback.from_user
+    if not user:
+        await callback.answer()
+        return
+
+    user_record = await db.users.get_user_record(user_id=user.id)
+    has_profile = bool(user_record and user_record.gender and user_record.age_group)
+    if has_profile:
+        await callback.answer(i18n.general.registration.already())
+        await dialog_manager.start(
+            state=StartSG.start,
+            mode=StartMode.RESET_STACK,
+        )
+        return
+
+    await callback.answer()
+    await dialog_manager.start(
+        state=AccountSG.intro,
+        mode=StartMode.RESET_STACK,
+        data={"force_profile": True},
     )
