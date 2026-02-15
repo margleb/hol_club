@@ -18,6 +18,7 @@ from app.bot.handlers.event_chats import (
 from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
+from app.services.telegram.delivery_status import apply_delivery_error_status
 
 
 async def show_partner_requests_list(
@@ -220,8 +221,12 @@ async def _process_admin_partner_request_decision(
         if bot:
             try:
                 await bot.send_message(target_user_id, i18n.partner.request.approved())
-            except Exception:
-                pass
+            except Exception as exc:
+                await apply_delivery_error_status(
+                    db=db,
+                    user_id=target_user_id,
+                    error=exc,
+                )
         await callback.answer(i18n.partner.decision.approved())
     else:
         if request.status == PartnerRequestStatus.REJECTED:
@@ -238,8 +243,12 @@ async def _process_admin_partner_request_decision(
         if bot:
             try:
                 await bot.send_message(target_user_id, i18n.partner.request.rejected())
-            except Exception:
-                pass
+            except Exception as exc:
+                await apply_delivery_error_status(
+                    db=db,
+                    user_id=target_user_id,
+                    error=exc,
+                )
         await callback.answer(i18n.partner.decision.rejected())
 
     dialog_manager.dialog_data.pop("selected_partner_request_user_id", None)
@@ -421,7 +430,12 @@ async def on_user_event_message_partner_input(
             reply_markup=reply_keyboard,
             parse_mode=ParseMode.HTML,
         )
-    except Exception:
+    except Exception as exc:
+        await apply_delivery_error_status(
+            db=db,
+            user_id=partner_user_id,
+            error=exc,
+        )
         await message.answer(i18n.partner.event.prepay.contact.partner.failed())
         return
 
@@ -720,7 +734,12 @@ async def on_admin_registration_message_input(
             reply_markup=keyboard,
             parse_mode=ParseMode.HTML,
         )
-    except Exception:
+    except Exception as exc:
+        await apply_delivery_error_status(
+            db=db,
+            user_id=target_user_id,
+            error=exc,
+        )
         await message.answer(i18n.start.admin.registrations.pending.message.invalid())
         return
 
@@ -790,10 +809,17 @@ async def decline_pending_registration(
         status=EventRegistrationStatus.DECLINED,
     )
     if bot:
-        await bot.send_message(
-            user_id,
-            i18n.partner.event.prepay.declined(),
-        )
+        try:
+            await bot.send_message(
+                user_id,
+                i18n.partner.event.prepay.declined(),
+            )
+        except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=user_id,
+                error=exc,
+            )
     await callback.answer(i18n.partner.event.prepay.declined.partner())
     await _switch_after_pending_action(dialog_manager)
 

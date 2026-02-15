@@ -14,6 +14,7 @@ from app.bot.enums.partner_requests import PartnerRequestStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.users import UsersModel
+from app.services.telegram.delivery_status import apply_delivery_error_status
 
 # Настройка логгера для текущего модуля
 logger = logging.getLogger(__name__)
@@ -252,6 +253,11 @@ async def _notify_admins(
         try:
             await bot.send_message(admin_id, text=text, reply_markup=keyboard)
         except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=admin_id,
+                error=exc,
+            )
             logger.warning(
                 "Failed to notify admin %s about partner request: %s",
                 admin_id,
@@ -417,6 +423,11 @@ async def _decide_partner_request(
         try:
             await bot.send_message(target_user_id, user_i18n.partner.request.approved())
         except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=target_user_id,
+                error=exc,
+            )
             logger.warning(
                 "Failed to notify user %s about approval: %s",
                 target_user_id,
@@ -445,6 +456,11 @@ async def _decide_partner_request(
         try:
             await bot.send_message(target_user_id, user_i18n.partner.request.rejected())
         except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=target_user_id,
+                error=exc,
+            )
             logger.warning(
                 "Failed to notify user %s about rejection: %s",
                 target_user_id,
@@ -482,24 +498,62 @@ async def send_partner_requests_list(
 
     if not pending_requests:
         # Если нет ожидающих запросов
-        await bot.send_message(admin_id, text=i18n.partner.request.list.empty())
+        try:
+            await bot.send_message(admin_id, text=i18n.partner.request.list.empty())
+        except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=admin_id,
+                error=exc,
+            )
+            logger.warning(
+                "Failed to send empty partner request list to admin %s: %s",
+                admin_id,
+                exc,
+            )
         return
 
     # Отправляем заголовок с количеством запросов
-    await bot.send_message(
-        admin_id,
-        text=i18n.partner.request.list.header(count=len(pending_requests)),
-    )
+    try:
+        await bot.send_message(
+            admin_id,
+            text=i18n.partner.request.list.header(count=len(pending_requests)),
+        )
+    except Exception as exc:
+        await apply_delivery_error_status(
+            db=db,
+            user_id=admin_id,
+            error=exc,
+        )
+        logger.warning(
+            "Failed to send partner request list header to admin %s: %s",
+            admin_id,
+            exc,
+        )
+        return
 
     # Отправляем каждый запрос отдельным сообщением с клавиатурой
     for request in pending_requests:
-        await bot.send_message(
-            admin_id,
-            text=i18n.partner.request.list.item(user_id=request.user_id),
-            reply_markup=_build_partner_request_list_item_keyboard(
-                i18n, request.user_id
-            ),
-        )
+        try:
+            await bot.send_message(
+                admin_id,
+                text=i18n.partner.request.list.item(user_id=request.user_id),
+                reply_markup=_build_partner_request_list_item_keyboard(
+                    i18n, request.user_id
+                ),
+            )
+        except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=admin_id,
+                error=exc,
+            )
+            logger.warning(
+                "Failed to send partner request list item to admin %s: %s",
+                admin_id,
+                exc,
+            )
+            return
 
 
 async def handle_partner_decision_callback(

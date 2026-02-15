@@ -23,6 +23,11 @@ class DataBaseMiddleware(BaseMiddleware):
         async with session_maker() as session:
             try:
                 data['db'] = DB(session)
+                event_from_user = data.get("event_from_user")
+                if event_from_user is not None:
+                    await data["db"].users.mark_reachable_on_incoming(
+                        user_id=event_from_user.id
+                    )
                 result = await handler(event, data)
                 await session.commit()
                 return result

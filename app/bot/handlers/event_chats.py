@@ -17,6 +17,7 @@ from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 from app.bot.states.admin_contact import AdminContactSG
+from app.services.telegram.delivery_status import apply_delivery_error_status
 from config.config import settings
 
 event_chats_router = Router()
@@ -207,6 +208,7 @@ async def _send_chat_link_notification(
     *,
     bot,
     i18n: TranslatorRunner,
+    db: DB | None,
     user_id: int,
     topic_link: str,
     event_name: str | None,
@@ -221,13 +223,23 @@ async def _send_chat_link_notification(
             i18n.partner.event.join.chat.hint(),
         ]
     )
-    await bot.send_message(user_id, text, reply_markup=keyboard)
+    try:
+        await bot.send_message(user_id, text, reply_markup=keyboard)
+    except Exception as exc:
+        if db is not None:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=user_id,
+                error=exc,
+            )
+        raise
 
 
 async def send_event_topic_link_to_user(
     *,
     bot,
     i18n: TranslatorRunner,
+    db: DB | None = None,
     event,
     user_id: int,
     gender: str | None,
@@ -238,6 +250,7 @@ async def send_event_topic_link_to_user(
     await _send_chat_link_notification(
         bot=bot,
         i18n=i18n,
+        db=db,
         user_id=user_id,
         topic_link=topic_link,
         event_name=event.name if event else None,
@@ -288,19 +301,41 @@ async def approve_event_registration_payment(
                 ]
             ]
         )
-    await bot.send_message(
-        user_id,
-        i18n.partner.event.prepay.approved(),
-        reply_markup=partner_contact_keyboard,
-    )
+    try:
+        await bot.send_message(
+            user_id,
+            i18n.partner.event.prepay.approved(),
+            reply_markup=partner_contact_keyboard,
+        )
+    except Exception as exc:
+        await apply_delivery_error_status(
+            db=db,
+            user_id=user_id,
+            error=exc,
+        )
+        logger.warning(
+            "Failed to notify user %s about approved prepay for event %s: %s",
+            user_id,
+            event_id,
+            exc,
+        )
     gender = user_record.gender if user_record else None
-    await send_event_topic_link_to_user(
-        bot=bot,
-        i18n=i18n,
-        event=event,
-        user_id=user_id,
-        gender=gender,
-    )
+    try:
+        await send_event_topic_link_to_user(
+            bot=bot,
+            i18n=i18n,
+            db=db,
+            event=event,
+            user_id=user_id,
+            gender=gender,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to send event topic link to user %s for event %s: %s",
+            user_id,
+            event_id,
+            exc,
+        )
     payer_username = _format_username(
         username=user_record.username if user_record else None,
         user_id=user_id,
@@ -326,6 +361,11 @@ async def approve_event_registration_payment(
                 reply_markup=partner_reply_keyboard,
             )
         except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=event.partner_user_id,
+                error=exc,
+            )
             logger.warning(
                 "Failed to notify partner %s about approved payment for event %s: %s",
                 event.partner_user_id,
@@ -380,18 +420,40 @@ async def approve_event_ticket_purchase(
         )
 
     if bot:
-        await bot.send_message(
-            user_id,
-            i18n.partner.event.ticket.approved(),
-        )
+        try:
+            await bot.send_message(
+                user_id,
+                i18n.partner.event.ticket.approved(),
+            )
+        except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=user_id,
+                error=exc,
+            )
+            logger.warning(
+                "Failed to notify user %s about approved ticket for event %s: %s",
+                user_id,
+                event_id,
+                exc,
+            )
         gender = user_record.gender if user_record else None
-        await send_event_topic_link_to_user(
-            bot=bot,
-            i18n=i18n,
-            event=event,
-            user_id=user_id,
-            gender=gender,
-        )
+        try:
+            await send_event_topic_link_to_user(
+                bot=bot,
+                i18n=i18n,
+                db=db,
+                event=event,
+                user_id=user_id,
+                gender=gender,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to send event topic link to user %s for event %s: %s",
+                user_id,
+                event_id,
+                exc,
+            )
 
     payer_username = _format_username(
         username=user_record.username if user_record else None,
@@ -418,6 +480,11 @@ async def approve_event_ticket_purchase(
                 reply_markup=partner_reply_keyboard,
             )
         except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=event.partner_user_id,
+                error=exc,
+            )
             logger.warning(
                 "Failed to notify partner %s about approved ticket for event %s: %s",
                 event.partner_user_id,
@@ -1238,6 +1305,11 @@ async def process_event_register_confirm(
             )
             successful_notifications += 1
         except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=recipient_id,
+                error=exc,
+            )
             logger.warning(
                 "Failed to notify user %s about payment confirmation for event %s: %s",
                 recipient_id,
@@ -1379,7 +1451,12 @@ async def process_event_message_user_text(
             reply_markup=keyboard,
             parse_mode=ParseMode.HTML,
         )
-    except Exception:
+    except Exception as exc:
+        await apply_delivery_error_status(
+            db=db,
+            user_id=target_user_id,
+            error=exc,
+        )
         await state.clear()
         await message.answer(i18n.start.admin.registrations.pending.message.invalid())
         return
@@ -1433,6 +1510,7 @@ async def process_event_reply_admin(
 async def process_event_reply_admin_text(
     message: Message,
     i18n: TranslatorRunner,
+    db: DB,
     state: FSMContext,
 ) -> None:
     data = await state.get_data()
@@ -1494,7 +1572,12 @@ async def process_event_reply_admin_text(
             reply_markup=reply_keyboard,
             parse_mode=ParseMode.HTML,
         )
-    except Exception:
+    except Exception as exc:
+        await apply_delivery_error_status(
+            db=db,
+            user_id=admin_user_id,
+            error=exc,
+        )
         await state.clear()
         await message.answer(failed_text)
         return
@@ -1617,8 +1700,15 @@ async def process_event_prepay_confirm(
         await callback.answer(i18n.partner.event.prepay.already.processed())
         return
     if callback.bot:
-        await callback.bot.send_message(
-            user_id,
-            i18n.partner.event.prepay.declined(),
-        )
+        try:
+            await callback.bot.send_message(
+                user_id,
+                i18n.partner.event.prepay.declined(),
+            )
+        except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=user_id,
+                error=exc,
+            )
     await callback.answer(i18n.partner.event.prepay.declined.partner())

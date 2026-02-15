@@ -6,6 +6,7 @@ from fluentogram import TranslatorHub, TranslatorRunner
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.infrastructure.database.database.db import DB
+from app.services.telegram.delivery_status import apply_delivery_error_status
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,11 @@ async def _poll_once(
                     )
                     await db.profile_nudges.mark_sent(user_id=user_id)
                 except Exception as exc:
+                    await apply_delivery_error_status(
+                        db=db,
+                        user_id=user_id,
+                        error=exc,
+                    )
                     logger.warning(
                         "Failed to send profile nudge to user_id=%s: %s",
                         user_id,

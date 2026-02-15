@@ -20,6 +20,7 @@ from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
 from app.bot.dialogs.events.utils import build_event_text
+from app.services.telegram.delivery_status import apply_delivery_error_status
 from app.services.telegram.private_event_chats import EventPrivateChatService
 from app.services.geocoders.geocoder import fetch_address_suggestions
 
@@ -717,6 +718,11 @@ async def _broadcast_event_announcement(
                 event_payload=event_payload,
             )
         except Exception as exc:
+            await apply_delivery_error_status(
+                db=db,
+                user_id=user_id,
+                error=exc,
+            )
             logger.warning(
                 "Failed to send event announcement to user_id=%s: %s",
                 user_id,

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,6 +86,72 @@ class _UsersDB:
             "User updated. db='%s', user_id=%d, is_alive=%s",
             self.__tablename__, user_id, is_alive
         )
+
+    async def update_blocked_status(
+        self,
+        *,
+        user_id: int,
+        is_blocked: bool = True,
+    ) -> None:
+        stmt = (
+            update(UsersModel)
+            .where(UsersModel.user_id == user_id)
+            .values(is_blocked=is_blocked)
+        )
+        await self.session.execute(stmt)
+        logger.info(
+            "User updated. db='%s', user_id=%d, is_blocked=%s",
+            self.__tablename__, user_id, is_blocked
+        )
+
+    async def mark_unreachable(
+        self,
+        *,
+        user_id: int,
+        is_blocked: bool,
+    ) -> None:
+        stmt = (
+            update(UsersModel)
+            .where(UsersModel.user_id == user_id)
+            .where(
+                or_(
+                    UsersModel.is_alive.is_(True),
+                    UsersModel.is_blocked.is_(not is_blocked),
+                )
+            )
+            .values(
+                is_alive=False,
+                is_blocked=is_blocked,
+            )
+        )
+        result = await self.session.execute(stmt)
+        if int(result.rowcount or 0) > 0:
+            logger.info(
+                "User marked unreachable. db='%s', user_id=%d, is_blocked=%s",
+                self.__tablename__, user_id, is_blocked
+            )
+
+    async def mark_reachable_on_incoming(self, *, user_id: int) -> None:
+        stmt = (
+            update(UsersModel)
+            .where(UsersModel.user_id == user_id)
+            .where(
+                or_(
+                    UsersModel.is_alive.is_(False),
+                    UsersModel.is_blocked.is_(True),
+                )
+            )
+            .values(
+                is_alive=True,
+                is_blocked=False,
+            )
+        )
+        result = await self.session.execute(stmt)
+        if int(result.rowcount or 0) > 0:
+            logger.info(
+                "User restored on incoming update. db='%s', user_id=%d",
+                self.__tablename__, user_id
+            )
     
     async def update_username(
         self,
