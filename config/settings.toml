@@ -36,6 +36,9 @@
 [default.payments]
     card_number = ""
 
+[default.partner]
+    default_commission_percent = 20
+
 [default.advcake]
     api_key = ""
     poll_interval_seconds = 600

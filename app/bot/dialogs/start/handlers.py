@@ -18,6 +18,7 @@ from app.bot.handlers.event_chats import (
 from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
+from app.services.partner_commission import get_default_partner_commission_percent
 from app.services.telegram.delivery_status import apply_delivery_error_status
 from app.services.telegram.private_event_chats import EventPrivateChatService
 
@@ -218,7 +219,11 @@ async def _process_admin_partner_request_decision(
             user_id=target_user_id,
             approved_by=callback.from_user.id,
         )
-        await db.users.update_role(user_id=target_user_id, role=UserRole.PARTNER)
+        await db.users.update_role(
+            user_id=target_user_id,
+            role=UserRole.PARTNER,
+            default_partner_commission_percent=get_default_partner_commission_percent(),
+        )
         if bot:
             try:
                 await bot.send_message(target_user_id, i18n.partner.request.approved())

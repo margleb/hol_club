@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import case, delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -172,11 +172,26 @@ class _UsersDB:
             username,
         )
 
-    async def update_role(self, *, user_id: int, role: UserRole) -> None:
+    async def update_role(
+        self,
+        *,
+        user_id: int,
+        role: UserRole,
+        default_partner_commission_percent: int | None = None,
+    ) -> None:
+        values: dict[str, object] = {"role": role}
+        if role == UserRole.PARTNER and default_partner_commission_percent is not None:
+            values["commission_percent"] = case(
+                (
+                    UsersModel.commission_percent <= 0,
+                    int(default_partner_commission_percent),
+                ),
+                else_=UsersModel.commission_percent,
+            )
         stmt = (
             update(UsersModel)
             .where(UsersModel.user_id == user_id)
-            .values(role=role)
+            .values(**values)
         )
         await self.session.execute(stmt)
         logger.info(

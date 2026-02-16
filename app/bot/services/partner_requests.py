@@ -15,6 +15,7 @@ from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.users import UsersModel
 from app.services.telegram.delivery_status import apply_delivery_error_status
+from app.services.partner_commission import get_default_partner_commission_percent
 
 # Настройка логгера для текущего модуля
 logger = logging.getLogger(__name__)
@@ -317,7 +318,11 @@ async def process_partner_request(
     if request.status == PartnerRequestStatus.APPROVED:
         # Если запрос уже одобрен, но роль не обновлена
         if user_record.role != UserRole.PARTNER:
-            await db.users.update_role(user_id=user.id, role=UserRole.PARTNER)
+            await db.users.update_role(
+                user_id=user.id,
+                role=UserRole.PARTNER,
+                default_partner_commission_percent=get_default_partner_commission_percent(),
+            )
         await answer(i18n.partner.request.approved())
         return
 
@@ -417,7 +422,11 @@ async def _decide_partner_request(
             user_id=target_user_id,
             approved_by=admin_id,  # Сохраняем ID администратора, который одобрил
         )
-        await db.users.update_role(user_id=target_user_id, role=UserRole.PARTNER)
+        await db.users.update_role(
+            user_id=target_user_id,
+            role=UserRole.PARTNER,
+            default_partner_commission_percent=get_default_partner_commission_percent(),
+        )
 
         # Уведомляем пользователя об одобрении
         try:
