@@ -19,6 +19,7 @@ from app.bot.states.registration import GeneralRegistrationSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.users import UsersModel
+from app.services.telegram.private_event_chats import EventPrivateChatService
 from app.services.profile_nudges.poller import PROFILE_NUDGE_CONTINUE_CALLBACK
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ async def process_start_command(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
     db: DB,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     if not message.from_user:
         return
@@ -63,6 +65,7 @@ async def process_start_command(
             i18n=i18n,
             db=db,
             event_id=event_chat_id,
+            event_private_chat_service=event_private_chat_service,
         )
         return
 
@@ -74,6 +77,7 @@ async def process_start_command(
             i18n=i18n,
             db=db,
             event_id=event_buy_id,
+            event_private_chat_service=event_private_chat_service,
         )
         return
 

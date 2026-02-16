@@ -138,8 +138,15 @@ class _EventsDB:
             event_id,
         )
 
-    async def get_event_by_id(self, *, event_id: int) -> EventsModel | None:
+    async def get_event_by_id(
+        self,
+        *,
+        event_id: int,
+        for_update: bool = False,
+    ) -> EventsModel | None:
         stmt = select(EventsModel).where(EventsModel.id == event_id)
+        if for_update:
+            stmt = stmt.with_for_update()
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

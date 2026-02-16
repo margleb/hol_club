@@ -12,6 +12,7 @@ from app.bot.handlers.event_chats import (
 )
 from app.infrastructure.database.database.db import DB
 from app.services.advcake.client import fetch_orders
+from app.services.telegram.private_event_chats import EventPrivateChatService
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ async def start_advcake_poller(
     db_sessionmaker: async_sessionmaker,
     translator_hub: TranslatorHub,
     api_key: str,
+    event_private_chat_service: EventPrivateChatService | None = None,
     poll_interval_seconds: int = 600,
     days: int = 2,
 ) -> None:
@@ -35,6 +37,7 @@ async def start_advcake_poller(
                 db_sessionmaker=db_sessionmaker,
                 i18n=i18n,
                 api_key=api_key,
+                event_private_chat_service=event_private_chat_service,
                 days=days,
             )
             await asyncio.sleep(poll_interval_seconds)
@@ -51,6 +54,7 @@ async def _poll_once(
     db_sessionmaker: async_sessionmaker,
     i18n: TranslatorRunner,
     api_key: str,
+    event_private_chat_service: EventPrivateChatService | None,
     days: int,
 ) -> None:
     orders = await fetch_orders(api_key=api_key, days=days)
@@ -91,6 +95,7 @@ async def _poll_once(
                     bot=bot,
                     event_id=event_id,
                     user_id=user_id,
+                    event_private_chat_service=event_private_chat_service,
                 )
             await session.commit()
         except Exception as exc:

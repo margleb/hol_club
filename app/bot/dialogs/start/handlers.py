@@ -19,6 +19,7 @@ from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 from app.services.telegram.delivery_status import apply_delivery_error_status
+from app.services.telegram.private_event_chats import EventPrivateChatService
 
 
 async def show_partner_requests_list(
@@ -762,6 +763,9 @@ async def approve_pending_registration(
     db: DB = dialog_manager.middleware_data.get("db")
     i18n = dialog_manager.middleware_data.get("i18n")
     bot = dialog_manager.middleware_data.get("bot")
+    event_private_chat_service: EventPrivateChatService | None = (
+        dialog_manager.middleware_data.get("event_private_chat_service")
+    )
     admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
     if admin_record is None or admin_record.role != UserRole.ADMIN:
         await callback.answer(i18n.partner.event.prepay.admin.only())
@@ -778,6 +782,7 @@ async def approve_pending_registration(
         bot=bot,
         event_id=event_id,
         user_id=user_id,
+        event_private_chat_service=event_private_chat_service,
     )
     if not approved:
         await callback.answer(i18n.partner.event.prepay.already.processed())

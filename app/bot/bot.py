@@ -110,6 +110,7 @@ async def main():
                 db_sessionmaker=db_session_maker,
                 translator_hub=translator_hub,
                 api_key=advcake_api_key,
+                event_private_chat_service=event_private_chat_service,
                 poll_interval_seconds=advcake_interval,
                 days=advcake_days,
             )

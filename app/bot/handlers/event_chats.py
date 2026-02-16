@@ -18,6 +18,7 @@ from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
 from app.bot.states.admin_contact import AdminContactSG
 from app.services.telegram.delivery_status import apply_delivery_error_status
+from app.services.telegram.private_event_chats import EventPrivateChatService
 from config.config import settings
 
 event_chats_router = Router()
@@ -243,8 +244,22 @@ async def send_event_topic_link_to_user(
     event,
     user_id: int,
     gender: str | None,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
-    topic_link = _get_event_topic_link(event, gender)
+    current_event = event
+    topic_link = _get_event_topic_link(current_event, gender)
+    if (
+        not topic_link
+        and db is not None
+        and current_event is not None
+        and event_private_chat_service is not None
+    ):
+        current_event = await ensure_event_private_chat(
+            db=db,
+            event_id=current_event.id,
+            event_private_chat_service=event_private_chat_service,
+        )
+        topic_link = _get_event_topic_link(current_event, gender) if current_event else None
     if not topic_link:
         return
     await _send_chat_link_notification(
@@ -253,8 +268,50 @@ async def send_event_topic_link_to_user(
         db=db,
         user_id=user_id,
         topic_link=topic_link,
-        event_name=event.name if event else None,
+        event_name=current_event.name if current_event else None,
     )
+
+
+async def ensure_event_private_chat(
+    *,
+    db: DB,
+    event_id: int,
+    event_private_chat_service: EventPrivateChatService | None,
+):
+    if event_private_chat_service is None or not event_private_chat_service.enabled:
+        return await db.events.get_event_by_id(event_id=event_id)
+
+    event = await db.events.get_event_by_id(event_id=event_id, for_update=True)
+    if event is None:
+        return None
+    if (getattr(event, "private_chat_invite_link", None) or "").strip():
+        return event
+
+    partner_username: str | None = None
+    if isinstance(event.partner_user_id, int):
+        partner_record = await db.users.get_user_record(user_id=event.partner_user_id)
+        if partner_record:
+            partner_username = partner_record.username
+
+    private_chat = await event_private_chat_service.create_event_chat(
+        event_id=event.id,
+        event_name=event.name,
+        partner_user_id=event.partner_user_id,
+        partner_username=partner_username,
+    )
+    if private_chat is None:
+        logger.warning(
+            "Failed to lazily create private event chat for event %s",
+            event_id,
+        )
+        return event
+
+    await db.events.mark_event_private_chat(
+        event_id=event.id,
+        chat_id=private_chat.chat_id,
+        invite_link=private_chat.invite_link,
+    )
+    return await db.events.get_event_by_id(event_id=event.id)
 
 
 async def approve_event_registration_payment(
@@ -264,6 +321,7 @@ async def approve_event_registration_payment(
     bot,
     event_id: int,
     user_id: int,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> bool:
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
@@ -328,6 +386,7 @@ async def approve_event_registration_payment(
             event=event,
             user_id=user_id,
             gender=gender,
+            event_private_chat_service=event_private_chat_service,
         )
     except Exception as exc:
         logger.warning(
@@ -388,6 +447,7 @@ async def approve_event_ticket_purchase(
     bot,
     event_id: int,
     user_id: int,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> bool:
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
@@ -446,6 +506,7 @@ async def approve_event_ticket_purchase(
                 event=event,
                 user_id=user_id,
                 gender=gender,
+                event_private_chat_service=event_private_chat_service,
             )
         except Exception as exc:
             logger.warning(
@@ -714,6 +775,7 @@ async def _maybe_start_registration(
     event,
     user_id: int,
     gender: str | None,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     user_record = await db.users.get_user_record(user_id=user_id)
     if user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}:
@@ -736,7 +798,17 @@ async def _maybe_start_registration(
         EventRegistrationStatus.CONFIRMED,
         EventRegistrationStatus.ATTENDED_CONFIRMED,
     }:
-        topic_link = _get_event_topic_link(event, gender)
+        event_with_chat = event
+        topic_link = _get_event_topic_link(event_with_chat, gender)
+        if not topic_link:
+            ensured_event = await ensure_event_private_chat(
+                db=db,
+                event_id=event.id,
+                event_private_chat_service=event_private_chat_service,
+            )
+            if ensured_event is not None:
+                event_with_chat = ensured_event
+                topic_link = _get_event_topic_link(event_with_chat, gender)
         if not topic_link:
             await message.answer(i18n.partner.event.join.chat.missing())
             return
@@ -744,7 +816,7 @@ async def _maybe_start_registration(
             message=message,
             i18n=i18n,
             topic_link=topic_link,
-            event_name=event.name if event else None,
+            event_name=event_with_chat.name if event_with_chat else None,
         )
         return
 
@@ -839,6 +911,7 @@ async def handle_event_chat_start(
     i18n: TranslatorRunner,
     db: DB,
     event_id: int,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     user = message.from_user
     if not user:
@@ -877,6 +950,7 @@ async def handle_event_chat_start(
         event=event,
         user_id=user.id,
         gender=gender,
+        event_private_chat_service=event_private_chat_service,
     )
 
 
@@ -886,6 +960,7 @@ async def handle_event_buy_start(
     i18n: TranslatorRunner,
     db: DB,
     event_id: int,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     user = message.from_user
     if not user:
@@ -925,6 +1000,7 @@ async def handle_event_buy_start(
         event=event,
         user_id=user.id,
         gender=gender,
+        event_private_chat_service=event_private_chat_service,
     )
 
 
@@ -936,6 +1012,7 @@ async def process_event_join_chat(
     callback: CallbackQuery,
     i18n: TranslatorRunner,
     db: DB,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     parts = _parse_callback_parts(callback.data, EVENT_JOIN_CHAT_CALLBACK, 2)
     if not parts:
@@ -991,6 +1068,7 @@ async def process_event_join_chat(
             event=event,
             user_id=user.id,
             gender=gender,
+            event_private_chat_service=event_private_chat_service,
         )
     await callback.answer()
 
@@ -1003,6 +1081,7 @@ async def process_event_join_chat_gender(
     callback: CallbackQuery,
     i18n: TranslatorRunner,
     db: DB,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     parts = _parse_callback_parts(callback.data, EVENT_JOIN_CHAT_GENDER_CALLBACK, 3)
     if not parts:
@@ -1060,6 +1139,7 @@ async def process_event_join_chat_gender(
             event=event,
             user_id=user.id,
             gender=gender,
+            event_private_chat_service=event_private_chat_service,
         )
     await callback.answer()
 
@@ -1072,6 +1152,7 @@ async def process_event_join_chat_age(
     callback: CallbackQuery,
     i18n: TranslatorRunner,
     db: DB,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     parts = _parse_callback_parts(callback.data, EVENT_JOIN_CHAT_AGE_CALLBACK, 3)
     if not parts:
@@ -1129,6 +1210,7 @@ async def process_event_join_chat_age(
             event=event,
             user_id=user.id,
             gender=gender,
+            event_private_chat_service=event_private_chat_service,
         )
     await callback.answer()
 
@@ -1638,6 +1720,7 @@ async def process_event_prepay_confirm(
     callback: CallbackQuery,
     i18n: TranslatorRunner,
     db: DB,
+    event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     parts = _parse_callback_parts(callback.data, EVENT_PREPAY_CONFIRM_CALLBACK, 4)
     if not parts:
@@ -1683,6 +1766,7 @@ async def process_event_prepay_confirm(
             bot=callback.bot,
             event_id=event_id,
             user_id=user_id,
+            event_private_chat_service=event_private_chat_service,
         )
         if not approved:
             await callback.answer(i18n.partner.event.prepay.already.processed())
