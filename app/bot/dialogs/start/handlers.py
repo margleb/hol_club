@@ -775,6 +775,16 @@ async def approve_pending_registration(
     if not event_id or not user_id:
         await callback.answer()
         return
+    registration = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user_id,
+    )
+    if registration is None:
+        await callback.answer(i18n.partner.event.registrations.pending.details.missing())
+        return
+    if not registration.payment_proof_file_id:
+        await callback.answer(i18n.partner.event.prepay.receipt.required())
+        return
 
     approved = await approve_event_registration_payment(
         db=db,

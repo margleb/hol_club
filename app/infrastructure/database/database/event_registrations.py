@@ -113,6 +113,42 @@ class _EventRegistrationsDB:
             )
         return updated
 
+    async def attach_payment_proof_and_move_to_pending_if_current(
+        self,
+        *,
+        event_id: int,
+        user_id: int,
+        payment_proof_file_id: str,
+        payment_proof_type: str,
+    ) -> bool:
+        stmt = (
+            update(EventRegistrationsModel)
+            .where(EventRegistrationsModel.event_id == event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+            .where(
+                EventRegistrationsModel.status
+                == EventRegistrationStatus.PENDING_PAYMENT
+            )
+            .values(
+                status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+                payment_proof_file_id=payment_proof_file_id,
+                payment_proof_type=payment_proof_type,
+                payment_proof_uploaded_at=datetime.now(timezone.utc),
+            )
+        )
+        result = await self.session.execute(stmt)
+        updated = bool(result.rowcount)
+        if updated:
+            logger.info(
+                "Event registration payment proof stored. db='%s', event_id=%d, "
+                "user_id=%d, proof_type=%s",
+                self.__tablename__,
+                event_id,
+                user_id,
+                payment_proof_type,
+            )
+        return updated
+
     async def mark_paid_confirmed(
         self,
         *,

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Enum, Integer, func
+from sqlalchemy import BigInteger, DateTime, Enum, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.bot.enums.event_registrations import EventRegistrationStatus
@@ -23,6 +23,9 @@ class EventRegistrationsModel(BaseModel):
         nullable=False,
     )
     amount: Mapped[int | None] = mapped_column(Integer)
+    payment_proof_file_id: Mapped[str | None] = mapped_column(String(length=512))
+    payment_proof_type: Mapped[str | None] = mapped_column(String(length=32))
+    payment_proof_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

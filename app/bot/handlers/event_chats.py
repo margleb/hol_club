@@ -36,6 +36,9 @@ EVENT_CONTACT_PARTNER_CALLBACK = "event_contact_partner"
 EVENT_MESSAGE_DONE_BACK_CALLBACK = "event_message_done_back"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 EVENT_BUY_START_PREFIX = "event_buy_"
+PAYMENT_PROOF_EVENT_ID_KEY = "payment_proof_event_id"
+PAYMENT_PROOF_TYPE_PHOTO = "photo"
+PAYMENT_PROOF_TYPE_DOCUMENT = "document"
 
 
 def _format_username(
@@ -101,6 +104,14 @@ def _build_done_back_keyboard(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def _extract_payment_proof(message: Message) -> tuple[str, str] | None:
+    if message.photo:
+        return message.photo[-1].file_id, PAYMENT_PROOF_TYPE_PHOTO
+    if message.document:
+        return message.document.file_id, PAYMENT_PROOF_TYPE_DOCUMENT
+    return None
 
 
 def build_gender_keyboard(
@@ -325,6 +336,13 @@ async def approve_event_registration_payment(
 ) -> bool:
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
+        return False
+
+    registration = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user_id,
+    )
+    if registration is None or not registration.payment_proof_file_id:
         return False
 
     approved = await db.event_registrations.mark_paid_confirmed_if_current(
@@ -1264,6 +1282,7 @@ async def process_event_register_confirm(
     callback: CallbackQuery,
     i18n: TranslatorRunner,
     db: DB,
+    state: FSMContext,
 ) -> None:
     parts = _parse_callback_parts(callback.data, EVENT_REGISTER_CONFIRM_CALLBACK, 3)
     if not parts:
@@ -1291,27 +1310,98 @@ async def process_event_register_confirm(
     if event is None:
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
-    if not callback.bot:
-        await callback.answer()
-        return
-
-    moved_to_pending = await db.event_registrations.update_status_if_current(
+    registration = await db.event_registrations.get_by_user_event(
         event_id=event_id,
         user_id=user.id,
-        current_status=EventRegistrationStatus.PENDING_PAYMENT,
-        new_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+    )
+    if registration is None:
+        await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    if registration.status == EventRegistrationStatus.PAID_CONFIRM_PENDING:
+        if callback.message:
+            await callback.message.answer(i18n.partner.event.prepay.waiting())
+        await callback.answer()
+        return
+    if registration.status != EventRegistrationStatus.PENDING_PAYMENT:
+        await callback.answer(i18n.partner.event.prepay.already.processed())
+        return
+
+    await state.set_state(AdminContactSG.waiting_payment_proof)
+    await state.update_data(**{PAYMENT_PROOF_EVENT_ID_KEY: event_id})
+    if callback.message:
+        await callback.message.answer(i18n.partner.event.prepay.receipt.prompt())
+    await callback.answer()
+
+
+@event_chats_router.message(AdminContactSG.waiting_payment_proof)
+async def process_event_payment_proof(
+    message: Message,
+    i18n: TranslatorRunner,
+    db: DB,
+    state: FSMContext,
+) -> None:
+    data = await state.get_data()
+    event_id = data.get(PAYMENT_PROOF_EVENT_ID_KEY)
+    if not isinstance(event_id, int):
+        await state.clear()
+        await message.answer(i18n.partner.event.prepay.receipt.invalid())
+        return
+
+    user = message.from_user
+    if not user:
+        await state.clear()
+        return
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await state.clear()
+        await message.answer(i18n.partner.event.join.chat.missing())
+        return
+
+    registration = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user.id,
+    )
+    if registration is None:
+        await state.clear()
+        await message.answer(i18n.partner.event.join.chat.missing())
+        return
+    if registration.status == EventRegistrationStatus.PAID_CONFIRM_PENDING:
+        await state.clear()
+        await message.answer(i18n.partner.event.prepay.waiting())
+        return
+    if registration.status != EventRegistrationStatus.PENDING_PAYMENT:
+        await state.clear()
+        await message.answer(i18n.partner.event.prepay.already.processed())
+        return
+
+    payment_proof = _extract_payment_proof(message)
+    if payment_proof is None:
+        await message.answer(i18n.partner.event.prepay.receipt.invalid())
+        return
+    payment_proof_file_id, payment_proof_type = payment_proof
+
+    moved_to_pending = (
+        await db.event_registrations.attach_payment_proof_and_move_to_pending_if_current(
+            event_id=event_id,
+            user_id=user.id,
+            payment_proof_file_id=payment_proof_file_id,
+            payment_proof_type=payment_proof_type,
+        )
     )
     if not moved_to_pending:
-        registration = await db.event_registrations.get_by_user_event(
+        current_registration = await db.event_registrations.get_by_user_event(
             event_id=event_id,
             user_id=user.id,
         )
-        if registration and registration.status == EventRegistrationStatus.PAID_CONFIRM_PENDING:
-            if callback.message:
-                await callback.message.answer(i18n.partner.event.prepay.waiting())
-            await callback.answer()
+        await state.clear()
+        if (
+            current_registration
+            and current_registration.status == EventRegistrationStatus.PAID_CONFIRM_PENDING
+        ):
+            await message.answer(i18n.partner.event.prepay.waiting())
             return
-        await callback.answer(i18n.partner.event.prepay.already.processed())
+        await message.answer(i18n.partner.event.prepay.already.processed())
         return
 
     payer_username = _format_username(
@@ -1345,7 +1435,7 @@ async def process_event_register_confirm(
                     text=i18n.start.admin.registrations.pending.write.button(),
                     callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user.id}",
                 )
-            ]
+            ],
         ]
     )
     admin_ids = await db.users.get_admin_user_ids()
@@ -1366,9 +1456,8 @@ async def process_event_register_confirm(
                 event_id,
                 user.id,
             )
-        if callback.message:
-            await callback.message.answer(i18n.partner.event.prepay.admin.missing())
-        await callback.answer()
+        await state.clear()
+        await message.answer(i18n.partner.event.prepay.admin.missing())
         return
     prepay_amount = _calc_prepay_amount(event)
     notify_text = i18n.partner.event.prepay.notify(
@@ -1380,11 +1469,26 @@ async def process_event_register_confirm(
     successful_notifications = 0
     for recipient_id in admin_ids:
         try:
-            await callback.bot.send_message(
-                recipient_id,
-                notify_text,
-                reply_markup=keyboard,
-            )
+            if payment_proof_type == PAYMENT_PROOF_TYPE_PHOTO:
+                await message.bot.send_photo(
+                    recipient_id,
+                    photo=payment_proof_file_id,
+                    caption=notify_text,
+                    reply_markup=keyboard,
+                )
+            elif payment_proof_type == PAYMENT_PROOF_TYPE_DOCUMENT:
+                await message.bot.send_document(
+                    recipient_id,
+                    document=payment_proof_file_id,
+                    caption=notify_text,
+                    reply_markup=keyboard,
+                )
+            else:
+                await message.bot.send_message(
+                    recipient_id,
+                    notify_text,
+                    reply_markup=keyboard,
+                )
             successful_notifications += 1
         except Exception as exc:
             await apply_delivery_error_status(
@@ -1411,27 +1515,25 @@ async def process_event_register_confirm(
                 event_id,
                 user.id,
             )
-        if callback.message:
-            await callback.message.answer(i18n.partner.event.prepay.admin.missing())
-        await callback.answer()
+        await state.clear()
+        await message.answer(i18n.partner.event.prepay.admin.missing())
         return
 
-    if callback.message:
-        status_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=i18n.partner.event.prepay.contact.button(),
-                        url=f"tg://user?id={admin_ids[0]}",
-                    )
-                ]
+    status_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.prepay.contact.button(),
+                    url=f"tg://user?id={admin_ids[0]}",
+                )
             ]
-        )
-        await callback.message.answer(
-            i18n.partner.event.prepay.sent(),
-            reply_markup=status_keyboard,
-        )
-    await callback.answer()
+        ]
+    )
+    await state.clear()
+    await message.answer(
+        i18n.partner.event.prepay.sent(),
+        reply_markup=status_keyboard,
+    )
 
 
 @event_chats_router.callback_query(
@@ -1760,6 +1862,9 @@ async def process_event_prepay_confirm(
         return
 
     if decision == "approve":
+        if not registration.payment_proof_file_id:
+            await callback.answer(i18n.partner.event.prepay.receipt.required())
+            return
         approved = await approve_event_registration_payment(
             db=db,
             i18n=i18n,
