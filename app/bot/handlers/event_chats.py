@@ -39,6 +39,7 @@ EVENT_BUY_START_PREFIX = "event_buy_"
 PAYMENT_PROOF_EVENT_ID_KEY = "payment_proof_event_id"
 PAYMENT_PROOF_TYPE_PHOTO = "photo"
 PAYMENT_PROOF_TYPE_DOCUMENT = "document"
+PAYMENT_RECEIPTS_VAULT_CHANNEL_ENV = "PAYMENT_RECEIPTS_VAULT_CHANNEL"
 
 
 def _format_username(
@@ -112,6 +113,46 @@ def _extract_payment_proof(message: Message) -> tuple[str, str] | None:
     if message.document:
         return message.document.file_id, PAYMENT_PROOF_TYPE_DOCUMENT
     return None
+
+
+def _normalize_telegram_chat_target(raw_target: object) -> int | str | None:
+    if isinstance(raw_target, int):
+        return raw_target
+    if raw_target is None:
+        return None
+    target = str(raw_target).strip()
+    if not target:
+        return None
+
+    if target.startswith(("https://", "http://")):
+        parsed = urlparse(target)
+        if parsed.netloc not in {"t.me", "www.t.me"}:
+            return None
+        target = (parsed.path or "").strip("/")
+        if not target:
+            return None
+
+    if target.startswith("t.me/"):
+        target = target[5:].strip("/")
+        if not target:
+            return None
+
+    if target.startswith("+"):
+        return None
+
+    if target.lstrip("-").isdigit():
+        return int(target)
+
+    if not target.startswith("@"):
+        target = f"@{target}"
+    return target
+
+
+def _get_payment_receipts_vault_channel() -> int | str | None:
+    configured = os.getenv(PAYMENT_RECEIPTS_VAULT_CHANNEL_ENV)
+    if not configured:
+        configured = settings.get("payment_receipts_vault_channel")
+    return _normalize_telegram_chat_target(configured)
 
 
 def build_gender_keyboard(
@@ -729,6 +770,46 @@ async def _send_prepay_message(
         ]
     )
     await message.answer(text, reply_markup=keyboard)
+
+
+async def _save_payment_proof_to_vault_channel(
+    *,
+    message: Message,
+    event_id: int,
+    user_id: int,
+    payment_proof_file_id: str,
+    payment_proof_type: str,
+    caption: str,
+) -> None:
+    vault_channel = _get_payment_receipts_vault_channel()
+    if vault_channel is None:
+        return
+
+    try:
+        if payment_proof_type == PAYMENT_PROOF_TYPE_PHOTO:
+            await message.bot.send_photo(
+                chat_id=vault_channel,
+                photo=payment_proof_file_id,
+                caption=caption,
+            )
+            return
+        if payment_proof_type == PAYMENT_PROOF_TYPE_DOCUMENT:
+            await message.bot.send_document(
+                chat_id=vault_channel,
+                document=payment_proof_file_id,
+                caption=caption,
+            )
+            return
+        await message.bot.send_message(chat_id=vault_channel, text=caption)
+    except Exception as exc:
+        logger.warning(
+            "Failed to save payment proof to vault channel. event_id=%s, user_id=%s, "
+            "channel=%s, error=%s",
+            event_id,
+            user_id,
+            vault_channel,
+            exc,
+        )
 
 
 async def _send_ticket_purchase_message(
@@ -1466,6 +1547,16 @@ async def process_event_payment_proof(
         partner_username=partner_username,
         amount=prepay_amount if prepay_amount is not None else "-",
     )
+
+    await _save_payment_proof_to_vault_channel(
+        message=message,
+        event_id=event_id,
+        user_id=user.id,
+        payment_proof_file_id=payment_proof_file_id,
+        payment_proof_type=payment_proof_type,
+        caption=notify_text,
+    )
+
     successful_notifications = 0
     for recipient_id in admin_ids:
         try:
