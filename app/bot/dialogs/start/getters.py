@@ -573,30 +573,69 @@ async def get_partner_pending_registration_details(
             "approve_button": i18n.partner.event.registrations.pending.approve.button(),
             "decline_button": i18n.partner.event.registrations.pending.decline.button(),
             "can_confirm_payment": False,
+            "payment_proof_media": None,
+            "has_payment_proof_media": False,
             "show_contact_user_button": False,
             "contact_user_button": "",
             "admin_only_note": i18n.partner.event.prepay.admin.only(),
             "back_button": i18n.back.button(),
         }
 
+    event = await db.events.get_event_by_id(event_id=event_id)
     reg = await db.event_registrations.get_by_user_event(
         event_id=event_id,
         user_id=user_id,
     )
+    if event is None or reg is None:
+        return {
+            "details_text": i18n.partner.event.registrations.pending.details.missing(),
+            "approve_button": i18n.partner.event.registrations.pending.approve.button(),
+            "decline_button": i18n.partner.event.registrations.pending.decline.button(),
+            "can_confirm_payment": False,
+            "payment_proof_media": None,
+            "has_payment_proof_media": False,
+            "show_contact_user_button": False,
+            "contact_user_button": "",
+            "admin_only_note": i18n.partner.event.prepay.admin.only(),
+            "back_button": i18n.back.button(),
+        }
+
     user = await db.users.get_user_record(user_id=user_id)
     viewer = await db.users.get_user_record(user_id=event_from_user.id)
     can_confirm_payment = bool(viewer and viewer.role == UserRole.ADMIN)
     username = f"@{user.username}" if user and user.username else f"id:{user_id}"
-    amount = reg.amount if reg else "-"
-    text = i18n.partner.event.registrations.pending.details.text(
+    partner_record = await db.users.get_user_record(user_id=event.partner_user_id)
+    partner_username = (
+        f"@{partner_record.username}"
+        if partner_record and partner_record.username
+        else f"id:{event.partner_user_id}"
+    )
+    amount = reg.amount if reg.amount is not None else "-"
+    text = i18n.partner.event.prepay.notify(
         username=username,
+        event_name=event.name,
+        partner_username=partner_username,
         amount=amount,
     )
+    payment_proof_media = None
+    if reg.payment_proof_file_id and reg.payment_proof_type in {"photo", "document"}:
+        media_type = (
+            ContentType.PHOTO
+            if reg.payment_proof_type == "photo"
+            else ContentType.DOCUMENT
+        )
+        payment_proof_media = MediaAttachment(
+            type=media_type,
+            file_id=MediaId(reg.payment_proof_file_id),
+        )
+
     return {
         "details_text": text,
         "approve_button": i18n.partner.event.registrations.pending.approve.button(),
         "decline_button": i18n.partner.event.registrations.pending.decline.button(),
         "can_confirm_payment": can_confirm_payment,
+        "payment_proof_media": payment_proof_media,
+        "has_payment_proof_media": payment_proof_media is not None,
         "show_contact_user_button": can_confirm_payment,
         "contact_user_button": i18n.start.admin.registrations.pending.contact.button(),
         "admin_only_note": i18n.partner.event.prepay.admin.only(),

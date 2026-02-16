@@ -462,6 +462,7 @@ start_dialog = Dialog(
         state=StartSG.admin_registration_pending_list,
     ),
     Window(
+        DynamicMedia("payment_proof_media", when="has_payment_proof_media"),
         Format("{details_text}"),
         Format("{admin_only_note}", when="not can_confirm_payment"),
         Row(
