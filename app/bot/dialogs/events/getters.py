@@ -114,17 +114,6 @@ async def get_event_price(
     }
 
 
-async def get_event_ticket_url(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    **kwargs,
-) -> dict[str, str]:
-    return {
-        "prompt": i18n.partner.event.ticket.link.prompt(),
-        "back_button": i18n.back.button(),
-    }
-
-
 async def get_event_age_group(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -148,8 +137,6 @@ async def get_event_age_group(
 async def get_event_preview(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
-    event_from_user: User,
-    db: DB,
     **kwargs,
 ) -> dict[str, str | bool]:
     has_photo = bool(dialog_manager.dialog_data.get("photo_file_id"))
@@ -158,17 +145,8 @@ async def get_event_preview(
         i18n,
     )
 
-    lines = []
-    lines.append(preview_text)
-    ticket_url = (dialog_manager.dialog_data.get("ticket_url") or "").strip()
-    if ticket_url:
-        lines.append(i18n.partner.event.ticket.link.preview(url=ticket_url))
-
-    user_record = await db.users.get_user_record(user_id=event_from_user.id)
-    is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
-
     return {
-        "preview": "\n".join(lines).strip(),
+        "preview": preview_text.strip(),
         "preview_media": (
             MediaAttachment(
                 type=ContentType.PHOTO,
@@ -184,9 +162,7 @@ async def get_event_preview(
         "edit_address_button": i18n.partner.event.edit.address.button(),
         "edit_description_button": i18n.partner.event.edit.description.button(),
         "edit_price_button": i18n.partner.event.edit.price.button(),
-        "edit_ticket_button": i18n.partner.event.edit.ticket.link.button(),
         "edit_age_button": i18n.partner.event.edit.age.button(),
         "is_paid": bool(dialog_manager.dialog_data.get("is_paid")),
-        "can_edit_ticket": is_admin,
         "back_button": i18n.back.button(),
     }

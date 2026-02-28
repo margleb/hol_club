@@ -1,1 +1,0 @@
-"""AdvCake integration helpers."""

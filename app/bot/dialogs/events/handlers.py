@@ -1,7 +1,6 @@
 import hashlib
 import logging
 from datetime import datetime
-from urllib.parse import urlparse
 
 from aiogram.types import (
     CallbackQuery,
@@ -26,7 +25,6 @@ from app.services.geocoders.geocoder import fetch_address_suggestions
 logger = logging.getLogger(__name__)
 EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
 EVENT_CHAT_START_PREFIX = "event_chat_"
-EVENT_BUY_START_PREFIX = "event_buy_"
 
 
 def _get_events_channel() -> str | None:
@@ -35,13 +33,6 @@ def _get_events_channel() -> str | None:
 
 def _is_edit_mode(dialog_manager: DialogManager) -> bool:
     return bool(dialog_manager.dialog_data.get("edit_mode"))
-
-
-def _is_valid_ticket_url(value: str) -> bool:
-    if not value:
-        return False
-    parsed = urlparse(value)
-    return bool(parsed.scheme in {"http", "https"} and parsed.netloc)
 
 
 async def _return_to_preview(dialog_manager: DialogManager) -> None:
@@ -291,17 +282,6 @@ async def back_from_event_price(
     await dialog_manager.switch_to(EventsSG.description)
 
 
-async def back_from_event_ticket_url(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    if _is_edit_mode(dialog_manager):
-        await _return_to_preview(dialog_manager)
-        return
-    await dialog_manager.switch_to(EventsSG.price)
-
-
 async def back_from_event_age_group(
     callback: CallbackQuery,
     button: Button,
@@ -310,15 +290,7 @@ async def back_from_event_age_group(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    user: User | None = dialog_manager.middleware_data.get("event_from_user")
-    db: DB | None = dialog_manager.middleware_data.get("db")
-    is_admin = False
-    if user and db:
-        user_record = await db.users.get_user_record(user_id=user.id)
-        is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
-    await dialog_manager.switch_to(
-        EventsSG.ticket_url if is_admin else EventsSG.price
-    )
+    await dialog_manager.switch_to(EventsSG.price)
 
 
 
@@ -405,47 +377,6 @@ async def on_event_price_input(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
-    if user_record and user_record.role == UserRole.ADMIN:
-        await dialog_manager.switch_to(EventsSG.ticket_url)
-    else:
-        dialog_manager.dialog_data["ticket_url"] = None
-        await dialog_manager.switch_to(EventsSG.age_group)
-
-
-async def on_event_ticket_url_input(
-    message: Message,
-    widget,
-    dialog_manager: DialogManager,
-    data: str,
-) -> None:
-    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    db: DB | None = dialog_manager.middleware_data.get("db")
-    if db and message.from_user:
-        user_record = await db.users.get_user_record(user_id=message.from_user.id)
-        if not user_record or user_record.role != UserRole.ADMIN:
-            await message.answer(i18n.partner.event.forbidden())
-            return
-    ticket_url = (data or "").strip()
-    if not _is_valid_ticket_url(ticket_url):
-        await message.answer(i18n.partner.event.ticket.link.invalid())
-        return
-
-    dialog_manager.dialog_data["ticket_url"] = ticket_url
-    if _is_edit_mode(dialog_manager):
-        await _return_to_preview(dialog_manager)
-        return
-    await dialog_manager.switch_to(EventsSG.age_group)
-
-
-async def skip_event_ticket_url(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    dialog_manager.dialog_data["ticket_url"] = None
-    if _is_edit_mode(dialog_manager):
-        await _return_to_preview(dialog_manager)
-        return
     await dialog_manager.switch_to(EventsSG.age_group)
 
 async def on_event_age_selected(
@@ -520,26 +451,6 @@ async def edit_event_price(
     await dialog_manager.switch_to(EventsSG.price)
 
 
-async def edit_event_ticket(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    user: User | None = dialog_manager.middleware_data.get("event_from_user")
-    db: DB | None = dialog_manager.middleware_data.get("db")
-    if not user or not db:
-        return
-    user_record = await db.users.get_user_record(user_id=user.id)
-    if not user_record or user_record.role != UserRole.ADMIN:
-        await callback.answer(
-            dialog_manager.middleware_data.get("i18n").partner.event.forbidden(),
-            show_alert=True,
-        )
-        return
-    dialog_manager.dialog_data["edit_mode"] = True
-    await dialog_manager.switch_to(EventsSG.ticket_url)
-
-
 async def edit_event_age(
     callback: CallbackQuery,
     button: Button,
@@ -596,24 +507,6 @@ async def _build_event_join_start_link(
     return f"https://t.me/{username}?start={EVENT_CHAT_START_PREFIX}{event_id}"
 
 
-async def _build_event_buy_start_link(
-    *,
-    bot,
-    event_id: int | None,
-) -> str | None:
-    if not event_id:
-        return None
-    try:
-        me = await bot.get_me()
-    except Exception as exc:
-        logger.warning("Failed to get bot username for event buy link: %s", exc)
-        return None
-    username = getattr(me, "username", None)
-    if not username:
-        return None
-    return f"https://t.me/{username}?start={EVENT_BUY_START_PREFIX}{event_id}"
-
-
 async def _send_event_announcement_to_user(
     *,
     bot,
@@ -638,34 +531,16 @@ async def _send_event_announcement_to_user(
         event_payload.get("channel_message_id"),
     )
     event_id = event_payload.get("id")
-    has_ticket_url = bool((event_payload.get("ticket_url") or "").strip())
     keyboard_rows = []
     if isinstance(event_id, int):
-        if has_ticket_url:
-            buy_url = event_payload.get("buy_url")
-            if not buy_url:
-                buy_url = await _build_event_buy_start_link(
-                    bot=bot,
-                    event_id=event_id,
+        keyboard_rows.append(
+            [
+                InlineKeyboardButton(
+                    text=i18n.partner.event.join.chat.button(),
+                    callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
                 )
-            if buy_url:
-                keyboard_rows.append(
-                    [
-                        InlineKeyboardButton(
-                            text=i18n.partner.event.buy.ticket.button(),
-                            url=buy_url,
-                        )
-                    ]
-                )
-        else:
-            keyboard_rows.append(
-                [
-                    InlineKeyboardButton(
-                        text=i18n.partner.event.join.chat.button(),
-                        callback_data=f"{EVENT_JOIN_CHAT_CALLBACK}:{event_id}",
-                    )
-                ]
-            )
+            ]
+        )
     if post_url:
         keyboard_rows.append(
             [
@@ -744,18 +619,6 @@ async def publish_event(
         return
 
     data = dialog_manager.dialog_data
-    user_record = await db.users.get_user_record(user_id=user.id)
-    is_admin = bool(user_record and user_record.role == UserRole.ADMIN)
-    ticket_url = (data.get("ticket_url") or "").strip()
-    if not is_admin:
-        data["ticket_url"] = None
-        ticket_url = ""
-    elif not ticket_url:
-        await callback.answer(
-            i18n.partner.event.ticket.link.missing(),
-            show_alert=True,
-        )
-        return
     photo_id = data.get("photo_file_id")
     text = build_event_text(data, i18n)
 
@@ -770,7 +633,6 @@ async def publish_event(
             data.get("price") or "",
             str(data.get("prepay_percent") or ""),
             str(data.get("prepay_fixed_free") or ""),
-            data.get("ticket_url") or "",
             data.get("age_group") or "",
         ]
     )
@@ -785,7 +647,6 @@ async def publish_event(
         price=data.get("price"),
         prepay_percent=data.get("prepay_percent"),
         prepay_fixed_free=data.get("prepay_fixed_free"),
-        ticket_url=data.get("ticket_url"),
         age_group=data.get("age_group"),
         photo_file_id=photo_id,
         fingerprint=fingerprint,
@@ -797,41 +658,22 @@ async def publish_event(
         )
         return
 
-    has_ticket_url = bool((data.get("ticket_url") or "").strip())
-    buy_url: str | None = None
     channel_keyboard = None
-    if has_ticket_url:
-        buy_url = await _build_event_buy_start_link(
-            bot=callback.bot,
-            event_id=event_id,
-        )
-        if buy_url:
-            channel_keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text=i18n.partner.event.buy.ticket.button(),
-                            url=buy_url,
-                        )
-                    ]
+    join_url = await _build_event_join_start_link(
+        bot=callback.bot,
+        event_id=event_id,
+    )
+    if join_url:
+        channel_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=i18n.partner.event.join.chat.button(),
+                        url=join_url,
+                    )
                 ]
-            )
-    else:
-        join_url = await _build_event_join_start_link(
-            bot=callback.bot,
-            event_id=event_id,
+            ]
         )
-        if join_url:
-            channel_keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text=i18n.partner.event.join.chat.button(),
-                            url=join_url,
-                        )
-                    ]
-                ]
-            )
 
     try:
         if photo_id:
@@ -867,8 +709,6 @@ async def publish_event(
         "description": data.get("description") or "",
         "is_paid": bool(data.get("is_paid")),
         "price": data.get("price"),
-        "ticket_url": data.get("ticket_url"),
-        "buy_url": buy_url,
         "age_group": data.get("age_group"),
         "photo_file_id": photo_id,
         "channel_id": channel_message.chat.id,

@@ -15,7 +15,6 @@ from app.bot.dialogs.events.getters import (
     get_event_name,
     get_event_preview,
     get_event_price,
-    get_event_ticket_url,
 )
 from app.bot.dialogs.events.handlers import (
     back_from_event_address_query,
@@ -26,7 +25,6 @@ from app.bot.dialogs.events.handlers import (
     back_from_event_name,
     back_from_event_preview,
     back_from_event_price,
-    back_from_event_ticket_url,
     back_to_address_query,
     edit_event_address,
     edit_event_age,
@@ -35,7 +33,6 @@ from app.bot.dialogs.events.handlers import (
     edit_event_image,
     edit_event_name,
     edit_event_price,
-    edit_event_ticket,
     ensure_partner_access,
     on_event_address_input,
     on_event_address_selected,
@@ -45,7 +42,6 @@ from app.bot.dialogs.events.handlers import (
     on_event_name_input,
     on_event_photo_input,
     on_event_price_input,
-    on_event_ticket_url_input,
     publish_event,
     skip_event_photo,
 )
@@ -180,22 +176,6 @@ events_dialog = Dialog(
     ),
     Window(
         Format("{prompt}"),
-        TextInput(
-            id="event_ticket_url_input",
-            on_success=on_event_ticket_url_input,
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="back_from_event_ticket_url",
-                on_click=back_from_event_ticket_url,
-            ),
-        ),
-        state=EventsSG.ticket_url,
-        getter=get_event_ticket_url,
-    ),
-    Window(
-        Format("{prompt}"),
         Group(
             Select(
                 Format("{item[0]}"),
@@ -249,12 +229,6 @@ events_dialog = Dialog(
                 text=Format("{edit_price_button}"),
                 id="edit_event_price",
                 on_click=edit_event_price,
-            ),
-            Button(
-                text=Format("{edit_ticket_button}"),
-                id="edit_event_ticket",
-                on_click=edit_event_ticket,
-                when="can_edit_ticket",
             ),
             Button(
                 text=Format("{edit_age_button}"),
