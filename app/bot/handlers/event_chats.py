@@ -1,13 +1,11 @@
 import logging
 import os
-import html
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from urllib.parse import unquote, urlparse
 
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
-from aiogram.enums import ParseMode
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.events.utils import build_event_text
@@ -26,10 +24,6 @@ EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
 EVENT_REGISTER_PAY_CALLBACK = "event_register_pay"
 EVENT_REGISTER_CONFIRM_CALLBACK = "event_register_confirm"
 EVENT_PREPAY_CONFIRM_CALLBACK = "event_prepay_confirm"
-EVENT_MESSAGE_USER_CALLBACK = "event_message_user"
-EVENT_REPLY_ADMIN_CALLBACK = "event_reply_admin"
-EVENT_CONTACT_PARTNER_CALLBACK = "event_contact_partner"
-EVENT_MESSAGE_DONE_BACK_CALLBACK = "event_message_done_back"
 EVENT_CHAT_START_PREFIX = "event_chat_"
 PAYMENT_PROOF_EVENT_ID_KEY = "payment_proof_event_id"
 PAYMENT_PROOF_TYPE_PHOTO = "photo"
@@ -63,19 +57,6 @@ def _parse_callback_parts(
     if len(parts) not in {expected_parts, expected_parts + 1}:
         return None
     return parts
-
-
-def _build_done_back_keyboard(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=i18n.back.button(),
-                    callback_data=EVENT_MESSAGE_DONE_BACK_CALLBACK,
-                )
-            ]
-        ]
-    )
 
 
 def _extract_payment_proof(message: Message) -> tuple[str, str] | None:
@@ -313,28 +294,13 @@ async def approve_event_registration_payment(
     if not approved:
         return False
 
-    user_record = await db.users.get_user_record(user_id=user_id)
-
     if not bot:
         return True
 
-    partner_contact_keyboard = None
-    if isinstance(event.partner_user_id, int):
-        partner_contact_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=i18n.partner.event.prepay.contact.partner.button(),
-                        callback_data=f"{EVENT_CONTACT_PARTNER_CALLBACK}:{event.partner_user_id}",
-                    )
-                ]
-            ]
-        )
     try:
         await bot.send_message(
             user_id,
             i18n.partner.event.prepay.approved(),
-            reply_markup=partner_contact_keyboard,
         )
     except Exception as exc:
         await apply_delivery_error_status(
@@ -363,47 +329,6 @@ async def approve_event_registration_payment(
             user_id,
             event_id,
             exc,
-        )
-    payer_username = _format_username(
-        username=user_record.username if user_record else None,
-        user_id=user_id,
-    )
-    partner_reply_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=i18n.start.admin.registrations.pending.contact.button(),
-                    callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user_id}",
-                )
-            ]
-        ]
-    )
-    if isinstance(event.partner_user_id, int):
-        try:
-            await bot.send_message(
-                event.partner_user_id,
-                i18n.partner.event.prepay.approved.partner.notify(
-                    username=payer_username,
-                    event_name=event.name,
-                ),
-                reply_markup=partner_reply_keyboard,
-            )
-        except Exception as exc:
-            await apply_delivery_error_status(
-                db=db,
-                user_id=event.partner_user_id,
-                error=exc,
-            )
-            logger.warning(
-                "Failed to notify partner %s about approved payment for event %s: %s",
-                event.partner_user_id,
-                event_id,
-                exc,
-            )
-    else:
-        logger.warning(
-            "Skipped partner notification for event %s: missing partner_user_id",
-            event_id,
         )
 
     return True
@@ -593,7 +518,7 @@ async def _maybe_start_registration(
     event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     user_record = await db.users.get_user_record(user_id=user_id)
-    if user_record and user_record.role in {UserRole.PARTNER, UserRole.ADMIN}:
+    if user_record and user_record.role == UserRole.ADMIN:
         await message.answer(i18n.partner.event.join.chat.role.forbidden())
         return
 
@@ -974,12 +899,6 @@ async def process_event_payment_proof(
                     ),
                 ),
             ],
-            [
-                InlineKeyboardButton(
-                    text=i18n.start.admin.registrations.pending.write.button(),
-                    callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{user.id}",
-                )
-            ],
         ]
     )
     admin_ids = await db.users.get_admin_user_ids()
@@ -1088,285 +1007,6 @@ async def process_event_payment_proof(
         i18n.partner.event.prepay.sent(),
         reply_markup=status_keyboard,
     )
-
-
-@event_chats_router.callback_query(
-    lambda callback: callback.data
-    and callback.data.startswith(f"{EVENT_MESSAGE_USER_CALLBACK}:")
-)
-async def process_event_message_user(
-    callback: CallbackQuery,
-    i18n: TranslatorRunner,
-    db: DB,
-    state: FSMContext,
-) -> None:
-    parts = _parse_callback_parts(callback.data, EVENT_MESSAGE_USER_CALLBACK, 2)
-    if not parts:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-    try:
-        target_user_id = int(parts[1])
-    except ValueError:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    sender = callback.from_user
-    if not sender:
-        return
-    sender_record = await db.users.get_user_record(user_id=sender.id)
-    if not sender_record or sender_record.role not in {UserRole.ADMIN, UserRole.PARTNER}:
-        await callback.answer(i18n.partner.event.prepay.admin.only())
-        return
-
-    target_user = await db.users.get_user_record(user_id=target_user_id)
-    username = (
-        f"@{target_user.username}"
-        if target_user and target_user.username
-        else f"id:{target_user_id}"
-    )
-    await state.set_state(AdminContactSG.waiting_admin_text)
-    await state.update_data(message_user_id=target_user_id)
-    if callback.message:
-        await callback.message.answer(
-            i18n.start.admin.registrations.pending.message.prompt(
-                username=username,
-            )
-        )
-    await callback.answer()
-
-
-@event_chats_router.message(AdminContactSG.waiting_admin_text)
-async def process_event_message_user_text(
-    message: Message,
-    i18n: TranslatorRunner,
-    db: DB,
-    state: FSMContext,
-) -> None:
-    data = await state.get_data()
-    target_user_id = data.get("message_user_id")
-    payload = (message.text or "").strip()
-    if not payload:
-        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
-        return
-    if not isinstance(target_user_id, int):
-        await state.clear()
-        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
-        return
-
-    sender = message.from_user
-    if not sender:
-        await state.clear()
-        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
-        return
-    admin_label = _format_username(
-        username=sender.username,
-        fallback_name=sender.full_name,
-        user_id=sender.id,
-    )
-    sender_record = await db.users.get_user_record(user_id=sender.id)
-    sender_role = i18n.start.admin.registrations.pending.message.sender.admin()
-    if sender_record and sender_record.role == UserRole.PARTNER:
-        sender_role = i18n.start.admin.registrations.pending.message.sender.partner()
-    quoted_payload = f"<blockquote>{html.escape(payload)}</blockquote>"
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=i18n.start.admin.registrations.pending.reply.button(),
-                    callback_data=f"{EVENT_REPLY_ADMIN_CALLBACK}:{sender.id}",
-                )
-            ]
-        ]
-    )
-    try:
-        await message.bot.send_message(
-            target_user_id,
-            i18n.start.admin.registrations.pending.message.to.user(
-                sender_role=sender_role,
-                sender=html.escape(admin_label),
-                text=quoted_payload,
-            ),
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML,
-        )
-    except Exception as exc:
-        await apply_delivery_error_status(
-            db=db,
-            user_id=target_user_id,
-            error=exc,
-        )
-        await state.clear()
-        await message.answer(i18n.start.admin.registrations.pending.message.invalid())
-        return
-
-    await state.clear()
-    await message.answer(
-        i18n.start.admin.registrations.pending.message.sent(),
-        reply_markup=_build_done_back_keyboard(i18n),
-    )
-
-
-@event_chats_router.callback_query(
-    lambda callback: callback.data
-    and callback.data.startswith(f"{EVENT_REPLY_ADMIN_CALLBACK}:")
-)
-async def process_event_reply_admin(
-    callback: CallbackQuery,
-    i18n: TranslatorRunner,
-    db: DB,
-    state: FSMContext,
-) -> None:
-    parts = _parse_callback_parts(callback.data, EVENT_REPLY_ADMIN_CALLBACK, 2)
-    if not parts:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-    try:
-        target_user_id = int(parts[1])
-    except ValueError:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    target_user_record = await db.users.get_user_record(user_id=target_user_id)
-    target_role = target_user_record.role if target_user_record else UserRole.ADMIN
-    prompt = (
-        i18n.partner.event.prepay.contact.partner.prompt()
-        if target_role == UserRole.PARTNER
-        else i18n.start.admin.registrations.pending.reply.prompt()
-    )
-
-    await state.set_state(AdminContactSG.waiting_reply_text)
-    await state.update_data(
-        reply_admin_user_id=target_user_id,
-        reply_target_role=target_role.value,
-    )
-    if callback.message:
-        await callback.message.answer(prompt)
-    await callback.answer()
-
-
-@event_chats_router.message(AdminContactSG.waiting_reply_text)
-async def process_event_reply_admin_text(
-    message: Message,
-    i18n: TranslatorRunner,
-    db: DB,
-    state: FSMContext,
-) -> None:
-    data = await state.get_data()
-    admin_user_id = data.get("reply_admin_user_id")
-    reply_target_role = data.get("reply_target_role")
-    is_partner_target = reply_target_role == UserRole.PARTNER.value
-    prompt_text = (
-        i18n.partner.event.prepay.contact.partner.prompt()
-        if is_partner_target
-        else i18n.start.admin.registrations.pending.reply.prompt()
-    )
-    failed_text = (
-        i18n.partner.event.prepay.contact.partner.failed()
-        if is_partner_target
-        else i18n.start.admin.registrations.pending.reply.failed()
-    )
-    sent_text = (
-        i18n.partner.event.prepay.contact.partner.sent()
-        if is_partner_target
-        else i18n.start.admin.registrations.pending.reply.sent()
-    )
-    payload = (message.text or "").strip()
-    if not payload:
-        await message.answer(prompt_text)
-        return
-    if not isinstance(admin_user_id, int):
-        await state.clear()
-        await message.answer(failed_text)
-        return
-
-    sender = message.from_user
-    if not sender:
-        await state.clear()
-        await message.answer(failed_text)
-        return
-    sender_label = _format_username(
-        username=sender.username,
-        fallback_name=sender.full_name,
-        user_id=sender.id,
-    )
-    quoted_payload = f"<blockquote>{html.escape(payload)}</blockquote>"
-    reply_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=i18n.start.admin.registrations.pending.reply.back.button(),
-                    callback_data=f"{EVENT_MESSAGE_USER_CALLBACK}:{sender.id}",
-                )
-            ]
-        ]
-    )
-    try:
-        await message.bot.send_message(
-            admin_user_id,
-            i18n.start.admin.registrations.pending.reply.admin.received(
-                username=html.escape(sender_label),
-                text=quoted_payload,
-            ),
-            reply_markup=reply_keyboard,
-            parse_mode=ParseMode.HTML,
-        )
-    except Exception as exc:
-        await apply_delivery_error_status(
-            db=db,
-            user_id=admin_user_id,
-            error=exc,
-        )
-        await state.clear()
-        await message.answer(failed_text)
-        return
-
-    await state.clear()
-    await message.answer(
-        sent_text,
-        reply_markup=_build_done_back_keyboard(i18n),
-    )
-
-
-@event_chats_router.callback_query(
-    lambda callback: callback.data == EVENT_MESSAGE_DONE_BACK_CALLBACK
-)
-async def process_event_message_done_back(callback: CallbackQuery) -> None:
-    if callback.message:
-        try:
-            await callback.message.edit_reply_markup(reply_markup=None)
-        except Exception:
-            pass
-    await callback.answer()
-
-
-@event_chats_router.callback_query(
-    lambda callback: callback.data
-    and callback.data.startswith(f"{EVENT_CONTACT_PARTNER_CALLBACK}:")
-)
-async def process_event_contact_partner(
-    callback: CallbackQuery,
-    i18n: TranslatorRunner,
-    state: FSMContext,
-) -> None:
-    parts = _parse_callback_parts(callback.data, EVENT_CONTACT_PARTNER_CALLBACK, 2)
-    if not parts:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-    try:
-        partner_user_id = int(parts[1])
-    except ValueError:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    await state.set_state(AdminContactSG.waiting_reply_text)
-    await state.update_data(
-        reply_admin_user_id=partner_user_id,
-        reply_target_role=UserRole.PARTNER.value,
-    )
-    if callback.message:
-        await callback.message.answer(i18n.partner.event.prepay.contact.partner.prompt())
-    await callback.answer()
-
 
 @event_chats_router.callback_query(
     lambda callback: callback.data

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import case, delete, or_, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +22,6 @@ class _UsersDB:
             *,
             user_id: int,
             username: str | None,
-            commission_percent: int = 0,
             role: UserRole,
             is_alive: bool = True,
             is_blocked: bool = False
@@ -32,7 +31,6 @@ class _UsersDB:
             .values(
                 user_id=user_id,
                 username=username,
-                commission_percent=commission_percent,
                 role=role,
                 is_alive=is_alive,
                 is_blocked=is_blocked,
@@ -42,13 +40,11 @@ class _UsersDB:
         await self.session.execute(stmt)
         logger.info(
             "User added. db='%s', user_id=%d, date_time='%s', "
-            "username='%s', commission_percent=%d, "
-            "role=%s, is_alive=%s, is_blocked=%s",
+            "username='%s', role=%s, is_alive=%s, is_blocked=%s",
             self.__tablename__,
             user_id,
             datetime.now(timezone.utc),
             username,
-            commission_percent,
             role.value,
             is_alive,
             is_blocked,
@@ -169,21 +165,11 @@ class _UsersDB:
         *,
         user_id: int,
         role: UserRole,
-        default_partner_commission_percent: int | None = None,
     ) -> None:
-        values: dict[str, object] = {"role": role}
-        if role == UserRole.PARTNER and default_partner_commission_percent is not None:
-            values["commission_percent"] = case(
-                (
-                    UsersModel.commission_percent <= 0,
-                    int(default_partner_commission_percent),
-                ),
-                else_=UsersModel.commission_percent,
-            )
         stmt = (
             update(UsersModel)
             .where(UsersModel.user_id == user_id)
-            .values(**values)
+            .values(role=role)
         )
         await self.session.execute(stmt)
         logger.info(
@@ -218,38 +204,3 @@ class _UsersDB:
         )
         result = await self.session.execute(stmt)
         return [row[0] for row in result.all()]
-
-    async def list_partners_with_commission(
-        self,
-    ) -> list[tuple[int, str | None, int]]:
-        stmt = (
-            select(
-                UsersModel.user_id,
-                UsersModel.username,
-                UsersModel.commission_percent,
-            )
-            .where(UsersModel.role == UserRole.PARTNER)
-            .order_by(UsersModel.username.asc(), UsersModel.user_id.asc())
-        )
-        result = await self.session.execute(stmt)
-        return [(row[0], row[1], int(row[2] or 0)) for row in result.all()]
-
-    async def update_partner_commission_percent(
-        self,
-        *,
-        user_id: int,
-        commission_percent: int,
-    ) -> None:
-        stmt = (
-            update(UsersModel)
-            .where(UsersModel.user_id == user_id)
-            .where(UsersModel.role == UserRole.PARTNER)
-            .values(commission_percent=commission_percent)
-        )
-        await self.session.execute(stmt)
-        logger.info(
-            "Partner commission updated. db='%s', user_id=%d, commission_percent=%d",
-            self.__tablename__,
-            user_id,
-            commission_percent,
-        )

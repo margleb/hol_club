@@ -51,7 +51,7 @@ async def ensure_partner_access(_, dialog_manager: DialogManager) -> None:
         return
 
     user_record = await db.users.get_user_record(user_id=user.id)
-    if not user_record or user_record.role not in {UserRole.PARTNER, UserRole.ADMIN}:
+    if not user_record or user_record.role != UserRole.ADMIN:
         await dialog_manager.event.bot.send_message(
             user.id,
             i18n.partner.event.forbidden(),
@@ -338,7 +338,6 @@ async def on_event_price_input(
     data: str,
 ) -> None:
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    db: DB | None = dialog_manager.middleware_data.get("db")
     price = (data or "").strip()
     normalized_price = price.replace(" ", "")
     if not normalized_price or not normalized_price.isdigit():
@@ -360,20 +359,10 @@ async def on_event_price_input(
         )
         return
 
-    commission_percent = 0
-    user_record = None
-    if db and message.from_user:
-        user_record = await db.users.get_user_record(user_id=message.from_user.id)
-        if user_record and user_record.role == UserRole.PARTNER:
-            commission_percent = int(user_record.commission_percent or 0)
-
-    commission_amount = max(0, int(round(base_price * commission_percent / 100)))
-    final_price = base_price + commission_amount
-
-    dialog_manager.dialog_data["price"] = str(final_price)
+    dialog_manager.dialog_data["price"] = str(base_price)
     dialog_manager.dialog_data["is_paid"] = True
-    dialog_manager.dialog_data["prepay_percent"] = None
-    dialog_manager.dialog_data["prepay_fixed_free"] = commission_amount
+    dialog_manager.dialog_data["prepay_percent"] = 100
+    dialog_manager.dialog_data["prepay_fixed_free"] = None
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return

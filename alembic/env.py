@@ -9,7 +9,8 @@ from alembic import context
 from config.config import settings
 from app.infrastructure.database.models.base import BaseModel
 from app.infrastructure.database.models import (  # noqa: F401
-    partner_requests,
+    event_registrations,
+    events,
     users,
 )
 

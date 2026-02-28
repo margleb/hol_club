@@ -48,8 +48,8 @@ start-admin-partner-actions-title = Партнер: { $username }
 start-admin-partner-actions-invalid = Не удалось определить партнера.
 start-admin-partner-actions-commission-button = Установить комиссию
 start-admin-partner-actions-registrations-button = Список регистраций
-start-admin-registrations-pending-title = Ожидают подтверждения оплаты ({ $partner })
-start-admin-registrations-pending-empty = По выбранному партнеру нет ожидающих подтверждения оплат.
+start-admin-registrations-pending-title = Ожидают подтверждения оплаты
+start-admin-registrations-pending-empty = Нет ожидающих подтверждения оплат.
 start-admin-registrations-pending-item = { $username } • { $event_name } • { $amount } ₽
 start-admin-registrations-pending-contact-button = Написать
 start-admin-registrations-pending-message-prompt = Напишите сообщение пользователю { $username }.
@@ -93,10 +93,6 @@ help-command = Доступные команды:
 
                /start - Перезапустить бота
                /help - Посмотреть эту справку
-
-               <b>Партнерство:</b>
-
-               /partner_request - Отправить заявку на партнерство
 
 about-author = Об авторе
 
@@ -220,7 +216,7 @@ partner-event-participation-free = Бесплатно
 
 partner-event-participation-paid = Платно
 
-partner-event-price-prompt = Введите базовую стоимость (до <b>{ $max }</b> ₽). Комиссия <b>{ $commission_percent }%</b> будет добавлена автоматически.
+partner-event-price-prompt = Введите стоимость (до <b>{ $max }</b> ₽).
 
 partner-event-price-invalid = Некорректная стоимость. Максимум <b>{ $max }</b> ₽.
 
@@ -299,7 +295,7 @@ partner-event-join-chat-link-button = Перейти в чат
 partner-event-join-chat-text = Вот ссылка на чат мероприятия «{ $event_name }»:
 partner-event-join-chat-missing = Не удалось найти чат для этого события.
 partner-event-join-chat-self-forbidden = Вы не можете регистрироваться на своё мероприятие.
-partner-event-join-chat-role-forbidden = Партнёры и администраторы не могут регистрироваться на мероприятия.
+partner-event-join-chat-role-forbidden = Администраторы не могут регистрироваться на мероприятия.
 partner-event-join-chat-hint = Пол и возраст можно изменить в личном кабинете.
 partner-event-prepay-text = Для регистрации нужна предоплата — это гарантирует, что участники действительно придут.
 
@@ -328,7 +324,7 @@ partner-event-prepay-waiting = Оплата уже ожидает подтвер
 partner-event-prepay-notify =
     Требуется подтверждение оплаты мероприятия.
     Мероприятие: «{ $event_name }»
-    Партнер: { $partner_username }
+    Организатор: { $partner_username }
     Сумма к оплате: { $amount } ₽
     Пользователь: { $username }
 partner-event-prepay-approved = Ваша предоплата подтверждена. Вы зарегистрированы на мероприятие.

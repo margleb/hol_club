@@ -1,75 +1,34 @@
 from aiogram_dialog import Dialog, StartMode, Window
-from aiogram_dialog.widgets.input import TextInput
 from aiogram_dialog.widgets.kbd import Button, Group, Row, ScrollingGroup, Select, Start, Url
 from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
-    get_admin_registration_message_prompt,
-    get_admin_partner_commission_edit,
-    get_admin_partner_commissions,
-    get_admin_registration_partners,
     get_admin_registration_pending,
-    get_admin_partner_actions,
-    get_admin_partner_request_details,
-    get_admin_partner_requests,
+    get_admin_registration_pending_details,
     get_hello,
-    get_partner_event_details,
-    get_partner_events,
-    get_partner_pending_registration_details,
-    get_partner_confirmed_registrations,
-    get_admin_registration_message_done_prompt,
-    get_user_events,
     get_user_event_details,
-    get_user_event_message_partner_done_prompt,
-    get_user_event_message_partner_prompt,
+    get_user_events,
 )
 from app.bot.dialogs.start.handlers import (
-    back_to_registration_message_source,
-    approve_admin_partner_request,
-    on_admin_registration_message_input,
-    on_admin_partner_commission_input,
-    back_to_admin_registration_partners,
-    back_to_admin_partner_actions,
-    back_to_admin_partners_list,
-    back_to_admin_partner_requests,
-    back_to_pending_registrations_source,
-    back_to_start,
-    back_to_partner_event_details,
-    back_to_partner_events_list,
-    back_to_user_event_details,
-    back_to_user_events_list,
-    reject_admin_partner_request,
-    show_admin_partner_request_details,
-    show_admin_partner_commission_edit,
-    show_admin_partner_commission_edit_for_selected,
-    show_admin_registration_partners,
-    show_admin_partner_actions,
-    show_admin_partner_pending_list,
-    show_partner_confirmed_registrations,
-    start_message_confirmed_user,
-    show_pending_registration_details,
-    start_message_registration_user,
     approve_pending_registration,
+    back_to_admin_registration_pending_list,
+    back_to_start,
+    back_to_user_events_list,
     decline_pending_registration,
-    show_next_partner_events_page,
-    show_partner_event_details,
-    show_partner_events_list,
-    show_partner_requests_list,
-    show_prev_partner_events_page,
+    show_admin_registration_pending_list,
     show_next_user_events_page,
+    show_pending_registration_details,
     show_prev_user_events_page,
     show_user_event_details,
     show_user_events_list,
-    start_user_message_partner,
-    on_user_event_message_partner_input,
 )
-from app.bot.states.start import StartSG
 from app.bot.states.events import EventsSG
+from app.bot.states.start import StartSG
 
 start_dialog = Dialog(
     Window(
-        Format('{hello}'),
+        Format("{hello}"),
         Start(
             text=Format("{create_event_button}"),
             id="start_event_creation",
@@ -84,68 +43,13 @@ start_dialog = Dialog(
             when="can_view_user_events",
         ),
         Button(
-            text=Format("{partner_events_list_button}"),
-            id="partner_events_list",
-            on_click=show_partner_events_list,
-            when="can_view_partner_events",
-        ),
-        Button(
-            text=Format("{partner_requests_button}"),
-            id="partner_requests_list",
-            on_click=show_partner_requests_list,
-            when="can_manage_partner_requests",
-        ),
-        Button(
-            text=Format("{admin_partners_button}"),
-            id="admin_partners_list",
-            on_click=show_admin_registration_partners,
-            when="can_manage_partners",
+            text=Format("{admin_pending_button}"),
+            id="admin_pending_list",
+            on_click=show_admin_registration_pending_list,
+            when="can_manage_pending_registrations",
         ),
         getter=get_hello,
-        state=StartSG.start
-    ),
-    Window(
-        Format("{title}"),
-        Format("{empty_text}", when="not has_items"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="admin_partner_commissions_select",
-                item_id_getter=lambda item: item[1],
-                items="items",
-                on_click=show_admin_partner_commission_edit,
-            ),
-            id="admin_partner_commissions_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_items",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_partner_commissions_back",
-                on_click=back_to_start,
-            ),
-        ),
-        getter=get_admin_partner_commissions,
-        state=StartSG.admin_partner_commissions_list,
-    ),
-    Window(
-        Format("{prompt}"),
-        TextInput(
-            id="admin_partner_commission_input",
-            on_success=on_admin_partner_commission_input,
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_partner_commission_edit_back",
-                on_click=back_to_admin_partner_actions,
-            ),
-        ),
-        getter=get_admin_partner_commission_edit,
-        state=StartSG.admin_partner_commission_edit,
+        state=StartSG.start,
     ),
     Window(
         Format("{user_events_title}"),
@@ -209,14 +113,6 @@ start_dialog = Dialog(
         ),
         Row(
             Button(
-                text=Format("{contact_partner_button}"),
-                id="user_event_contact_partner",
-                on_click=start_user_message_partner,
-                when="show_contact_partner_button",
-            ),
-        ),
-        Row(
-            Button(
                 text=Format("{back_button}"),
                 id="user_event_back",
                 on_click=back_to_user_events_list,
@@ -224,209 +120,6 @@ start_dialog = Dialog(
         ),
         getter=get_user_event_details,
         state=StartSG.user_event_details,
-    ),
-    Window(
-        Format("{prompt}"),
-        TextInput(
-            id="user_event_message_partner_input",
-            on_success=on_user_event_message_partner_input,
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="user_event_message_partner_back",
-                on_click=back_to_user_event_details,
-            ),
-        ),
-        getter=get_user_event_message_partner_prompt,
-        state=StartSG.user_event_message_partner,
-    ),
-    Window(
-        Format("{prompt}"),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="user_event_message_partner_done_back",
-                on_click=back_to_user_event_details,
-            ),
-        ),
-        getter=get_user_event_message_partner_done_prompt,
-        state=StartSG.user_event_message_partner_done,
-    ),
-    Window(
-        Format("{partner_events_title}"),
-        Format("{partner_events_empty}", when="show_partner_events_empty"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="partner_events_select",
-                item_id_getter=lambda item: item[1],
-                items="partner_event_items",
-                on_click=show_partner_event_details,
-            ),
-            id="partner_events_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_partner_events",
-        ),
-        Format("{partner_events_page_text}", when="show_partner_events_page"),
-        Row(
-            Button(
-                text=Format("{partner_events_prev_button}"),
-                id="partner_events_prev_page",
-                on_click=show_prev_partner_events_page,
-                when="has_partner_prev_page",
-            ),
-            Button(
-                text=Format("{partner_events_next_button}"),
-                id="partner_events_next_page",
-                on_click=show_next_partner_events_page,
-                when="has_partner_next_page",
-            ),
-            when="show_partner_events_page",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="partner_events_list_back",
-                on_click=back_to_start,
-            ),
-        ),
-        getter=get_partner_events,
-        state=StartSG.partner_events_list,
-    ),
-    Window(
-        DynamicMedia("event_media"),
-        Format("{event_details_text}"),
-        Group(
-            Url(
-                text=Format("{view_post_button}"),
-                url=Format("{event_post_url}"),
-                id="partner_event_view_post",
-                when="has_post_url",
-            ),
-        ),
-        Row(
-            Button(
-                text=Format("{confirmed_regs_button}"),
-                id="partner_event_confirmed_regs",
-                on_click=show_partner_confirmed_registrations,
-            ),
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="partner_event_back",
-                on_click=back_to_partner_events_list,
-            ),
-        ),
-        getter=get_partner_event_details,
-        state=StartSG.partner_event_details,
-    ),
-    Window(
-        Format("{title}"),
-        Format("{empty_text}", when="not has_items"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="admin_partner_requests_select",
-                item_id_getter=lambda item: item[1],
-                items="items",
-                on_click=show_admin_partner_request_details,
-            ),
-            id="admin_partner_requests_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_items",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_partner_requests_back",
-                on_click=back_to_start,
-            ),
-        ),
-        getter=get_admin_partner_requests,
-        state=StartSG.admin_partner_requests_list,
-    ),
-    Window(
-        Format("{details_text}"),
-        Row(
-            Button(
-                text=Format("{approve_button}"),
-                id="admin_partner_request_approve",
-                on_click=approve_admin_partner_request,
-            ),
-            Button(
-                text=Format("{reject_button}"),
-                id="admin_partner_request_reject",
-                on_click=reject_admin_partner_request,
-            ),
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_partner_request_back",
-                on_click=back_to_admin_partner_requests,
-            ),
-        ),
-        getter=get_admin_partner_request_details,
-        state=StartSG.admin_partner_request_details,
-    ),
-    Window(
-        Format("{title}"),
-        Format("{empty_text}", when="not has_items"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="admin_partners_select",
-                item_id_getter=lambda item: item[1],
-                items="items",
-                on_click=show_admin_partner_actions,
-            ),
-            id="admin_partners_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_items",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_partners_back",
-                on_click=back_to_start,
-            ),
-        ),
-        getter=get_admin_registration_partners,
-        state=StartSG.admin_registration_partners_list,
-    ),
-    Window(
-        Format("{title}"),
-        Row(
-            Button(
-                text=Format("{set_commission_button}"),
-                id="admin_partner_actions_commission",
-                on_click=show_admin_partner_commission_edit_for_selected,
-                when="show_actions",
-            ),
-            Button(
-                text=Format("{registrations_button}"),
-                id="admin_partner_actions_registrations",
-                on_click=show_admin_partner_pending_list,
-                when="show_actions",
-            ),
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_partner_actions_back",
-                on_click=back_to_admin_partners_list,
-            ),
-        ),
-        getter=get_admin_partner_actions,
-        state=StartSG.admin_partner_actions,
     ),
     Window(
         Format("{title}"),
@@ -449,7 +142,7 @@ start_dialog = Dialog(
             Button(
                 text=Format("{back_button}"),
                 id="admin_pending_regs_back",
-                on_click=back_to_admin_registration_partners,
+                on_click=back_to_start,
             ),
         ),
         getter=get_admin_registration_pending,
@@ -458,15 +151,6 @@ start_dialog = Dialog(
     Window(
         DynamicMedia("payment_proof_media", when="has_payment_proof_media"),
         Format("{details_text}"),
-        Format("{admin_only_note}", when="not can_confirm_payment"),
-        Row(
-            Button(
-                text=Format("{contact_user_button}"),
-                id="pending_reg_contact_user",
-                on_click=start_message_registration_user,
-                when="show_contact_user_button",
-            ),
-        ),
         Row(
             Button(
                 text=Format("{approve_button}"),
@@ -478,71 +162,15 @@ start_dialog = Dialog(
                 id="pending_reg_decline",
                 on_click=decline_pending_registration,
             ),
-            when="can_confirm_payment",
         ),
         Row(
             Button(
                 text=Format("{back_button}"),
                 id="pending_reg_back",
-                on_click=back_to_pending_registrations_source,
+                on_click=back_to_admin_registration_pending_list,
             ),
         ),
-        getter=get_partner_pending_registration_details,
-        state=StartSG.partner_event_pending_details,
-    ),
-    Window(
-        Format("{prompt}"),
-        TextInput(
-            id="admin_registration_message_input",
-            on_success=on_admin_registration_message_input,
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_registration_message_back",
-                on_click=back_to_registration_message_source,
-            ),
-        ),
-        getter=get_admin_registration_message_prompt,
-        state=StartSG.admin_registration_message_user,
-    ),
-    Window(
-        Format("{prompt}"),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="admin_registration_message_done_back",
-                on_click=back_to_registration_message_source,
-            ),
-        ),
-        getter=get_admin_registration_message_done_prompt,
-        state=StartSG.admin_registration_message_done,
-    ),
-    Window(
-        Format("{title}"),
-        Format("{empty_text}", when="not has_items"),
-        ScrollingGroup(
-            Select(
-                Format("{item[0]}"),
-                id="confirmed_regs_select",
-                item_id_getter=lambda item: item[1],
-                items="items",
-                on_click=start_message_confirmed_user,
-            ),
-            id="confirmed_regs_scroll",
-            width=1,
-            height=5,
-            hide_on_single_page=True,
-            when="has_items",
-        ),
-        Row(
-            Button(
-                text=Format("{back_button}"),
-                id="confirmed_regs_back",
-                on_click=back_to_partner_event_details,
-            ),
-        ),
-        getter=get_partner_confirmed_registrations,
-        state=StartSG.partner_event_confirmed_list,
+        getter=get_admin_registration_pending_details,
+        state=StartSG.admin_registration_pending_details,
     ),
 )

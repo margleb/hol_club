@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
@@ -13,7 +12,6 @@ from app.bot.dialogs.events.dialogs import events_dialog
 from app.bot.dialogs.start.dialogs import start_dialog
 from app.bot.handlers.commands import commands_router
 from app.bot.handlers.event_chats import event_chats_router
-from app.bot.handlers.partner_requests import partner_requests_router
 from app.bot.handlers.errors import on_unknown_intent, on_unknown_state
 from app.bot.i18n.translator_hub import create_translator_hub
 from app.bot.middlewares.database import DataBaseMiddleware
@@ -35,8 +33,8 @@ async def main():
     nc, js = await connect_to_nats(servers=settings.nats.servers)
 
     storage: NatsStorage = await NatsStorage(
-        nc=nc, 
-        js=js, 
+        nc=nc,
+        js=js,
         key_builder=NatsKeyBuilder(with_destiny=True, separator="_")
     ).create_storage()
 
@@ -92,7 +90,6 @@ async def main():
     dp.include_routers(
         commands_router,
         event_chats_router,
-        partner_requests_router,
         start_dialog,
         events_dialog,
     )

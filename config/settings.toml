@@ -30,9 +30,6 @@
 [default.payments]
     card_number = ""
 
-[default.partner]
-    default_commission_percent = 20
-
 [development]
 
     [development.logs]
