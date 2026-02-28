@@ -18,13 +18,6 @@ class UsersModel(BaseModel):
         server_default=func.now(),
         nullable=False,
     )
-    gender: Mapped[str | None] = mapped_column(String(16))
-    age_group: Mapped[str | None] = mapped_column(String(32))
-    temperature: Mapped[str] = mapped_column(
-        String(16),
-        nullable=False,
-        server_default="cold",
-    )
     commission_percent: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

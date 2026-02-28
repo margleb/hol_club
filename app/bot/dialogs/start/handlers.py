@@ -1,7 +1,7 @@
 import html
 
 from aiogram.types import CallbackQuery, Message
-from aiogram_dialog import DialogManager, StartMode
+from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button, Select
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.enums import ParseMode
@@ -15,7 +15,6 @@ from app.bot.handlers.event_chats import (
     EVENT_REPLY_ADMIN_CALLBACK,
     approve_event_registration_payment,
 )
-from app.bot.states.account import AccountSG
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
 from app.services.partner_commission import get_default_partner_commission_percent
@@ -842,19 +841,6 @@ async def decline_pending_registration(
             )
     await callback.answer(i18n.partner.event.prepay.declined.partner())
     await _switch_after_pending_action(dialog_manager)
-
-
-async def start_my_account(
-    callback: CallbackQuery,
-    widget: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    await callback.answer()
-    await dialog_manager.start(
-        state=AccountSG.summary,
-        mode=StartMode.NORMAL,
-        data={"edit_profile": True},
-    )
 
 
 async def back_to_start(

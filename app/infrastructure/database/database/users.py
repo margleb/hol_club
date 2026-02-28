@@ -22,9 +22,6 @@ class _UsersDB:
             *,
             user_id: int,
             username: str | None,
-            gender: str | None = None,
-            age_group: str | None = None,
-            temperature: str = "cold",
             commission_percent: int = 0,
             role: UserRole,
             is_alive: bool = True,
@@ -35,9 +32,6 @@ class _UsersDB:
             .values(
                 user_id=user_id,
                 username=username,
-                gender=gender,
-                age_group=age_group,
-                temperature=temperature,
                 commission_percent=commission_percent,
                 role=role,
                 is_alive=is_alive,
@@ -48,14 +42,12 @@ class _UsersDB:
         await self.session.execute(stmt)
         logger.info(
             "User added. db='%s', user_id=%d, date_time='%s', "
-            "username='%s', gender='%s', age_group='%s', commission_percent=%d, "
+            "username='%s', commission_percent=%d, "
             "role=%s, is_alive=%s, is_blocked=%s",
             self.__tablename__,
             user_id,
             datetime.now(timezone.utc),
             username,
-            gender,
-            age_group,
             commission_percent,
             role.value,
             is_alive,
@@ -199,36 +191,6 @@ class _UsersDB:
             self.__tablename__, user_id, role.value
         )
 
-    async def update_profile(
-        self,
-        *,
-        user_id: int,
-        gender: str | None,
-        age_group: str | None,
-        temperature: str | None = None,
-    ) -> None:
-        values: dict[str, str | None] = {
-            "gender": gender,
-            "age_group": age_group,
-        }
-        if temperature is not None:
-            values["temperature"] = temperature
-
-        stmt = (
-            update(UsersModel)
-            .where(UsersModel.user_id == user_id)
-            .values(**values)
-        )
-        await self.session.execute(stmt)
-        logger.info(
-            "User updated. db='%s', user_id=%d, gender='%s', age_group='%s', temperature='%s'",
-            self.__tablename__,
-            user_id,
-            gender,
-            age_group,
-            temperature,
-        )
-
     async def get_admin_user_ids(self) -> list[int]:
         stmt = select(UsersModel.user_id).where(UsersModel.role == UserRole.ADMIN)
         result = await self.session.execute(stmt)
@@ -256,20 +218,6 @@ class _UsersDB:
         )
         result = await self.session.execute(stmt)
         return [row[0] for row in result.all()]
-
-    async def get_active_user_profiles_by_role(
-        self,
-        *,
-        role: UserRole,
-    ) -> list[tuple[int, str | None, str | None]]:
-        stmt = (
-            select(UsersModel.user_id, UsersModel.gender, UsersModel.age_group)
-            .where(UsersModel.is_alive.is_(True))
-            .where(UsersModel.is_blocked.is_(False))
-            .where(UsersModel.role == role)
-        )
-        result = await self.session.execute(stmt)
-        return [(row[0], row[1], row[2]) for row in result.all()]
 
     async def list_partners_with_commission(
         self,

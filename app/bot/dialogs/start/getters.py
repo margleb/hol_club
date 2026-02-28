@@ -78,7 +78,6 @@ async def get_hello(
         "hello": i18n.start.hello(username=username),
         "create_event_button": i18n.partner.event.create.button(),
         "can_create_event": can_create_event,
-        "my_account_button": i18n.account.button(),
         "user_events_list_button": i18n.start.events.list.button(),
         "can_view_user_events": is_user,
         "partner_events_list_button": i18n.partner.events.list.button(),
@@ -776,27 +775,22 @@ async def get_user_event_details(
         event_id=event_id,
         user_id=event_from_user.id,
     )
-    user_record = await db.users.get_user_record(user_id=event_from_user.id)
     post_url = _build_channel_post_link(
         event.channel_id, event.channel_message_id
     )
     event_chat_url = event.private_chat_invite_link or ""
     if not event_chat_url:
-        user_gender = user_record.gender if user_record else None
-        if user_gender == "female":
-            event_chat_url = _build_topic_link(
-                chat_id=event.female_chat_id,
-                thread_id=event.female_thread_id,
-                message_id=event.female_message_id,
-                chat_username=event.female_chat_username,
-            ) or ""
-        elif user_gender == "male":
-            event_chat_url = _build_topic_link(
-                chat_id=event.male_chat_id,
-                thread_id=event.male_thread_id,
-                message_id=event.male_message_id,
-                chat_username=event.male_chat_username,
-            ) or ""
+        event_chat_url = _build_topic_link(
+            chat_id=event.male_chat_id,
+            thread_id=event.male_thread_id,
+            message_id=event.male_message_id,
+            chat_username=event.male_chat_username,
+        ) or _build_topic_link(
+            chat_id=event.female_chat_id,
+            thread_id=event.female_thread_id,
+            message_id=event.female_message_id,
+            chat_username=event.female_chat_username,
+        ) or ""
     event_text = build_event_text(
         {
             "name": event.name,

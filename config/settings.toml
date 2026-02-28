@@ -27,12 +27,6 @@
     geocoder_results_limit = 5
     geocoder_timeout_seconds = 10
 
-[default.chat_links]
-    channel_url = "https://t.me/hol_club"
-    male_chat_url = "https://t.me/malgaze"
-    female_chat_url = "https://t.me/femgaze"
-    under_35_chat_url = "https://t.me/not35yet"
-
 [default.payments]
     card_number = ""
 
@@ -43,14 +37,6 @@
     api_key = ""
     poll_interval_seconds = 600
     days = 2
-
-[default.profile_nudges]
-    enabled = true
-    poll_interval_seconds = 600
-    first_delay_minutes = 15
-    remind_delay_hours = 24
-    max_attempts = 2
-    batch_size = 200
 
 [development]
 

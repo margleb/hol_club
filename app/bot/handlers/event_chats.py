@@ -11,7 +11,6 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from aiogram.enums import ParseMode
 from fluentogram import TranslatorRunner
 
-from app.bot.dialogs.registration.getters import AGE_GROUPS
 from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
@@ -25,8 +24,6 @@ event_chats_router = Router()
 logger = logging.getLogger(__name__)
 
 EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
-EVENT_JOIN_CHAT_GENDER_CALLBACK = "event_join_chat_gender"
-EVENT_JOIN_CHAT_AGE_CALLBACK = "event_join_chat_age"
 EVENT_REGISTER_PAY_CALLBACK = "event_register_pay"
 EVENT_REGISTER_CONFIRM_CALLBACK = "event_register_confirm"
 EVENT_PREPAY_CONFIRM_CALLBACK = "event_prepay_confirm"
@@ -155,57 +152,6 @@ def _get_payment_receipts_vault_channel() -> int | str | None:
     return _normalize_telegram_chat_target(configured)
 
 
-def build_gender_keyboard(
-    i18n: TranslatorRunner,
-    event_id: int,
-    *,
-    announce: bool = False,
-) -> InlineKeyboardMarkup:
-    suffix = ":announce" if announce else ""
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=i18n.general.registration.gender.male(),
-                    callback_data=(
-                        f"{EVENT_JOIN_CHAT_GENDER_CALLBACK}:{event_id}:male{suffix}"
-                    ),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=i18n.general.registration.gender.female(),
-                    callback_data=(
-                        f"{EVENT_JOIN_CHAT_GENDER_CALLBACK}:{event_id}:female{suffix}"
-                    ),
-                )
-            ],
-        ]
-    )
-
-
-def build_age_keyboard(
-    i18n: TranslatorRunner,
-    event_id: int,
-    *,
-    announce: bool = False,
-) -> InlineKeyboardMarkup:
-    suffix = ":announce" if announce else ""
-    rows = []
-    for age_group in AGE_GROUPS:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=i18n.general.registration.age.group(range=age_group),
-                    callback_data=(
-                        f"{EVENT_JOIN_CHAT_AGE_CALLBACK}:{event_id}:{age_group}{suffix}"
-                    ),
-                )
-            ]
-        )
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
 async def _ensure_user_record(
     *,
     db: DB,
@@ -295,11 +241,10 @@ async def send_event_topic_link_to_user(
     db: DB | None = None,
     event,
     user_id: int,
-    gender: str | None,
     event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     current_event = event
-    topic_link = _get_event_topic_link(current_event, gender)
+    topic_link = _get_event_topic_link(current_event)
     if (
         not topic_link
         and db is not None
@@ -311,7 +256,7 @@ async def send_event_topic_link_to_user(
             event_id=current_event.id,
             event_private_chat_service=event_private_chat_service,
         )
-        topic_link = _get_event_topic_link(current_event, gender) if current_event else None
+        topic_link = _get_event_topic_link(current_event) if current_event else None
     if not topic_link:
         return
     await _send_chat_link_notification(
@@ -395,13 +340,6 @@ async def approve_event_registration_payment(
         return False
 
     user_record = await db.users.get_user_record(user_id=user_id)
-    if user_record:
-        await db.users.update_profile(
-            user_id=user_id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="hot",
-        )
 
     if not bot:
         return True
@@ -436,7 +374,6 @@ async def approve_event_registration_payment(
             event_id,
             exc,
         )
-    gender = user_record.gender if user_record else None
     try:
         await send_event_topic_link_to_user(
             bot=bot,
@@ -444,7 +381,6 @@ async def approve_event_registration_payment(
             db=db,
             event=event,
             user_id=user_id,
-            gender=gender,
             event_private_chat_service=event_private_chat_service,
         )
     except Exception as exc:
@@ -530,13 +466,6 @@ async def approve_event_ticket_purchase(
         return False
 
     user_record = await db.users.get_user_record(user_id=user_id)
-    if user_record:
-        await db.users.update_profile(
-            user_id=user_id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="hot",
-        )
 
     if bot:
         try:
@@ -556,7 +485,6 @@ async def approve_event_ticket_purchase(
                 event_id,
                 exc,
             )
-        gender = user_record.gender if user_record else None
         try:
             await send_event_topic_link_to_user(
                 bot=bot,
@@ -564,7 +492,6 @@ async def approve_event_ticket_purchase(
                 db=db,
                 event=event,
                 user_id=user_id,
-                gender=gender,
                 event_private_chat_service=event_private_chat_service,
             )
         except Exception as exc:
@@ -697,25 +624,24 @@ def build_topic_message_link(
     return f"https://t.me/c/{chat_id_str}/{message_id}?thread={thread_id}"
 
 
-def _get_event_topic_link(event, gender: str | None) -> str | None:
+def _get_event_topic_link(event) -> str | None:
     invite_link = getattr(event, "private_chat_invite_link", None)
     if invite_link:
         return invite_link
-    if gender == "female":
-        return build_topic_message_link(
-            event.female_chat_id,
-            event.female_thread_id,
-            event.female_message_id,
-            event.female_chat_username,
-        )
-    if gender == "male":
-        return build_topic_message_link(
-            event.male_chat_id,
-            event.male_thread_id,
-            event.male_message_id,
-            event.male_chat_username,
-        )
-    return None
+    male_link = build_topic_message_link(
+        event.male_chat_id,
+        event.male_thread_id,
+        event.male_message_id,
+        event.male_chat_username,
+    )
+    if male_link:
+        return male_link
+    return build_topic_message_link(
+        event.female_chat_id,
+        event.female_thread_id,
+        event.female_message_id,
+        event.female_chat_username,
+    )
 
 
 def _get_card_number() -> str:
@@ -836,14 +762,6 @@ async def _send_ticket_purchase_message(
             status=EventRegistrationStatus.PENDING_PAYMENT,
             amount=None,
         )
-    user_record = await db.users.get_user_record(user_id=user_id)
-    if user_record and user_record.temperature != "hot":
-        await db.users.update_profile(
-            user_id=user_id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="warm",
-        )
 
     purchase_url = build_ticket_purchase_link(
         base_url,
@@ -873,7 +791,6 @@ async def _maybe_start_registration(
     db: DB,
     event,
     user_id: int,
-    gender: str | None,
     event_private_chat_service: EventPrivateChatService | None = None,
 ) -> None:
     user_record = await db.users.get_user_record(user_id=user_id)
@@ -883,9 +800,6 @@ async def _maybe_start_registration(
 
     if event and event.partner_user_id == user_id:
         await message.answer(i18n.partner.event.join.chat.self.forbidden())
-        return
-    if not gender:
-        await message.answer(i18n.partner.event.join.chat.missing())
         return
 
     registration = await db.event_registrations.get_by_user_event(
@@ -898,7 +812,7 @@ async def _maybe_start_registration(
         EventRegistrationStatus.ATTENDED_CONFIRMED,
     }:
         event_with_chat = event
-        topic_link = _get_event_topic_link(event_with_chat, gender)
+        topic_link = _get_event_topic_link(event_with_chat)
         if not topic_link:
             ensured_event = await ensure_event_private_chat(
                 db=db,
@@ -907,7 +821,7 @@ async def _maybe_start_registration(
             )
             if ensured_event is not None:
                 event_with_chat = ensured_event
-                topic_link = _get_event_topic_link(event_with_chat, gender)
+                topic_link = _get_event_topic_link(event_with_chat)
         if not topic_link:
             await message.answer(i18n.partner.event.join.chat.missing())
             return
@@ -942,13 +856,6 @@ async def _maybe_start_registration(
             user_id=user_id,
             status=EventRegistrationStatus.PENDING_PAYMENT,
             amount=amount,
-        )
-    if user_record and user_record.temperature != "hot":
-        await db.users.update_profile(
-            user_id=user_id,
-            gender=user_record.gender,
-            age_group=user_record.age_group,
-            temperature="warm",
         )
     await _send_prepay_message(message=message, i18n=i18n, event=event)
 
@@ -1026,29 +933,12 @@ async def handle_event_chat_start(
         await message.answer(i18n.partner.event.join.chat.missing())
         return
 
-    user_record = await db.users.get_user_record(user_id=user.id)
-    gender = user_record.gender if user_record else None
-    age_group = user_record.age_group if user_record else None
-
-    if not gender:
-        await message.answer(
-            i18n.general.registration.gender.prompt(),
-            reply_markup=build_gender_keyboard(i18n, event_id),
-        )
-        return
-    if not age_group:
-        await message.answer(
-            i18n.general.registration.age.prompt(),
-            reply_markup=build_age_keyboard(i18n, event_id),
-        )
-        return
     await _maybe_start_registration(
         message=message,
         i18n=i18n,
         db=db,
         event=event,
         user_id=user.id,
-        gender=gender,
         event_private_chat_service=event_private_chat_service,
     )
 
@@ -1075,30 +965,12 @@ async def handle_event_buy_start(
         await message.answer(i18n.partner.event.join.chat.missing())
         return
 
-    user_record = await db.users.get_user_record(user_id=user.id)
-    gender = user_record.gender if user_record else None
-    age_group = user_record.age_group if user_record else None
-
-    if not gender:
-        await message.answer(
-            i18n.general.registration.gender.prompt(),
-            reply_markup=build_gender_keyboard(i18n, event_id),
-        )
-        return
-    if not age_group:
-        await message.answer(
-            i18n.general.registration.age.prompt(),
-            reply_markup=build_age_keyboard(i18n, event_id),
-        )
-        return
-
     await _maybe_start_registration(
         message=message,
         i18n=i18n,
         db=db,
         event=event,
         user_id=user.id,
-        gender=gender,
         event_private_chat_service=event_private_chat_service,
     )
 
@@ -1138,27 +1010,6 @@ async def process_event_join_chat(
         await callback.answer(i18n.partner.event.join.chat.missing())
         return
 
-    user_record = await db.users.get_user_record(user_id=user.id)
-    gender = user_record.gender if user_record else None
-    age_group = user_record.age_group if user_record else None
-
-    if not gender:
-        if callback.message:
-            await callback.message.answer(
-                i18n.general.registration.gender.prompt(),
-                reply_markup=build_gender_keyboard(i18n, event_id),
-            )
-        await callback.answer()
-        return
-
-    if not age_group:
-        if callback.message:
-            await callback.message.answer(
-                i18n.general.registration.age.prompt(),
-                reply_markup=build_age_keyboard(i18n, event_id),
-            )
-        await callback.answer()
-        return
     if callback.message:
         await _maybe_start_registration(
             message=callback.message,
@@ -1166,149 +1017,6 @@ async def process_event_join_chat(
             db=db,
             event=event,
             user_id=user.id,
-            gender=gender,
-            event_private_chat_service=event_private_chat_service,
-        )
-    await callback.answer()
-
-
-@event_chats_router.callback_query(
-    lambda callback: callback.data
-    and callback.data.startswith(f"{EVENT_JOIN_CHAT_GENDER_CALLBACK}:")
-)
-async def process_event_join_chat_gender(
-    callback: CallbackQuery,
-    i18n: TranslatorRunner,
-    db: DB,
-    event_private_chat_service: EventPrivateChatService | None = None,
-) -> None:
-    parts = _parse_callback_parts(callback.data, EVENT_JOIN_CHAT_GENDER_CALLBACK, 3)
-    if not parts:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-    try:
-        event_id = int(parts[1])
-    except ValueError:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-    gender = parts[2]
-    announce = len(parts) == 4 and parts[3] == "announce"
-    if gender not in {"male", "female"}:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    user = callback.from_user
-    if not user:
-        return
-
-    await _ensure_user_record(
-        db=db,
-        user_id=user.id,
-        username=user.username,
-    )
-    user_record = await db.users.get_user_record(user_id=user.id)
-    age_group = user_record.age_group if user_record else None
-    temperature = user_record.temperature if user_record else "cold"
-
-    await db.users.update_profile(
-        user_id=user.id,
-        gender=gender,
-        age_group=age_group,
-        temperature=temperature,
-    )
-
-    if not age_group:
-        if callback.message:
-            await callback.message.answer(
-                i18n.general.registration.age.prompt(),
-                reply_markup=build_age_keyboard(i18n, event_id, announce=announce),
-            )
-        await callback.answer()
-        return
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    if callback.message:
-        await _maybe_start_registration(
-            message=callback.message,
-            i18n=i18n,
-            db=db,
-            event=event,
-            user_id=user.id,
-            gender=gender,
-            event_private_chat_service=event_private_chat_service,
-        )
-    await callback.answer()
-
-
-@event_chats_router.callback_query(
-    lambda callback: callback.data
-    and callback.data.startswith(f"{EVENT_JOIN_CHAT_AGE_CALLBACK}:")
-)
-async def process_event_join_chat_age(
-    callback: CallbackQuery,
-    i18n: TranslatorRunner,
-    db: DB,
-    event_private_chat_service: EventPrivateChatService | None = None,
-) -> None:
-    parts = _parse_callback_parts(callback.data, EVENT_JOIN_CHAT_AGE_CALLBACK, 3)
-    if not parts:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-    try:
-        event_id = int(parts[1])
-    except ValueError:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-    age_group = parts[2]
-    announce = len(parts) == 4 and parts[3] == "announce"
-    if age_group not in AGE_GROUPS:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    user = callback.from_user
-    if not user:
-        return
-
-    await _ensure_user_record(
-        db=db,
-        user_id=user.id,
-        username=user.username,
-    )
-    user_record = await db.users.get_user_record(user_id=user.id)
-    gender = user_record.gender if user_record else None
-    temperature = user_record.temperature if user_record else "cold"
-
-    await db.users.update_profile(
-        user_id=user.id,
-        gender=gender,
-        age_group=age_group,
-        temperature=temperature,
-    )
-
-    if not gender:
-        if callback.message:
-            await callback.message.answer(
-                i18n.general.registration.gender.prompt(),
-                reply_markup=build_gender_keyboard(i18n, event_id, announce=announce),
-            )
-        await callback.answer()
-        return
-    event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None:
-        await callback.answer(i18n.partner.event.join.chat.missing())
-        return
-
-    if callback.message:
-        await _maybe_start_registration(
-            message=callback.message,
-            i18n=i18n,
-            db=db,
-            event=event,
-            user_id=user.id,
-            gender=gender,
             event_private_chat_service=event_private_chat_service,
         )
     await callback.answer()
