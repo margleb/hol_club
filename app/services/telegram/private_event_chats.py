@@ -103,8 +103,8 @@ class EventPrivateChatService:
         *,
         event_id: int,
         event_name: str,
-        partner_user_id: int,
-        partner_username: str | None,
+        organizer_user_id: int,
+        organizer_username: str | None,
     ) -> CreatedEventChat | None:
         client = self._client
         if client is None:
@@ -130,16 +130,16 @@ class EventPrivateChatService:
             created_channel = result.chats[0]
             channel_entity = await client.get_input_entity(created_channel)
 
-            partner_entity = await self._resolve_partner_entity(
+            organizer_entity = await self._resolve_organizer_entity(
                 client=client,
-                partner_user_id=partner_user_id,
-                partner_username=partner_username,
+                organizer_user_id=organizer_user_id,
+                organizer_username=organizer_username,
             )
-            if partner_entity is None:
+            if organizer_entity is None:
                 logger.warning(
-                    "Failed to resolve partner entity for event %s and partner %s",
+                    "Failed to resolve organizer entity for event %s and organizer %s",
                     event_id,
-                    partner_user_id,
+                    organizer_user_id,
                 )
                 await self._safe_delete_channel(client=client, channel=channel_entity)
                 return None
@@ -147,13 +147,13 @@ class EventPrivateChatService:
             await client(
                 InviteToChannelRequest(
                     channel=channel_entity,
-                    users=[partner_entity],
+                    users=[organizer_entity],
                 )
             )
             await client(
                 EditAdminRequest(
                     channel=channel_entity,
-                    user_id=partner_entity,
+                    user_id=organizer_entity,
                     admin_rights=ChatAdminRights(
                         change_info=True,
                         delete_messages=True,
@@ -239,23 +239,23 @@ class EventPrivateChatService:
         except Exception as exc:
             logger.warning("Failed to delete event chat %s: %s", chat_id, exc)
 
-    async def _resolve_partner_entity(
+    async def _resolve_organizer_entity(
         self,
         *,
         client: TelegramClient,
-        partner_user_id: int,
-        partner_username: str | None,
+        organizer_user_id: int,
+        organizer_username: str | None,
     ):
-        username = _normalize_username(partner_username)
+        username = _normalize_username(organizer_username)
         if username:
             try:
                 return await client.get_input_entity(username)
             except Exception:
-                logger.warning("Failed to resolve partner by username %s", username)
+                logger.warning("Failed to resolve organizer by username %s", username)
         try:
-            return await client.get_input_entity(partner_user_id)
+            return await client.get_input_entity(organizer_user_id)
         except Exception:
-            logger.warning("Failed to resolve partner by user_id %s", partner_user_id)
+            logger.warning("Failed to resolve organizer by user_id %s", organizer_user_id)
             return None
 
     async def _safe_delete_channel(

@@ -238,21 +238,17 @@ async def get_admin_registration_pending(
             "back_button": i18n.back.button(),
         }
 
-    partner_rows = await db.event_registrations.list_partners_with_pending_payment()
+    pending_rows = await db.event_registrations.list_pending_for_admin()
     items: list[tuple[str, str]] = []
-    for partner_user_id, _username, _pending_count in partner_rows:
-        pending = await db.event_registrations.list_pending_by_partner(
-            partner_user_id=partner_user_id
+    for event_id, user_id, username, event_name, amount in pending_rows:
+        user_label = f"@{username}" if username else f"id:{user_id}"
+        amount_label = amount if amount is not None else "-"
+        label = i18n.start.admin.registrations.pending.item(
+            username=user_label,
+            event_name=event_name,
+            amount=amount_label,
         )
-        for event_id, user_id, username, event_name, amount in pending:
-            user_label = f"@{username}" if username else f"id:{user_id}"
-            amount_label = amount if amount is not None else "-"
-            label = i18n.start.admin.registrations.pending.item(
-                username=user_label,
-                event_name=event_name,
-                amount=amount_label,
-            )
-            items.append((label, f"{event_id}:{user_id}"))
+        items.append((label, f"{event_id}:{user_id}"))
 
     return {
         "title": i18n.start.admin.registrations.pending.title(),
@@ -270,7 +266,18 @@ async def get_admin_registration_pending_details(
     db: DB,
     **kwargs,
 ) -> dict[str, object]:
-    _ = event_from_user
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin:
+        return {
+            "details_text": i18n.partner.event.registrations.pending.details.missing(),
+            "approve_button": i18n.partner.event.registrations.pending.approve.button(),
+            "decline_button": i18n.partner.event.registrations.pending.decline.button(),
+            "payment_proof_media": None,
+            "has_payment_proof_media": False,
+            "back_button": i18n.back.button(),
+        }
+
     event_id = dialog_manager.dialog_data.get("selected_pending_event_id")
     user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
     if not event_id or not user_id:
@@ -299,17 +306,17 @@ async def get_admin_registration_pending_details(
         }
 
     user = await db.users.get_user_record(user_id=user_id)
-    owner = await db.users.get_user_record(user_id=event.partner_user_id)
+    owner = await db.users.get_user_record(user_id=event.organizer_user_id)
     username = f"@{user.username}" if user and user.username else f"id:{user_id}"
     owner_username = (
-        f"@{owner.username}" if owner and owner.username else f"id:{event.partner_user_id}"
+        f"@{owner.username}" if owner and owner.username else f"id:{event.organizer_user_id}"
     )
 
     amount = reg.amount if reg.amount is not None else "-"
     details_text = i18n.partner.event.prepay.notify(
         username=username,
         event_name=event.name,
-        partner_username=owner_username,
+        organizer_username=owner_username,
         amount=amount,
     )
 

@@ -33,7 +33,7 @@ from app.bot.dialogs.events.handlers import (
     edit_event_image,
     edit_event_name,
     edit_event_price,
-    ensure_partner_access,
+    ensure_admin_access,
     on_event_address_input,
     on_event_address_selected,
     on_event_age_selected,
@@ -254,5 +254,5 @@ events_dialog = Dialog(
         state=EventsSG.preview,
         getter=get_event_preview,
     ),
-    on_start=ensure_partner_access,
+    on_start=ensure_admin_access,
 )

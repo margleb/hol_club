@@ -239,17 +239,19 @@ async def ensure_event_private_chat(
     if (getattr(event, "private_chat_invite_link", None) or "").strip():
         return event
 
-    partner_username: str | None = None
-    if isinstance(event.partner_user_id, int):
-        partner_record = await db.users.get_user_record(user_id=event.partner_user_id)
-        if partner_record:
-            partner_username = partner_record.username
+    organizer_username: str | None = None
+    if isinstance(event.organizer_user_id, int):
+        organizer_record = await db.users.get_user_record(
+            user_id=event.organizer_user_id
+        )
+        if organizer_record:
+            organizer_username = organizer_record.username
 
     private_chat = await event_private_chat_service.create_event_chat(
         event_id=event.id,
         event_name=event.name,
-        partner_user_id=event.partner_user_id,
-        partner_username=partner_username,
+        organizer_user_id=event.organizer_user_id,
+        organizer_username=organizer_username,
     )
     if private_chat is None:
         logger.warning(
@@ -522,7 +524,7 @@ async def _maybe_start_registration(
         await message.answer(i18n.partner.event.join.chat.role.forbidden())
         return
 
-    if event and event.partner_user_id == user_id:
+    if event and event.organizer_user_id == user_id:
         await message.answer(i18n.partner.event.join.chat.self.forbidden())
         return
 
@@ -878,10 +880,10 @@ async def process_event_payment_proof(
         fallback_name=user.full_name,
         user_id=user.id,
     )
-    partner_record = await db.users.get_user_record(user_id=event.partner_user_id)
-    partner_username = _format_username(
-        username=partner_record.username if partner_record else None,
-        user_id=event.partner_user_id,
+    organizer_record = await db.users.get_user_record(user_id=event.organizer_user_id)
+    organizer_username = _format_username(
+        username=organizer_record.username if organizer_record else None,
+        user_id=event.organizer_user_id,
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -926,7 +928,7 @@ async def process_event_payment_proof(
     notify_text = i18n.partner.event.prepay.notify(
         username=payer_username,
         event_name=event.name,
-        partner_username=partner_username,
+        organizer_username=organizer_username,
         amount=prepay_amount if prepay_amount is not None else "-",
     )
 

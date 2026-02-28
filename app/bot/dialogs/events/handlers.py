@@ -40,7 +40,7 @@ async def _return_to_preview(dialog_manager: DialogManager) -> None:
     await dialog_manager.switch_to(EventsSG.preview)
 
 
-async def ensure_partner_access(_, dialog_manager: DialogManager) -> None:
+async def ensure_admin_access(_, dialog_manager: DialogManager) -> None:
     user: User | None = dialog_manager.middleware_data.get("event_from_user")
     db: DB | None = dialog_manager.middleware_data.get("db")
     i18n: TranslatorRunner | None = dialog_manager.middleware_data.get("i18n")
@@ -627,7 +627,7 @@ async def publish_event(
     )
     fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
     event_id = await db.events.create_event(
-        partner_user_id=user.id,
+        organizer_user_id=user.id,
         name=data.get("name") or "",
         event_datetime=data.get("datetime") or "",
         address=data.get("address") or "",
@@ -725,11 +725,11 @@ async def publish_event(
                 )
             ]
         )
-    partner_keyboard = (
+    organizer_keyboard = (
         InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
         if keyboard_rows
         else None
     )
 
-    await callback.message.answer(message_text, reply_markup=partner_keyboard)
+    await callback.message.answer(message_text, reply_markup=organizer_keyboard)
     await dialog_manager.done()

@@ -10,7 +10,11 @@ class EventsModel(BaseModel):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    partner_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    organizer_user_id: Mapped[int] = mapped_column(
+        "partner_user_id",
+        BigInteger,
+        nullable=False,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     event_datetime: Mapped[str] = mapped_column(String(32), nullable=False)
     address: Mapped[str] = mapped_column(Text, nullable=False)

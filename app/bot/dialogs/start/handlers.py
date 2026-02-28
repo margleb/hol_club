@@ -101,6 +101,13 @@ async def show_pending_registration_details(
     dialog_manager: DialogManager,
     item_id: str,
 ) -> None:
+    db: DB = dialog_manager.middleware_data.get("db")
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
+    if admin_record is None or admin_record.role != UserRole.ADMIN:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
+        return
+
     try:
         event_raw, user_raw = item_id.split(":", 1)
         dialog_manager.dialog_data["selected_pending_event_id"] = int(event_raw)
