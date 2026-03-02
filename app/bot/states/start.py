@@ -7,3 +7,6 @@ class StartSG(StatesGroup):
     user_event_details = State()
     admin_registration_pending_list = State()
     admin_registration_pending_details = State()
+    admin_events_list = State()
+    admin_event_details = State()
+    admin_event_registrations_list = State()

@@ -24,29 +24,6 @@ def _build_channel_post_link(channel_id: int | None, message_id: int | None) -> 
     return f"https://t.me/c/{channel_id_str}/{message_id}"
 
 
-def _build_topic_link(
-    *,
-    chat_id: int | None,
-    thread_id: int | None,
-    message_id: int | None,
-    chat_username: str | None,
-) -> str | None:
-    if not thread_id or not message_id:
-        return None
-    if chat_username:
-        username = chat_username.lstrip("@")
-        if username:
-            return f"https://t.me/{username}/{message_id}?thread={thread_id}"
-    if not chat_id:
-        return None
-    chat_id_str = str(chat_id)
-    if chat_id_str.startswith("-100"):
-        chat_id_str = chat_id_str[4:]
-    else:
-        chat_id_str = str(abs(chat_id))
-    return f"https://t.me/c/{chat_id_str}/{message_id}?thread={thread_id}"
-
-
 def _is_event_past(event_datetime: str | None) -> bool:
     if not event_datetime:
         return False
@@ -136,6 +113,43 @@ async def get_user_events(
     }
 
 
+async def get_admin_events(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    if not admin_record or admin_record.role != UserRole.ADMIN:
+        return {
+            "title": i18n.start.admin.events.title(),
+            "empty_text": i18n.start.admin.events.empty(),
+            "items": [],
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    events = await db.events.list_by_organizer_upcoming(
+        organizer_user_id=event_from_user.id,
+    )
+    items: list[tuple[str, str]] = []
+    for event in events:
+        label = i18n.start.admin.events.item(
+            name=event.name,
+            datetime=event.event_datetime,
+        )
+        items.append((label, str(event.id)))
+
+    return {
+        "title": i18n.start.admin.events.title(),
+        "empty_text": i18n.start.admin.events.empty(),
+        "items": items,
+        "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
 async def get_user_event_details(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -168,18 +182,6 @@ async def get_user_event_details(
 
     post_url = _build_channel_post_link(event.channel_id, event.channel_message_id)
     event_chat_url = event.private_chat_invite_link or ""
-    if not event_chat_url:
-        event_chat_url = _build_topic_link(
-            chat_id=event.male_chat_id,
-            thread_id=event.male_thread_id,
-            message_id=event.male_message_id,
-            chat_username=event.male_chat_username,
-        ) or _build_topic_link(
-            chat_id=event.female_chat_id,
-            thread_id=event.female_thread_id,
-            message_id=event.female_message_id,
-            chat_username=event.female_chat_username,
-        ) or ""
 
     event_text = build_event_text(
         {
@@ -218,6 +220,157 @@ async def get_user_event_details(
         "event_chat_url": event_chat_url,
         "has_chat_url": bool(event_chat_url),
     }
+
+
+async def get_admin_event_details(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    if not admin_record or admin_record.role != UserRole.ADMIN:
+        return {
+            "event_details_text": i18n.partner.event.text.template(
+                name=i18n.partner.event.view.post.button(),
+                datetime="",
+                address="",
+                participation="",
+                description_block="",
+                age_block="",
+            ),
+            "event_media": None,
+            "back_button": i18n.back.button(),
+            "view_post_button": i18n.partner.event.view.post.button(),
+            "event_post_url": "",
+            "has_post_url": False,
+            "view_chat_button": i18n.partner.event.view.chat.button(),
+            "event_chat_url": "",
+            "has_chat_url": False,
+            "registrations_button": i18n.partner.event.registrations.pending.button(),
+        }
+
+    event_id = dialog_manager.dialog_data.get("selected_admin_event_id")
+    if not isinstance(event_id, int):
+        return {
+            "event_details_text": i18n.start.event.details.missing(),
+            "event_media": None,
+            "back_button": i18n.back.button(),
+            "view_post_button": i18n.partner.event.view.post.button(),
+            "event_post_url": "",
+            "has_post_url": False,
+            "view_chat_button": i18n.partner.event.view.chat.button(),
+            "event_chat_url": "",
+            "has_chat_url": False,
+            "registrations_button": i18n.partner.event.registrations.pending.button(),
+        }
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        return {
+            "event_details_text": i18n.start.event.details.missing(),
+            "event_media": None,
+            "back_button": i18n.back.button(),
+            "view_post_button": i18n.partner.event.view.post.button(),
+            "event_post_url": "",
+            "has_post_url": False,
+            "view_chat_button": i18n.partner.event.view.chat.button(),
+            "event_chat_url": "",
+            "has_chat_url": False,
+            "registrations_button": i18n.partner.event.registrations.pending.button(),
+        }
+
+    event_text = build_event_text(
+        {
+            "name": event.name,
+            "datetime": event.event_datetime,
+            "address": event.address,
+            "description": event.description,
+            "is_paid": event.is_paid,
+            "price": event.price,
+            "age_group": event.age_group,
+        },
+        i18n,
+    )
+
+    post_url = _build_channel_post_link(event.channel_id, event.channel_message_id)
+    chat_url = event.private_chat_invite_link or ""
+    return {
+        "event_details_text": event_text,
+        "event_media": (
+            MediaAttachment(
+                type=ContentType.PHOTO,
+                file_id=MediaId(event.photo_file_id),
+            )
+            if event.photo_file_id
+            else None
+        ),
+        "back_button": i18n.back.button(),
+        "view_post_button": i18n.partner.event.view.post.button(),
+        "event_post_url": post_url or "",
+        "has_post_url": bool(post_url),
+        "view_chat_button": i18n.partner.event.view.chat.button(),
+        "event_chat_url": chat_url,
+        "has_chat_url": bool(chat_url),
+        "registrations_button": i18n.partner.event.registrations.pending.button(),
+    }
+
+
+async def get_admin_event_registrations(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    if not admin_record or admin_record.role != UserRole.ADMIN:
+        return {
+            "title": i18n.start.admin.registrations.pending.title(),
+            "empty_text": i18n.start.admin.registrations.pending.empty(),
+            "items": [],
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    event_id = dialog_manager.dialog_data.get("selected_admin_event_id")
+    if not isinstance(event_id, int):
+        return {
+            "title": i18n.start.admin.registrations.pending.title(),
+            "empty_text": i18n.start.admin.registrations.pending.empty(),
+            "items": [],
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    rows = []
+    if event is not None:
+        rows = await db.event_registrations.list_by_event_and_status(
+            event_id=event_id,
+            status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+        )
+    items: list[tuple[str, str]] = []
+    for user_id, username, status, amount in rows:
+        user_label = f"@{username}" if username else f"id:{user_id}"
+        amount_label = amount if amount is not None else "-"
+        label = i18n.start.admin.registrations.pending.item(
+            username=user_label,
+            event_name=event.name if event else "-",
+            amount=amount_label,
+        )
+        items.append((label, f"{event_id}:{user_id}"))
+
+    return {
+        "title": i18n.start.admin.registrations.pending.title(),
+        "empty_text": i18n.start.admin.registrations.pending.empty(),
+        "items": items,
+        "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
 
 
 async def get_admin_registration_pending(

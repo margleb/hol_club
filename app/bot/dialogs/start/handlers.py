@@ -12,6 +12,15 @@ from app.services.telegram.delivery_status import apply_delivery_error_status
 from app.services.telegram.private_event_chats import EventPrivateChatService
 
 
+async def back_to_admin_events_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_events_list)
+
+
 async def back_to_start(
     callback: CallbackQuery,
     widget: Button,
@@ -28,6 +37,16 @@ async def show_user_events_list(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.user_events_list)
+
+
+async def show_admin_events_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data.pop("selected_admin_event_id", None)
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_events_list)
 
 
 async def show_user_event_details(
@@ -93,6 +112,60 @@ async def show_admin_registration_pending_list(
     dialog_manager.dialog_data.pop("selected_registration_user_id", None)
     await callback.answer()
     await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
+
+
+async def show_admin_event_details(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    try:
+        dialog_manager.dialog_data["selected_admin_event_id"] = int(item_id)
+    except ValueError:
+        await callback.answer()
+        return
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_event_details)
+
+
+async def show_admin_event_registrations(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    event_id = dialog_manager.dialog_data.get("selected_admin_event_id")
+    if not isinstance(event_id, int):
+        await callback.answer()
+        return
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_event_registrations_list)
+
+
+async def back_to_admin_event_details(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_event_details)
+
+
+async def show_admin_event_registration_details(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    try:
+        event_raw, user_raw = item_id.split(":", 1)
+        dialog_manager.dialog_data["selected_pending_event_id"] = int(event_raw)
+        dialog_manager.dialog_data["selected_registration_user_id"] = int(user_raw)
+    except (ValueError, AttributeError):
+        await callback.answer()
+        return
+    await callback.answer()
+    await dialog_manager.switch_to(StartSG.admin_registration_pending_details)
 
 
 async def show_pending_registration_details(

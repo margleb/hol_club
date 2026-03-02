@@ -4,6 +4,9 @@ from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
+    get_admin_event_details,
+    get_admin_event_registrations,
+    get_admin_events,
     get_admin_registration_pending,
     get_admin_registration_pending_details,
     get_hello,
@@ -22,6 +25,12 @@ from app.bot.dialogs.start.handlers import (
     show_prev_user_events_page,
     show_user_event_details,
     show_user_events_list,
+    show_admin_events_list,
+    show_admin_event_details,
+    show_admin_event_registrations,
+    show_admin_event_registration_details,
+    back_to_admin_events_list,
+    back_to_admin_event_details,
 )
 from app.bot.states.events import EventsSG
 from app.bot.states.start import StartSG
@@ -41,6 +50,12 @@ start_dialog = Dialog(
             id="user_events_list",
             on_click=show_user_events_list,
             when="can_view_user_events",
+        ),
+        Button(
+            text=Format("{admin_events_button}"),
+            id="admin_events_list",
+            on_click=show_admin_events_list,
+            when="can_manage_pending_registrations",
         ),
         Button(
             text=Format("{admin_pending_button}"),
@@ -118,8 +133,96 @@ start_dialog = Dialog(
                 on_click=back_to_user_events_list,
             ),
         ),
-        getter=get_user_event_details,
-        state=StartSG.user_event_details,
+    getter=get_user_event_details,
+    state=StartSG.user_event_details,
+),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="admin_events_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_admin_event_details,
+            ),
+            id="admin_events_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_events_back",
+                on_click=back_to_start,
+            ),
+        ),
+        getter=get_admin_events,
+        state=StartSG.admin_events_list,
+    ),
+    Window(
+        DynamicMedia("event_media"),
+        Format("{event_details_text}"),
+        Group(
+            Url(
+                text=Format("{view_post_button}"),
+                url=Format("{event_post_url}"),
+                id="admin_event_view_post",
+                when="has_post_url",
+            ),
+            Url(
+                text=Format("{view_chat_button}"),
+                url=Format("{event_chat_url}"),
+                id="admin_event_view_chat",
+                when="has_chat_url",
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{registrations_button}"),
+                id="admin_event_registrations",
+                on_click=show_admin_event_registrations,
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_event_back",
+                on_click=back_to_admin_events_list,
+            ),
+        ),
+        getter=get_admin_event_details,
+        state=StartSG.admin_event_details,
+    ),
+    Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="admin_event_registrations_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_admin_event_registration_details,
+            ),
+            id="admin_event_registrations_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_event_registrations_back",
+                on_click=back_to_admin_event_details,
+            ),
+        ),
+        getter=get_admin_event_registrations,
+        state=StartSG.admin_event_registrations_list,
     ),
     Window(
         Format("{title}"),

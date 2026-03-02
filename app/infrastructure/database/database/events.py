@@ -152,3 +152,22 @@ class _EventsDB:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_by_organizer_upcoming(
+        self,
+        *,
+        organizer_user_id: int,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> list[EventsModel]:
+        now = datetime.now().strftime("%Y.%m.%d %H:%M")
+        stmt = (
+            select(EventsModel)
+            .where(EventsModel.organizer_user_id == organizer_user_id)
+            .where(EventsModel.event_datetime >= now)
+            .order_by(EventsModel.event_datetime.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
