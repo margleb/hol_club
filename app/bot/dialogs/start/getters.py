@@ -52,6 +52,7 @@ async def get_hello(
         "can_create_event": is_admin,
         "user_events_list_button": i18n.start.events.list.button(),
         "can_view_user_events": is_user,
+        "admin_events_button": i18n.start.admin.events.button(),
         "admin_pending_button": i18n.start.admin.registrations.button(),
         "can_manage_pending_registrations": is_admin,
         "back_button": i18n.back.button(),
