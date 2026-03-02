@@ -21,6 +21,7 @@ class EventsModel(BaseModel):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False)
     price: Mapped[str | None] = mapped_column(String(32))
+    commission_percent: Mapped[int] = mapped_column(Integer, nullable=False)
     prepay_percent: Mapped[int | None] = mapped_column(Integer)
     prepay_fixed_free: Mapped[int | None] = mapped_column(Integer)
     age_group: Mapped[str | None] = mapped_column(String(32))

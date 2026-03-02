@@ -9,6 +9,7 @@ from app.bot.dialogs.events.getters import (
     get_event_address_query,
     get_event_address_select,
     get_event_age_group,
+    get_event_commission,
     get_event_datetime,
     get_event_description,
     get_event_image,
@@ -19,6 +20,7 @@ from app.bot.dialogs.events.getters import (
 from app.bot.dialogs.events.handlers import (
     back_from_event_address_query,
     back_from_event_age_group,
+    back_from_event_commission,
     back_from_event_datetime,
     back_from_event_description,
     back_from_event_image,
@@ -28,6 +30,7 @@ from app.bot.dialogs.events.handlers import (
     back_to_address_query,
     edit_event_address,
     edit_event_age,
+    edit_event_commission,
     edit_event_datetime,
     edit_event_description,
     edit_event_image,
@@ -37,6 +40,7 @@ from app.bot.dialogs.events.handlers import (
     on_event_address_input,
     on_event_address_selected,
     on_event_age_selected,
+    on_event_commission_input,
     on_event_datetime_input,
     on_event_description_input,
     on_event_name_input,
@@ -176,6 +180,22 @@ events_dialog = Dialog(
     ),
     Window(
         Format("{prompt}"),
+        TextInput(
+            id="event_commission_input",
+            on_success=on_event_commission_input,
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_commission",
+                on_click=back_from_event_commission,
+            ),
+        ),
+        state=EventsSG.commission,
+        getter=get_event_commission,
+    ),
+    Window(
+        Format("{prompt}"),
         Group(
             Select(
                 Format("{item[0]}"),
@@ -229,6 +249,11 @@ events_dialog = Dialog(
                 text=Format("{edit_price_button}"),
                 id="edit_event_price",
                 on_click=edit_event_price,
+            ),
+            Button(
+                text=Format("{edit_commission_button}"),
+                id="edit_event_commission",
+                on_click=edit_event_commission,
             ),
             Button(
                 text=Format("{edit_age_button}"),

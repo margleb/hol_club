@@ -109,6 +109,18 @@ async def get_event_price(
     }
 
 
+async def get_event_commission(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, str]:
+    _ = dialog_manager
+    return {
+        "prompt": i18n.partner.event.commission.prompt(),
+        "back_button": i18n.back.button(),
+    }
+
+
 async def get_event_age_group(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -157,6 +169,7 @@ async def get_event_preview(
         "edit_address_button": i18n.partner.event.edit.address.button(),
         "edit_description_button": i18n.partner.event.edit.description.button(),
         "edit_price_button": i18n.partner.event.edit.price.button(),
+        "edit_commission_button": i18n.partner.event.edit.commission.button(),
         "edit_age_button": i18n.partner.event.edit.age.button(),
         "is_paid": bool(dialog_manager.dialog_data.get("is_paid")),
         "back_button": i18n.back.button(),

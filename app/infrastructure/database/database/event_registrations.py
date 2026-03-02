@@ -154,6 +154,7 @@ class _EventRegistrationsDB:
         *,
         event_id: int,
         user_id: int,
+        admin_commission_amount: int | None = None,
     ) -> None:
         stmt = (
             update(EventRegistrationsModel)
@@ -161,6 +162,7 @@ class _EventRegistrationsDB:
             .where(EventRegistrationsModel.user_id == user_id)
             .values(
                 status=EventRegistrationStatus.CONFIRMED,
+                admin_commission_amount=admin_commission_amount,
                 paid_confirmed_at=datetime.now(timezone.utc),
             )
         )
@@ -178,6 +180,7 @@ class _EventRegistrationsDB:
         event_id: int,
         user_id: int,
         current_status: EventRegistrationStatus,
+        admin_commission_amount: int | None = None,
     ) -> bool:
         stmt = (
             update(EventRegistrationsModel)
@@ -186,6 +189,7 @@ class _EventRegistrationsDB:
             .where(EventRegistrationsModel.status == current_status)
             .values(
                 status=EventRegistrationStatus.CONFIRMED,
+                admin_commission_amount=admin_commission_amount,
                 paid_confirmed_at=datetime.now(timezone.utc),
             )
         )

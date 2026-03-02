@@ -288,10 +288,15 @@ async def approve_event_registration_payment(
     if registration is None or not registration.payment_proof_file_id:
         return False
 
+    admin_commission_amount = _calc_admin_commission_amount(
+        amount=registration.amount,
+        commission_percent=getattr(event, "commission_percent", 0),
+    )
     approved = await db.event_registrations.mark_paid_confirmed_if_current(
         event_id=event_id,
         user_id=user_id,
         current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
+        admin_commission_amount=admin_commission_amount,
     )
     if not approved:
         return False
@@ -437,6 +442,21 @@ def _calc_prepay_amount(event) -> int | None:
         percent = event.prepay_percent if event.prepay_percent is not None else 100
         return max(0, int(round(price * percent / 100)))
     return event.prepay_fixed_free
+
+
+def _calc_admin_commission_amount(
+    *,
+    amount: int | None,
+    commission_percent: int | None,
+) -> int | None:
+    if amount is None:
+        return None
+    try:
+        normalized_percent = int(commission_percent or 0)
+    except (TypeError, ValueError):
+        normalized_percent = 0
+    normalized_percent = max(0, min(100, normalized_percent))
+    return max(0, int(round(amount * normalized_percent / 100)))
 
 
 async def _send_prepay_message(

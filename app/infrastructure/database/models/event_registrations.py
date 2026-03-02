@@ -23,6 +23,7 @@ class EventRegistrationsModel(BaseModel):
         nullable=False,
     )
     amount: Mapped[int | None] = mapped_column(Integer)
+    admin_commission_amount: Mapped[int | None] = mapped_column(Integer)
     payment_proof_file_id: Mapped[str | None] = mapped_column(String(length=512))
     payment_proof_type: Mapped[str | None] = mapped_column(String(length=32))
     payment_proof_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

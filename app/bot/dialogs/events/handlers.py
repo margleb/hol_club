@@ -282,7 +282,7 @@ async def back_from_event_price(
     await dialog_manager.switch_to(EventsSG.description)
 
 
-async def back_from_event_age_group(
+async def back_from_event_commission(
     callback: CallbackQuery,
     button: Button,
     dialog_manager: DialogManager,
@@ -291,6 +291,17 @@ async def back_from_event_age_group(
         await _return_to_preview(dialog_manager)
         return
     await dialog_manager.switch_to(EventsSG.price)
+
+
+async def back_from_event_age_group(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
+    await dialog_manager.switch_to(EventsSG.commission)
 
 
 
@@ -366,6 +377,30 @@ async def on_event_price_input(
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
+    await dialog_manager.switch_to(EventsSG.commission)
+
+
+async def on_event_commission_input(
+    message: Message,
+    widget,
+    dialog_manager: DialogManager,
+    data: str,
+) -> None:
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    value = (data or "").strip()
+    if not value.isdigit():
+        await message.answer(i18n.partner.event.commission.invalid())
+        return
+
+    commission_percent = int(value)
+    if commission_percent < 0 or commission_percent > 100:
+        await message.answer(i18n.partner.event.commission.invalid())
+        return
+
+    dialog_manager.dialog_data["commission_percent"] = commission_percent
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
+        return
     await dialog_manager.switch_to(EventsSG.age_group)
 
 async def on_event_age_selected(
@@ -438,6 +473,15 @@ async def edit_event_price(
 ) -> None:
     dialog_manager.dialog_data["edit_mode"] = True
     await dialog_manager.switch_to(EventsSG.price)
+
+
+async def edit_event_commission(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data["edit_mode"] = True
+    await dialog_manager.switch_to(EventsSG.commission)
 
 
 async def edit_event_age(
@@ -634,6 +678,7 @@ async def publish_event(
         description=data.get("description") or "",
         is_paid=bool(data.get("is_paid")),
         price=data.get("price"),
+        commission_percent=int(data.get("commission_percent") or 0),
         prepay_percent=data.get("prepay_percent"),
         prepay_fixed_free=data.get("prepay_fixed_free"),
         age_group=data.get("age_group"),
