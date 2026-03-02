@@ -29,6 +29,10 @@ start-admin-events-button = Предстоящие события
 start-admin-events-title = Предстоящие события
 start-admin-events-empty = Вы ещё не создали мероприятий.
 start-admin-events-item = { $name } — { $datetime }
+start-admin-events-button = Предстоящие события
+start-admin-events-title = Предстоящие события
+start-admin-events-empty = Вы ещё не создали мероприятий.
+start-admin-events-item = { $name } — { $datetime }
 start-event-past-tag = [уже прошло]
 start-event-details-text = { $name }
     { $datetime }{ $tags }
