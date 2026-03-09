@@ -235,14 +235,13 @@ class _EventRegistrationsDB:
         *,
         user_id: int,
         statuses: list[EventRegistrationStatus],
-    ) -> list[tuple[int, str, str, EventRegistrationStatus, bool]]:
+    ) -> list[tuple[int, str, str, EventRegistrationStatus]]:
         stmt = (
             select(
                 EventRegistrationsModel.event_id,
                 EventsModel.name,
                 EventsModel.event_datetime,
                 EventRegistrationsModel.status,
-                EventsModel.is_paid,
             )
             .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
             .where(EventRegistrationsModel.user_id == user_id)
@@ -251,7 +250,7 @@ class _EventRegistrationsDB:
         )
         result = await self.session.execute(stmt)
         return [
-            (row[0], row[1], row[2], row[3], row[4])
+            (row[0], row[1], row[2], row[3])
             for row in result.all()
         ]
 

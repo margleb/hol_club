@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy import BigInteger, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database.models.base import BaseModel
@@ -19,14 +19,16 @@ class EventsModel(BaseModel):
     event_datetime: Mapped[str] = mapped_column(String(32), nullable=False)
     address: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    price: Mapped[str | None] = mapped_column(String(32))
+    price: Mapped[str] = mapped_column(String(32), nullable=False)
     commission_percent: Mapped[int] = mapped_column(Integer, nullable=False)
-    prepay_percent: Mapped[int | None] = mapped_column(Integer)
-    prepay_fixed_free: Mapped[int | None] = mapped_column(Integer)
     age_group: Mapped[str | None] = mapped_column(String(32))
     photo_file_id: Mapped[str | None] = mapped_column(String(255))
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    publish_target: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="both",
+    )
     channel_id: Mapped[int | None] = mapped_column(BigInteger)
     channel_message_id: Mapped[int | None] = mapped_column(BigInteger)
     male_chat_id: Mapped[int | None] = mapped_column(BigInteger)

@@ -24,14 +24,12 @@ class _EventsDB:
         event_datetime: str,
         address: str,
         description: str,
-        is_paid: bool,
-        price: str | None,
+        price: str,
         commission_percent: int,
         age_group: str | None,
         photo_file_id: str | None,
         fingerprint: str,
-        prepay_percent: int | None = None,
-        prepay_fixed_free: int | None = None,
+        publish_target: str,
     ) -> int | None:
         stmt = (
             insert(EventsModel)
@@ -41,14 +39,12 @@ class _EventsDB:
                 event_datetime=event_datetime,
                 address=address,
                 description=description,
-                is_paid=is_paid,
                 price=price,
                 commission_percent=commission_percent,
                 age_group=age_group,
-                prepay_percent=prepay_percent,
-                prepay_fixed_free=prepay_fixed_free,
                 photo_file_id=photo_file_id,
                 fingerprint=fingerprint,
+                publish_target=publish_target,
             )
             .on_conflict_do_nothing(index_elements=["fingerprint"])
             .returning(EventsModel.id)
@@ -68,21 +64,24 @@ class _EventsDB:
         self,
         *,
         event_id: int,
-        channel_id: int,
-        channel_message_id: int,
+        channel_id: int | None = None,
+        channel_message_id: int | None = None,
     ) -> None:
+        values: dict[str, object] = {
+            "published_at": datetime.now(timezone.utc),
+        }
+        if channel_id is not None:
+            values["channel_id"] = channel_id
+        if channel_message_id is not None:
+            values["channel_message_id"] = channel_message_id
         stmt = (
             update(EventsModel)
             .where(EventsModel.id == event_id)
-            .values(
-                channel_id=channel_id,
-                channel_message_id=channel_message_id,
-                published_at=datetime.now(timezone.utc),
-            )
+            .values(**values)
         )
         await self.session.execute(stmt)
         logger.info(
-            "Event published. db='%s', event_id=%d, channel_id=%d, message_id=%d",
+            "Event published. db='%s', event_id=%d, channel_id=%s, message_id=%s",
             self.__tablename__,
             event_id,
             channel_id,

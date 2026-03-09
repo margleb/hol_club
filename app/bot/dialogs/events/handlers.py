@@ -13,7 +13,13 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button, Select
 from fluentogram import TranslatorRunner
 
-from app.bot.dialogs.events.constants import EVENT_AGE_GROUPS
+from app.bot.dialogs.events.constants import (
+    EVENT_AGE_GROUPS,
+    EVENT_PUBLISH_TARGET_BOT,
+    EVENT_PUBLISH_TARGET_BOTH,
+    EVENT_PUBLISH_TARGET_CHANNEL,
+    EVENT_PUBLISH_TARGETS,
+)
 from app.bot.enums.roles import UserRole
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
@@ -38,6 +44,14 @@ def _is_edit_mode(dialog_manager: DialogManager) -> bool:
 async def _return_to_preview(dialog_manager: DialogManager) -> None:
     dialog_manager.dialog_data.pop("edit_mode", None)
     await dialog_manager.switch_to(EventsSG.preview)
+
+
+def _get_publish_target(dialog_manager: DialogManager) -> str:
+    publish_target = dialog_manager.dialog_data.get("publish_target")
+    if publish_target in EVENT_PUBLISH_TARGETS:
+        return str(publish_target)
+    dialog_manager.dialog_data["publish_target"] = EVENT_PUBLISH_TARGET_BOTH
+    return EVENT_PUBLISH_TARGET_BOTH
 
 
 async def ensure_admin_access(_, dialog_manager: DialogManager) -> None:
@@ -314,6 +328,27 @@ async def back_from_event_preview(
     await dialog_manager.switch_to(EventsSG.age_group)
 
 
+async def open_event_publish_target(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    _ = callback
+    _ = button
+    _get_publish_target(dialog_manager)
+    await dialog_manager.switch_to(EventsSG.publish_target)
+
+
+async def back_from_event_publish_target(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    _ = callback
+    _ = button
+    await dialog_manager.switch_to(EventsSG.preview)
+
+
 async def on_event_description_input(
     message: Message,
     widget,
@@ -371,9 +406,6 @@ async def on_event_price_input(
         return
 
     dialog_manager.dialog_data["price"] = str(base_price)
-    dialog_manager.dialog_data["is_paid"] = True
-    dialog_manager.dialog_data["prepay_percent"] = 100
-    dialog_manager.dialog_data["prepay_fixed_free"] = None
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
@@ -420,6 +452,23 @@ async def on_event_age_selected(
         await _return_to_preview(dialog_manager)
         return
     await dialog_manager.switch_to(EventsSG.preview)
+
+
+async def on_event_publish_target_selected(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    if item_id not in EVENT_PUBLISH_TARGETS:
+        await callback.answer(
+            i18n.partner.event.publish.target.invalid(),
+            show_alert=True,
+        )
+        return
+    dialog_manager.dialog_data["publish_target"] = item_id
+    await callback.answer()
 
 async def edit_event_name(
     callback: CallbackQuery,
@@ -553,7 +602,6 @@ async def _send_event_announcement_to_user(
             "datetime": event_payload.get("event_datetime"),
             "address": event_payload.get("address"),
             "description": event_payload.get("description"),
-            "is_paid": event_payload.get("is_paid"),
             "price": event_payload.get("price"),
             "age_group": event_payload.get("age_group"),
         },
@@ -633,65 +681,69 @@ async def _broadcast_event_announcement(
             )
 
 
-async def publish_event(
-    callback: CallbackQuery,
-    button: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    db: DB | None = dialog_manager.middleware_data.get("db")
-    user: User | None = dialog_manager.middleware_data.get("event_from_user")
-    channel = _get_events_channel()
+def _build_event_payload(
+    *,
+    event_id: int,
+    data: dict[str, object],
+) -> dict[str, object]:
+    return {
+        "id": event_id,
+        "name": data.get("name") or "",
+        "event_datetime": data.get("datetime") or "",
+        "address": data.get("address") or "",
+        "description": data.get("description") or "",
+        "price": data.get("price"),
+        "age_group": data.get("age_group"),
+        "photo_file_id": data.get("photo_file_id"),
+        "channel_id": None,
+        "channel_message_id": None,
+    }
 
-    if not channel:
-        await callback.answer(i18n.partner.event.channel.missing(), show_alert=True)
-        return
 
-    if not db or not user:
-        await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
-        return
-
-    data = dialog_manager.dialog_data
-    photo_id = data.get("photo_file_id")
-    text = build_event_text(data, i18n)
-
+async def _create_event_record(
+    *,
+    db: DB,
+    user_id: int,
+    data: dict[str, object],
+    publish_target: str,
+) -> int | None:
     fingerprint_source = "\n".join(
         [
-            str(user.id),
+            str(user_id),
             data.get("name") or "",
             data.get("datetime") or "",
             data.get("address") or "",
             data.get("description") or "",
-            "1" if data.get("is_paid") else "0",
             data.get("price") or "",
-            str(data.get("prepay_percent") or ""),
-            str(data.get("prepay_fixed_free") or ""),
             data.get("age_group") or "",
         ]
     )
     fingerprint = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
-    event_id = await db.events.create_event(
-        organizer_user_id=user.id,
+    return await db.events.create_event(
+        organizer_user_id=user_id,
         name=data.get("name") or "",
         event_datetime=data.get("datetime") or "",
         address=data.get("address") or "",
         description=data.get("description") or "",
-        is_paid=bool(data.get("is_paid")),
-        price=data.get("price"),
+        price=str(data.get("price") or ""),
         commission_percent=int(data.get("commission_percent") or 0),
-        prepay_percent=data.get("prepay_percent"),
-        prepay_fixed_free=data.get("prepay_fixed_free"),
         age_group=data.get("age_group"),
-        photo_file_id=photo_id,
+        photo_file_id=data.get("photo_file_id"),
         fingerprint=fingerprint,
+        publish_target=publish_target,
     )
-    if event_id is None:
-        await callback.answer(
-            i18n.partner.event.publish.already(),
-            show_alert=True,
-        )
-        return
 
+
+async def _publish_event_to_channel(
+    *,
+    callback: CallbackQuery,
+    i18n: TranslatorRunner,
+    channel: str,
+    event_id: int,
+    data: dict[str, object],
+) -> Message:
+    photo_id = data.get("photo_file_id")
+    text = build_event_text(data, i18n)
     channel_keyboard = None
     join_url = await _build_event_join_start_link(
         bot=callback.bot,
@@ -709,19 +761,72 @@ async def publish_event(
             ]
         )
 
+    if photo_id:
+        return await callback.bot.send_photo(
+            channel,
+            photo=photo_id,
+            caption=text,
+            reply_markup=channel_keyboard,
+        )
+    return await callback.bot.send_message(
+        channel,
+        text=text,
+        reply_markup=channel_keyboard,
+    )
+
+
+async def publish_event(
+    callback: CallbackQuery,
+    button: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+    db: DB | None = dialog_manager.middleware_data.get("db")
+    user: User | None = dialog_manager.middleware_data.get("event_from_user")
+
+    if not db or not user:
+        await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
+        return
+
+    data = dialog_manager.dialog_data
+    publish_target = _get_publish_target(dialog_manager)
+    should_publish_to_channel = publish_target in {
+        EVENT_PUBLISH_TARGET_CHANNEL,
+        EVENT_PUBLISH_TARGET_BOTH,
+    }
+    should_publish_to_bot = publish_target in {
+        EVENT_PUBLISH_TARGET_BOT,
+        EVENT_PUBLISH_TARGET_BOTH,
+    }
+    channel = _get_events_channel() if should_publish_to_channel else None
+
+    if should_publish_to_channel and not channel:
+        await callback.answer(i18n.partner.event.channel.missing(), show_alert=True)
+        return
+
+    event_id = await _create_event_record(
+        db=db,
+        user_id=user.id,
+        data=data,
+        publish_target=publish_target,
+    )
+    if event_id is None:
+        await callback.answer(
+            i18n.partner.event.publish.already(),
+            show_alert=True,
+        )
+        return
+
+    event_payload = _build_event_payload(event_id=event_id, data=data)
+    channel_message = None
     try:
-        if photo_id:
-            channel_message = await callback.bot.send_photo(
-                channel,
-                photo=photo_id,
-                caption=text,
-                reply_markup=channel_keyboard,
-            )
-        else:
-            channel_message = await callback.bot.send_message(
-                channel,
-                text=text,
-                reply_markup=channel_keyboard,
+        if should_publish_to_channel and channel:
+            channel_message = await _publish_event_to_channel(
+                callback=callback,
+                i18n=i18n,
+                channel=channel,
+                event_id=event_id,
+                data=data,
             )
     except Exception as exc:
         logger.warning("Failed to publish event: %s", exc)
@@ -729,35 +834,31 @@ async def publish_event(
         await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
         return
 
+    if channel_message is not None:
+        event_payload["channel_id"] = channel_message.chat.id
+        event_payload["channel_message_id"] = channel_message.message_id
+
     await db.events.mark_event_published(
         event_id=event_id,
-        channel_id=channel_message.chat.id,
-        channel_message_id=channel_message.message_id,
+        channel_id=event_payload.get("channel_id"),
+        channel_message_id=event_payload.get("channel_message_id"),
     )
 
-    event_payload = {
-        "id": event_id,
-        "name": data.get("name") or "",
-        "event_datetime": data.get("datetime") or "",
-        "address": data.get("address") or "",
-        "description": data.get("description") or "",
-        "is_paid": bool(data.get("is_paid")),
-        "price": data.get("price"),
-        "age_group": data.get("age_group"),
-        "photo_file_id": photo_id,
-        "channel_id": channel_message.chat.id,
-        "channel_message_id": channel_message.message_id,
-    }
-    await _broadcast_event_announcement(
-        bot=callback.bot,
-        i18n=i18n,
-        db=db,
-        event_payload=event_payload,
-    )
+    if should_publish_to_bot:
+        await _broadcast_event_announcement(
+            bot=callback.bot,
+            i18n=i18n,
+            db=db,
+            event_payload=event_payload,
+        )
 
-    post_link = _build_channel_post_link(
-        channel_message.chat,
-        channel_message.message_id,
+    post_link = (
+        _build_channel_post_link(
+            channel_message.chat,
+            channel_message.message_id,
+        )
+        if channel_message is not None
+        else None
     )
     message_text = i18n.partner.event.publish.success()
     keyboard_rows = []

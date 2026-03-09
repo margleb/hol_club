@@ -21,21 +21,15 @@ def _render_event_text(
     date_time: str,
     address: str,
     description: str,
-    is_paid: bool,
-    price: str | None,
+    price: str,
     age_group: str | None,
     i18n: TranslatorRunner,
 ) -> str:
-    participation_value = (
-        price if is_paid and price else i18n.partner.event.participation.free()
-    )
     datetime_line = i18n.partner.event.label.datetime(value=date_time)
     address_line = i18n.partner.event.label.address(
         value=f'<a href="{_build_address_link(address)}">{address}</a>',
     )
-    participation_line = i18n.partner.event.label.participation(
-        value=participation_value
-    )
+    participation_line = i18n.partner.event.label.participation(value=price)
     age_block = (
         f"{i18n.partner.event.label.age(value=age_group)}"
         if age_group
@@ -61,8 +55,7 @@ def build_event_text(
     raw_date_time = data.get("datetime") or ""
     raw_address = data.get("address") or ""
     raw_description = data.get("description") or ""
-    is_paid = bool(data.get("is_paid"))
-    raw_price = data.get("price")
+    raw_price = data.get("price") or ""
     raw_age_group = data.get("age_group")
     display_age_group = (
         i18n.partner.event.age.everyone()
@@ -76,8 +69,7 @@ def build_event_text(
             date_time=_escape_html(raw_date_time),
             address=_escape_html(address),
             description=_escape_html(description),
-            is_paid=is_paid,
-            price=_escape_html(raw_price) if raw_price else None,
+            price=_escape_html(raw_price),
             age_group=_escape_html(display_age_group) if display_age_group else None,
             i18n=i18n,
         )

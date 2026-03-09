@@ -84,7 +84,7 @@ async def get_user_events(
     page_items = all_events[start:end]
 
     event_items: list[tuple[str, str]] = []
-    for event_id, name, event_datetime, _status, _is_paid in page_items:
+    for event_id, name, event_datetime, _status in page_items:
         tags: list[str] = []
         if _is_event_past(event_datetime):
             tags.append(i18n.start.event.past.tag())
@@ -190,7 +190,6 @@ async def get_user_event_details(
             "datetime": event.event_datetime,
             "address": event.address,
             "description": event.description,
-            "is_paid": event.is_paid,
             "price": event.price,
             "age_group": event.age_group,
         },
@@ -288,7 +287,6 @@ async def get_admin_event_details(
             "datetime": event.event_datetime,
             "address": event.address,
             "description": event.description,
-            "is_paid": event.is_paid,
             "price": event.price,
             "age_group": event.age_group,
         },

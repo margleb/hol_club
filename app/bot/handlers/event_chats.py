@@ -430,18 +430,12 @@ def _get_card_number() -> str:
 def _calc_prepay_amount(event) -> int | None:
     if event is None:
         return None
-    if event.is_paid:
-        if not event.price:
-            return None
-        try:
-            price = int(str(event.price).replace(" ", ""))
-        except ValueError:
-            return None
-        if event.prepay_percent is None and event.prepay_fixed_free is not None:
-            return max(0, int(event.prepay_fixed_free))
-        percent = event.prepay_percent if event.prepay_percent is not None else 100
-        return max(0, int(round(price * percent / 100)))
-    return event.prepay_fixed_free
+    if not event.price:
+        return None
+    try:
+        return max(0, int(str(event.price).replace(" ", "")))
+    except ValueError:
+        return None
 
 
 def _calc_admin_commission_amount(
@@ -467,15 +461,9 @@ async def _send_prepay_message(
 ) -> None:
     amount = _calc_prepay_amount(event)
     card_number = _get_card_number()
-    refund_note = (
-        i18n.partner.event.prepay.free.refund()
-        if not event.is_paid
-        else ""
-    )
     text = i18n.partner.event.prepay.text(
         amount=amount if amount is not None else "-",
         card_number=card_number or "-",
-        refund_note=refund_note,
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -607,7 +595,6 @@ async def _send_event_announcement(
             "datetime": event.event_datetime,
             "address": event.address,
             "description": event.description,
-            "is_paid": event.is_paid,
             "price": event.price,
             "age_group": event.age_group,
         },

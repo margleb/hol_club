@@ -12,3 +12,4 @@ class EventsSG(StatesGroup):
     commission = State()
     age_group = State()
     preview = State()
+    publish_target = State()

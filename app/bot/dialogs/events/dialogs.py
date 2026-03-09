@@ -14,6 +14,7 @@ from app.bot.dialogs.events.getters import (
     get_event_description,
     get_event_image,
     get_event_name,
+    get_event_publish_target,
     get_event_preview,
     get_event_price,
 )
@@ -25,6 +26,7 @@ from app.bot.dialogs.events.handlers import (
     back_from_event_description,
     back_from_event_image,
     back_from_event_name,
+    back_from_event_publish_target,
     back_from_event_preview,
     back_from_event_price,
     back_to_address_query,
@@ -44,8 +46,10 @@ from app.bot.dialogs.events.handlers import (
     on_event_datetime_input,
     on_event_description_input,
     on_event_name_input,
+    on_event_publish_target_selected,
     on_event_photo_input,
     on_event_price_input,
+    open_event_publish_target,
     publish_event,
     skip_event_photo,
 )
@@ -265,8 +269,8 @@ events_dialog = Dialog(
         Row(
             Button(
                 text=Format("{publish_button}"),
-                id="publish_event",
-                on_click=publish_event,
+                id="open_publish_target",
+                on_click=open_event_publish_target,
             ),
         ),
         Row(
@@ -278,6 +282,35 @@ events_dialog = Dialog(
         ),
         state=EventsSG.preview,
         getter=get_event_preview,
+    ),
+    Window(
+        Format("{prompt}"),
+        Group(
+            Select(
+                Format("{item[0]}"),
+                id="publish_target_select",
+                item_id_getter=lambda item: item[1],
+                items="publish_target_choices",
+                on_click=on_event_publish_target_selected,
+            ),
+            width=1,
+        ),
+        Row(
+            Button(
+                text=Format("{publish_button}"),
+                id="publish_event",
+                on_click=publish_event,
+            ),
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="back_from_event_publish_target",
+                on_click=back_from_event_publish_target,
+            ),
+        ),
+        state=EventsSG.publish_target,
+        getter=get_event_publish_target,
     ),
     on_start=ensure_admin_access,
 )

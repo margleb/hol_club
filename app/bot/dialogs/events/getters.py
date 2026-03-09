@@ -3,7 +3,13 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
-from app.bot.dialogs.events.constants import EVENT_AGE_GROUPS, EVENT_AGE_GROUP_ALL
+from app.bot.dialogs.events.constants import (
+    EVENT_AGE_GROUPS,
+    EVENT_AGE_GROUP_ALL,
+    EVENT_PUBLISH_TARGET_BOT,
+    EVENT_PUBLISH_TARGET_BOTH,
+    EVENT_PUBLISH_TARGET_CHANNEL,
+)
 from app.infrastructure.database.database.db import DB
 from config.config import settings
 from app.bot.dialogs.events.utils import build_event_text
@@ -171,6 +177,52 @@ async def get_event_preview(
         "edit_price_button": i18n.partner.event.edit.price.button(),
         "edit_commission_button": i18n.partner.event.edit.commission.button(),
         "edit_age_button": i18n.partner.event.edit.age.button(),
-        "is_paid": bool(dialog_manager.dialog_data.get("is_paid")),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_event_publish_target(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    **kwargs,
+) -> dict[str, list[tuple[str, str]] | str]:
+    selected_target = dialog_manager.dialog_data.setdefault(
+        "publish_target",
+        EVENT_PUBLISH_TARGET_BOTH,
+    )
+    choices = [
+        (
+            (
+                f"{i18n.partner.event.publish.target.selected()}"
+                f" {i18n.partner.event.publish.target.bot()}"
+            )
+            if selected_target == EVENT_PUBLISH_TARGET_BOT
+            else i18n.partner.event.publish.target.bot()
+        ),
+        (
+            (
+                f"{i18n.partner.event.publish.target.selected()}"
+                f" {i18n.partner.event.publish.target.channel()}"
+            )
+            if selected_target == EVENT_PUBLISH_TARGET_CHANNEL
+            else i18n.partner.event.publish.target.channel()
+        ),
+        (
+            (
+                f"{i18n.partner.event.publish.target.selected()}"
+                f" {i18n.partner.event.publish.target.both()}"
+            )
+            if selected_target == EVENT_PUBLISH_TARGET_BOTH
+            else i18n.partner.event.publish.target.both()
+        ),
+    ]
+    return {
+        "prompt": i18n.partner.event.publish.target.prompt(),
+        "publish_target_choices": [
+            (choices[0], EVENT_PUBLISH_TARGET_BOT),
+            (choices[1], EVENT_PUBLISH_TARGET_CHANNEL),
+            (choices[2], EVENT_PUBLISH_TARGET_BOTH),
+        ],
+        "publish_button": i18n.partner.event.publish.button(),
         "back_button": i18n.back.button(),
     }
