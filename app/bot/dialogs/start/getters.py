@@ -6,8 +6,10 @@ from fluentogram import TranslatorRunner
 from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
+from app.bot.handlers.event_chats import ensure_event_private_chat
 from app.infrastructure.database.database.db import DB
-from app.utils.datetime import format_event_datetime, is_event_past
+from app.services.telegram.private_event_chats import EventPrivateChatService
+from app.utils.datetime import format_event_datetime, is_event_past, now_utc
 
 EVENTS_PAGE_SIZE = 5
 
@@ -21,6 +23,15 @@ def _build_channel_post_link(channel_id: int | None, message_id: int | None) -> 
     else:
         channel_id_str = str(abs(channel_id))
     return f"https://t.me/c/{channel_id_str}/{message_id}"
+
+
+def _can_show_event_chat_link(event) -> bool:
+    if getattr(event, "private_chat_deleted_at", None) is not None:
+        return False
+    delete_at = getattr(event, "private_chat_delete_at", None)
+    if delete_at is not None and delete_at <= now_utc():
+        return False
+    return True
 
 
 async def get_hello(
@@ -149,6 +160,9 @@ async def get_user_event_details(
     **kwargs,
 ) -> dict[str, object]:
     _ = event_from_user
+    event_private_chat_service: EventPrivateChatService | None = (
+        dialog_manager.middleware_data.get("event_private_chat_service")
+    )
     event_id = dialog_manager.dialog_data.get("selected_user_event_id")
     if not event_id:
         return {
@@ -172,7 +186,18 @@ async def get_user_event_details(
         }
 
     post_url = _build_channel_post_link(event.channel_id, event.channel_message_id)
-    event_chat_url = event.private_chat_invite_link or ""
+    if _can_show_event_chat_link(event) and not event.private_chat_invite_link:
+        event_with_chat = await ensure_event_private_chat(
+            db=db,
+            event_id=event.id,
+            event_private_chat_service=event_private_chat_service,
+        )
+        if event_with_chat is not None:
+            event = event_with_chat
+
+    event_chat_url = ""
+    if _can_show_event_chat_link(event):
+        event_chat_url = event.private_chat_invite_link or ""
 
     event_text = build_event_text(
         {
