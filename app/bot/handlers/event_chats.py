@@ -15,6 +15,7 @@ from app.infrastructure.database.database.db import DB
 from app.bot.states.admin_contact import AdminContactSG
 from app.services.telegram.delivery_status import apply_delivery_error_status
 from app.services.telegram.private_event_chats import EventPrivateChatService
+from app.utils.datetime import now_utc
 from config.config import settings
 
 event_chats_router = Router()
@@ -236,6 +237,13 @@ async def ensure_event_private_chat(
     event = await db.events.get_event_by_id(event_id=event_id, for_update=True)
     if event is None:
         return None
+    if getattr(event, "private_chat_deleted_at", None) is not None:
+        return event
+    if (
+        getattr(event, "private_chat_delete_at", None) is not None
+        and event.private_chat_delete_at <= now_utc()
+    ):
+        return event
     if (getattr(event, "private_chat_invite_link", None) or "").strip():
         return event
 

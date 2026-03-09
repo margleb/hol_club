@@ -3,6 +3,8 @@ from urllib.parse import quote_plus
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.events.constants import EVENT_AGE_GROUP_ALL
+from app.utils.datetime import format_event_datetime
+
 
 def _escape_html(value: str) -> str:
     return (
@@ -52,7 +54,7 @@ def build_event_text(
     i18n: TranslatorRunner,
 ) -> str:
     raw_name = data.get("name") or ""
-    raw_date_time = data.get("datetime") or ""
+    raw_date_time = format_event_datetime(data.get("datetime"))
     raw_address = data.get("address") or ""
     raw_description = data.get("description") or ""
     raw_price = data.get("price") or ""
@@ -77,8 +79,8 @@ def build_event_text(
     return render(raw_description, raw_address)
 
 
-def build_event_topic_name(event_datetime: str, event_name: str) -> str:
-    date_value = (event_datetime or "").strip()
+def build_event_topic_name(event_datetime: object, event_name: str) -> str:
+    date_value = format_event_datetime(event_datetime).strip()
     name = (event_name or "").strip()
     if date_value and name:
         base = f"{date_value} - {name}"

@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from datetime import datetime
+from datetime import timezone
 
 from aiogram.types import (
     CallbackQuery,
@@ -27,6 +27,7 @@ from config.config import settings
 from app.bot.dialogs.events.utils import build_event_text
 from app.services.telegram.delivery_status import apply_delivery_error_status
 from app.services.geocoders.geocoder import fetch_address_suggestions
+from app.utils.datetime import coerce_event_datetime, now_moscow, parse_event_datetime_input
 
 logger = logging.getLogger(__name__)
 EVENT_JOIN_CHAT_CALLBACK = "event_join_chat"
@@ -140,16 +141,18 @@ async def on_event_datetime_input(
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     value = (data or "").strip()
     try:
-        event_datetime = datetime.strptime(value, "%Y.%m.%d %H:%M")
+        event_datetime = parse_event_datetime_input(value)
     except ValueError:
         await message.answer(i18n.partner.event.datetime.invalid())
         return
 
-    if event_datetime <= datetime.now():
+    if event_datetime <= now_moscow():
         await message.answer(i18n.partner.event.datetime.past())
         return
 
-    dialog_manager.dialog_data["datetime"] = value
+    dialog_manager.dialog_data["datetime"] = event_datetime.astimezone(
+        timezone.utc
+    ).isoformat()
     if _is_edit_mode(dialog_manager):
         await _return_to_preview(dialog_manager)
         return
@@ -689,7 +692,7 @@ def _build_event_payload(
     return {
         "id": event_id,
         "name": data.get("name") or "",
-        "event_datetime": data.get("datetime") or "",
+        "event_datetime": data.get("datetime"),
         "address": data.get("address") or "",
         "description": data.get("description") or "",
         "price": data.get("price"),
@@ -707,11 +710,14 @@ async def _create_event_record(
     data: dict[str, object],
     publish_target: str,
 ) -> int | None:
+    event_datetime = coerce_event_datetime(data.get("datetime"))
+    if event_datetime is None:
+        raise ValueError("Event datetime is missing or invalid")
     fingerprint_source = "\n".join(
         [
             str(user_id),
             data.get("name") or "",
-            data.get("datetime") or "",
+            event_datetime.astimezone(timezone.utc).isoformat(),
             data.get("address") or "",
             data.get("description") or "",
             data.get("price") or "",
@@ -722,7 +728,7 @@ async def _create_event_record(
     return await db.events.create_event(
         organizer_user_id=user_id,
         name=data.get("name") or "",
-        event_datetime=data.get("datetime") or "",
+        event_datetime=event_datetime,
         address=data.get("address") or "",
         description=data.get("description") or "",
         price=str(data.get("price") or ""),
@@ -804,12 +810,16 @@ async def publish_event(
         await callback.answer(i18n.partner.event.channel.missing(), show_alert=True)
         return
 
-    event_id = await _create_event_record(
-        db=db,
-        user_id=user.id,
-        data=data,
-        publish_target=publish_target,
-    )
+    try:
+        event_id = await _create_event_record(
+            db=db,
+            user_id=user.id,
+            data=data,
+            publish_target=publish_target,
+        )
+    except ValueError:
+        await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
+        return
     if event_id is None:
         await callback.answer(
             i18n.partner.event.publish.already(),

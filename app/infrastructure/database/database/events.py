@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models.events import EventsModel
+from app.utils.datetime import compute_private_chat_delete_at, now_utc
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class _EventsDB:
         *,
         organizer_user_id: int,
         name: str,
-        event_datetime: str,
+        event_datetime: datetime,
         address: str,
         description: str,
         price: str,
@@ -45,6 +46,7 @@ class _EventsDB:
                 photo_file_id=photo_file_id,
                 fingerprint=fingerprint,
                 publish_target=publish_target,
+                private_chat_delete_at=compute_private_chat_delete_at(event_datetime),
             )
             .on_conflict_do_nothing(index_elements=["fingerprint"])
             .returning(EventsModel.id)
@@ -108,6 +110,7 @@ class _EventsDB:
                 female_message_id=None,
                 female_chat_username=None,
                 private_chat_invite_link=invite_link,
+                private_chat_deleted_at=None,
             )
         )
         await self.session.execute(stmt)
@@ -159,7 +162,7 @@ class _EventsDB:
         limit: int = 10,
         offset: int = 0,
     ) -> list[EventsModel]:
-        now = datetime.now().strftime("%Y.%m.%d %H:%M")
+        now = now_utc()
         stmt = (
             select(EventsModel)
             .where(EventsModel.organizer_user_id == organizer_user_id)
@@ -170,3 +173,54 @@ class _EventsDB:
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def list_private_chats_due_for_deletion(
+        self,
+        *,
+        delete_before: datetime,
+        limit: int = 20,
+    ) -> list[EventsModel]:
+        stmt = (
+            select(EventsModel)
+            .where(EventsModel.private_chat_delete_at.is_not(None))
+            .where(EventsModel.private_chat_delete_at <= delete_before)
+            .where(EventsModel.private_chat_deleted_at.is_(None))
+            .where(
+                (EventsModel.male_chat_id.is_not(None))
+                | (EventsModel.female_chat_id.is_not(None))
+                | (EventsModel.private_chat_invite_link.is_not(None))
+            )
+            .order_by(EventsModel.private_chat_delete_at.asc(), EventsModel.id.asc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def mark_private_chat_deleted(
+        self,
+        *,
+        event_id: int,
+        deleted_at: datetime | None = None,
+    ) -> None:
+        stmt = (
+            update(EventsModel)
+            .where(EventsModel.id == event_id)
+            .values(
+                male_chat_id=None,
+                male_thread_id=None,
+                male_message_id=None,
+                male_chat_username=None,
+                female_chat_id=None,
+                female_thread_id=None,
+                female_message_id=None,
+                female_chat_username=None,
+                private_chat_invite_link=None,
+                private_chat_deleted_at=deleted_at or datetime.now(timezone.utc),
+            )
+        )
+        await self.session.execute(stmt)
+        logger.info(
+            "Event private chat deleted. db='%s', event_id=%d",
+            self.__tablename__,
+            event_id,
+        )

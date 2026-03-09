@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from aiogram.types import ContentType, User
 from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
@@ -9,6 +7,7 @@ from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
 from app.infrastructure.database.database.db import DB
+from app.utils.datetime import format_event_datetime, is_event_past
 
 EVENTS_PAGE_SIZE = 5
 
@@ -22,15 +21,6 @@ def _build_channel_post_link(channel_id: int | None, message_id: int | None) -> 
     else:
         channel_id_str = str(abs(channel_id))
     return f"https://t.me/c/{channel_id_str}/{message_id}"
-
-
-def _is_event_past(event_datetime: str | None) -> bool:
-    if not event_datetime:
-        return False
-    try:
-        return datetime.strptime(event_datetime, "%Y.%m.%d %H:%M") < datetime.now()
-    except ValueError:
-        return False
 
 
 async def get_hello(
@@ -86,12 +76,12 @@ async def get_user_events(
     event_items: list[tuple[str, str]] = []
     for event_id, name, event_datetime, _status in page_items:
         tags: list[str] = []
-        if _is_event_past(event_datetime):
+        if is_event_past(event_datetime):
             tags.append(i18n.start.event.past.tag())
         tags_text = f" {' '.join(tags)}" if tags else ""
         label = i18n.start.events.item(
             name=name,
-            datetime=event_datetime,
+            datetime=format_event_datetime(event_datetime),
             tags=tags_text,
         )
         event_items.append((label, str(event_id)))
@@ -138,7 +128,7 @@ async def get_admin_events(
     for event in events:
         label = i18n.start.admin.events.item(
             name=event.name,
-            datetime=event.event_datetime,
+            datetime=format_event_datetime(event.event_datetime),
         )
         items.append((label, str(event.id)))
 
@@ -197,7 +187,7 @@ async def get_user_event_details(
     )
 
     tags: list[str] = []
-    if _is_event_past(event.event_datetime):
+    if is_event_past(event.event_datetime):
         tags.append(i18n.start.event.past.tag())
     if tags:
         event_text = "\n\n".join([event_text, " ".join(tags)])

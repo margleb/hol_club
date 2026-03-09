@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
@@ -21,6 +22,7 @@ from app.infrastructure.database.connect_to_pg import get_pg_pool
 from app.infrastructure.storage.storage.nats_storage import NatsStorage
 from app.infrastructure.storage.storage.nats_key_builder import NatsKeyBuilder
 from app.infrastructure.storage.nats_connect import connect_to_nats
+from app.services.telegram.event_chat_cleanup import run_event_chat_cleanup_loop
 from app.services.telegram.private_event_chats import EventPrivateChatService
 from config.config import settings
 
@@ -71,7 +73,8 @@ async def main():
         api_hash=str(settings.get("telethon_api_hash") or ""),
         session=str(settings.get("telethon_session") or ""),
     )
-    if not await event_private_chat_service.connect():
+    private_chat_service_connected = await event_private_chat_service.connect()
+    if not private_chat_service_connected:
         logger.warning("Event private chat service is disabled")
 
     translator_hub: TranslatorHub = create_translator_hub()
@@ -103,8 +106,17 @@ async def main():
     logger.info("Setting up dialogs")
     bg_factory = setup_dialogs(dp)
 
+    cleanup_task: asyncio.Task | None = None
+
     # Launch polling
     try:
+        if private_chat_service_connected:
+            cleanup_task = asyncio.create_task(
+                run_event_chat_cleanup_loop(
+                    session_maker=db_session_maker,
+                    event_private_chat_service=event_private_chat_service,
+                )
+            )
         await dp.start_polling(
             bot,
             bg_factory=bg_factory,
@@ -116,6 +128,12 @@ async def main():
     except Exception as e:
         logger.exception(e)
     finally:
+        if cleanup_task is not None:
+            cleanup_task.cancel()
+            try:
+                await cleanup_task
+            except asyncio.CancelledError:
+                pass
         await nc.close()
         logger.info('Connection to NATS closed')
         await db_engine.dispose()

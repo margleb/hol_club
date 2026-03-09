@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from telethon import TelegramClient
 from telethon.errors import RPCError
-from telethon.errors.rpcerrorlist import FloodWaitError
+from telethon.errors.rpcerrorlist import ChannelInvalidError, ChannelPrivateError, FloodWaitError
 from telethon.sessions import StringSession
 from telethon.tl.functions.channels import (
     CreateChannelRequest,
@@ -64,6 +64,10 @@ class EventPrivateChatService:
     @property
     def enabled(self) -> bool:
         return bool(self._api_id and self._api_hash)
+
+    @property
+    def connected(self) -> bool:
+        return self._client is not None
 
     async def connect(self) -> bool:
         if not self.enabled:
@@ -225,10 +229,10 @@ class EventPrivateChatService:
                     pass
             return None
 
-    async def delete_event_chat(self, *, chat_id: int) -> None:
+    async def delete_event_chat(self, *, chat_id: int) -> bool:
         client = self._client
         if client is None:
-            return
+            return False
         peer_id: int | str = chat_id
         chat_id_str = str(chat_id)
         if chat_id_str.startswith("-100"):
@@ -236,8 +240,13 @@ class EventPrivateChatService:
         try:
             channel = await client.get_input_entity(peer_id)
             await client(DeleteChannelRequest(channel=channel))
+            return True
+        except (ChannelInvalidError, ChannelPrivateError):
+            logger.info("Event chat %s is already unavailable", chat_id)
+            return True
         except Exception as exc:
             logger.warning("Failed to delete event chat %s: %s", chat_id, exc)
+            return False
 
     async def _resolve_organizer_entity(
         self,

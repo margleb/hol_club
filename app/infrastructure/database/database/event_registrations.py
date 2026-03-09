@@ -235,7 +235,7 @@ class _EventRegistrationsDB:
         *,
         user_id: int,
         statuses: list[EventRegistrationStatus],
-    ) -> list[tuple[int, str, str, EventRegistrationStatus]]:
+    ) -> list[tuple[int, str, datetime, EventRegistrationStatus]]:
         stmt = (
             select(
                 EventRegistrationsModel.event_id,
