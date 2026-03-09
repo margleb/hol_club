@@ -54,7 +54,6 @@ async def get_hello(
         "user_events_list_button": i18n.start.events.list.button(),
         "can_view_user_events": is_user,
         "admin_events_button": i18n.start.admin.events.button(),
-        "admin_pending_button": i18n.start.admin.registrations.button(),
         "can_manage_pending_registrations": is_admin,
         "back_button": i18n.back.button(),
     }
@@ -385,45 +384,6 @@ async def get_admin_event_registrations(
     }
 
 
-
-
-async def get_admin_registration_pending(
-    dialog_manager: DialogManager,
-    i18n: TranslatorRunner,
-    event_from_user: User,
-    db: DB,
-    **kwargs,
-) -> dict[str, object]:
-    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
-    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
-    if not is_admin:
-        return {
-            "title": i18n.start.admin.registrations.pending.title(),
-            "items": [],
-            "empty_text": i18n.start.admin.registrations.pending.empty(),
-            "has_items": False,
-            "back_button": i18n.back.button(),
-        }
-
-    pending_rows = await db.event_registrations.list_pending_for_admin()
-    items: list[tuple[str, str]] = []
-    for event_id, user_id, username, event_name, amount in pending_rows:
-        user_label = f"@{username}" if username else f"id:{user_id}"
-        amount_label = amount if amount is not None else "-"
-        label = i18n.start.admin.registrations.pending.item(
-            username=user_label,
-            event_name=event_name,
-            amount=amount_label,
-        )
-        items.append((label, f"{event_id}:{user_id}"))
-
-    return {
-        "title": i18n.start.admin.registrations.pending.title(),
-        "items": items,
-        "empty_text": i18n.start.admin.registrations.pending.empty(),
-        "has_items": bool(items),
-        "back_button": i18n.back.button(),
-    }
 
 
 async def get_admin_registration_pending_details(

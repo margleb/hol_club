@@ -95,25 +95,6 @@ async def show_next_user_events_page(
     await dialog_manager.switch_to(StartSG.user_events_list)
 
 
-async def show_admin_registration_pending_list(
-    callback: CallbackQuery,
-    widget: Button,
-    dialog_manager: DialogManager,
-) -> None:
-    db: DB = dialog_manager.middleware_data.get("db")
-    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-
-    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
-    if admin_record is None or admin_record.role != UserRole.ADMIN:
-        await callback.answer(i18n.partner.event.prepay.admin.only())
-        return
-
-    dialog_manager.dialog_data.pop("selected_pending_event_id", None)
-    dialog_manager.dialog_data.pop("selected_registration_user_id", None)
-    await callback.answer()
-    await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
-
-
 async def show_admin_event_details(
     callback: CallbackQuery,
     widget: Select,
@@ -168,38 +149,13 @@ async def show_admin_event_registration_details(
     await dialog_manager.switch_to(StartSG.admin_registration_pending_details)
 
 
-async def show_pending_registration_details(
-    callback: CallbackQuery,
-    widget: Select,
-    dialog_manager: DialogManager,
-    item_id: str,
-) -> None:
-    db: DB = dialog_manager.middleware_data.get("db")
-    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
-    if admin_record is None or admin_record.role != UserRole.ADMIN:
-        await callback.answer(i18n.partner.event.prepay.admin.only())
-        return
-
-    try:
-        event_raw, user_raw = item_id.split(":", 1)
-        dialog_manager.dialog_data["selected_pending_event_id"] = int(event_raw)
-        dialog_manager.dialog_data["selected_registration_user_id"] = int(user_raw)
-    except (ValueError, AttributeError):
-        await callback.answer()
-        return
-
-    await callback.answer()
-    await dialog_manager.switch_to(StartSG.admin_registration_pending_details)
-
-
 async def back_to_admin_registration_pending_list(
     callback: CallbackQuery,
     widget: Button,
     dialog_manager: DialogManager,
 ) -> None:
     await callback.answer()
-    await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
+    await dialog_manager.switch_to(StartSG.admin_event_registrations_list)
 
 
 async def approve_pending_registration(
@@ -249,7 +205,7 @@ async def approve_pending_registration(
         return
 
     await callback.answer(i18n.partner.event.prepay.approved.partner())
-    await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
+    await dialog_manager.switch_to(StartSG.admin_event_registrations_list)
 
 
 async def decline_pending_registration(
@@ -293,4 +249,4 @@ async def decline_pending_registration(
             )
 
     await callback.answer(i18n.partner.event.prepay.declined.partner())
-    await dialog_manager.switch_to(StartSG.admin_registration_pending_list)
+    await dialog_manager.switch_to(StartSG.admin_event_registrations_list)
