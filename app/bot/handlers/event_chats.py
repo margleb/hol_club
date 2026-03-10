@@ -309,6 +309,25 @@ async def approve_event_registration_payment(
     if not approved:
         return False
 
+    event_with_chat = event
+    if event_private_chat_service is not None:
+        try:
+            ensured_event = await ensure_event_private_chat(
+                db=db,
+                event_id=event_id,
+                event_private_chat_service=event_private_chat_service,
+            )
+            if ensured_event is not None:
+                event_with_chat = ensured_event
+        except Exception as exc:
+            logger.warning(
+                "Failed to ensure private chat for approved registration. "
+                "event_id=%s, user_id=%s, error=%s",
+                event_id,
+                user_id,
+                exc,
+            )
+
     if not bot:
         return True
 
@@ -334,7 +353,7 @@ async def approve_event_registration_payment(
             bot=bot,
             i18n=i18n,
             db=db,
-            event=event,
+            event=event_with_chat,
             user_id=user_id,
             event_private_chat_service=event_private_chat_service,
         )

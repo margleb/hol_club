@@ -21,6 +21,7 @@ from app.bot.dialogs.events.constants import (
     EVENT_PUBLISH_TARGETS,
 )
 from app.bot.enums.roles import UserRole
+from app.bot.handlers.event_chats import ensure_event_private_chat
 from app.bot.states.events import EventsSG
 from app.infrastructure.database.database.db import DB
 from config.config import settings
@@ -789,6 +790,9 @@ async def publish_event(
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     db: DB | None = dialog_manager.middleware_data.get("db")
     user: User | None = dialog_manager.middleware_data.get("event_from_user")
+    event_private_chat_service = dialog_manager.middleware_data.get(
+        "event_private_chat_service"
+    )
 
     if not db or not user:
         await callback.answer(i18n.partner.event.publish.failed(), show_alert=True)
@@ -853,6 +857,20 @@ async def publish_event(
         channel_id=event_payload.get("channel_id"),
         channel_message_id=event_payload.get("channel_message_id"),
     )
+
+    if event_private_chat_service is not None:
+        try:
+            await ensure_event_private_chat(
+                db=db,
+                event_id=event_id,
+                event_private_chat_service=event_private_chat_service,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to ensure private event chat on publish. event_id=%s, error=%s",
+                event_id,
+                exc,
+            )
 
     if should_publish_to_bot:
         await _broadcast_event_announcement(

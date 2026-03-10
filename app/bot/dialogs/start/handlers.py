@@ -165,7 +165,7 @@ async def approve_pending_registration(
 ) -> None:
     db: DB = dialog_manager.middleware_data.get("db")
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    bot = dialog_manager.middleware_data.get("bot")
+    bot = callback.bot
     event_private_chat_service: EventPrivateChatService | None = (
         dialog_manager.middleware_data.get("event_private_chat_service")
     )
@@ -215,7 +215,7 @@ async def decline_pending_registration(
 ) -> None:
     db: DB = dialog_manager.middleware_data.get("db")
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
-    bot = dialog_manager.middleware_data.get("bot")
+    bot = callback.bot
 
     admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
     if admin_record is None or admin_record.role != UserRole.ADMIN:
