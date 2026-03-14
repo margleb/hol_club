@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
@@ -65,7 +65,4 @@ def compute_private_chat_delete_at(value: object) -> datetime | None:
     if event_datetime is None:
         return None
 
-    local_event_datetime = event_datetime.astimezone(MOSCOW_TZ)
-    next_day = local_event_datetime.date() + timedelta(days=1)
-    delete_at_local = datetime.combine(next_day, time(hour=3), tzinfo=MOSCOW_TZ)
-    return delete_at_local.astimezone(timezone.utc)
+    return event_datetime.astimezone(timezone.utc) + timedelta(hours=24)
