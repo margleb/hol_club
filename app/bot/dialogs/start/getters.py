@@ -3,6 +3,15 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
 from fluentogram import TranslatorRunner
 
+from app.bot.dialogs.start.event_dialogs import (
+    DIALOG_EVENT_ID_KEY,
+    DIALOG_PARTICIPANT_USER_ID_KEY,
+    format_user_label,
+    get_organizer_dialog_context,
+    get_participant_dialog_context,
+    has_participant_dialog_access,
+    sync_dialog_selection,
+)
 from app.bot.dialogs.events.utils import build_event_text
 from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.bot.enums.roles import UserRole
@@ -187,6 +196,8 @@ async def get_user_event_details(
             "view_chat_button": i18n.partner.event.view.chat.button(),
             "event_chat_url": "",
             "has_chat_url": False,
+            "event_dialog_button": i18n.partner.event.dialog.organizer.button(),
+            "has_dialog_button": False,
         }
 
     event = await db.events.get_event_by_id(event_id=event_id)
@@ -198,6 +209,8 @@ async def get_user_event_details(
             "view_chat_button": i18n.partner.event.view.chat.button(),
             "event_chat_url": "",
             "has_chat_url": False,
+            "event_dialog_button": i18n.partner.event.dialog.organizer.button(),
+            "has_dialog_button": False,
         }
 
     post_url = _build_channel_post_link(event.channel_id, event.channel_message_id)
@@ -232,6 +245,12 @@ async def get_user_event_details(
     if tags:
         event_text = "\n\n".join([event_text, " ".join(tags)])
 
+    has_dialog_button = await has_participant_dialog_access(
+        db=db,
+        participant_user_id=event_from_user.id,
+        event_id=event.id,
+    )
+
     return {
         "event_details_text": event_text,
         "event_media": (
@@ -249,6 +268,8 @@ async def get_user_event_details(
         "view_chat_button": i18n.partner.event.view.chat.button(),
         "event_chat_url": event_chat_url,
         "has_chat_url": bool(event_chat_url),
+        "event_dialog_button": i18n.partner.event.dialog.organizer.button(),
+        "has_dialog_button": has_dialog_button,
     }
 
 
@@ -482,6 +503,8 @@ async def get_admin_registration_confirmed_details(
                 i18n.partner.event.registrations.confirmed.details.missing()
             ),
             "back_button": i18n.back.button(),
+            "dialog_button": i18n.partner.event.dialog.participant.button(),
+            "has_dialog_button": False,
         }
 
     event_id = dialog_manager.dialog_data.get("selected_confirmed_event_id")
@@ -494,6 +517,8 @@ async def get_admin_registration_confirmed_details(
                 i18n.partner.event.registrations.confirmed.details.missing()
             ),
             "back_button": i18n.back.button(),
+            "dialog_button": i18n.partner.event.dialog.participant.button(),
+            "has_dialog_button": False,
         }
 
     event = await db.events.get_event_by_id(event_id=event_id)
@@ -507,6 +532,8 @@ async def get_admin_registration_confirmed_details(
                 i18n.partner.event.registrations.confirmed.details.missing()
             ),
             "back_button": i18n.back.button(),
+            "dialog_button": i18n.partner.event.dialog.participant.button(),
+            "has_dialog_button": False,
         }
 
     if reg.status not in {
@@ -536,6 +563,8 @@ async def get_admin_registration_confirmed_details(
             status=status_text,
         ),
         "back_button": i18n.back.button(),
+        "dialog_button": i18n.partner.event.dialog.participant.button(),
+        "has_dialog_button": True,
     }
 
 
@@ -556,6 +585,8 @@ async def get_admin_registration_pending_details(
             "payment_proof_media": None,
             "has_payment_proof_media": False,
             "back_button": i18n.back.button(),
+            "dialog_button": i18n.partner.event.dialog.participant.button(),
+            "has_dialog_button": False,
         }
 
     event_id = dialog_manager.dialog_data.get("selected_pending_event_id")
@@ -568,6 +599,8 @@ async def get_admin_registration_pending_details(
             "payment_proof_media": None,
             "has_payment_proof_media": False,
             "back_button": i18n.back.button(),
+            "dialog_button": i18n.partner.event.dialog.participant.button(),
+            "has_dialog_button": False,
         }
 
     event = await db.events.get_event_by_id(event_id=event_id)
@@ -583,6 +616,8 @@ async def get_admin_registration_pending_details(
             "payment_proof_media": None,
             "has_payment_proof_media": False,
             "back_button": i18n.back.button(),
+            "dialog_button": i18n.partner.event.dialog.participant.button(),
+            "has_dialog_button": False,
         }
 
     user = await db.users.get_user_record(user_id=user_id)
@@ -618,5 +653,108 @@ async def get_admin_registration_pending_details(
         "decline_button": i18n.partner.event.registrations.pending.decline.button(),
         "payment_proof_media": payment_proof_media,
         "has_payment_proof_media": payment_proof_media is not None,
+        "back_button": i18n.back.button(),
+        "dialog_button": i18n.partner.event.dialog.participant.button(),
+        "has_dialog_button": (
+            reg.status == EventRegistrationStatus.PAID_CONFIRM_PENDING
+        ),
+    }
+
+
+async def get_user_event_dialog(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    event_id, participant_user_id = sync_dialog_selection(
+        dialog_manager,
+        event_id=dialog_manager.dialog_data.get(DIALOG_EVENT_ID_KEY)
+        or dialog_manager.dialog_data.get("selected_user_event_id"),
+        participant_user_id=dialog_manager.dialog_data.get(
+            DIALOG_PARTICIPANT_USER_ID_KEY
+        )
+        or event_from_user.id,
+    )
+    if isinstance(event_id, int):
+        dialog_manager.dialog_data["selected_user_event_id"] = event_id
+
+    if not isinstance(event_id, int) or not isinstance(participant_user_id, int):
+        return {
+            "dialog_title": i18n.partner.event.dialog.inaccessible(),
+            "dialog_prompt": "",
+            "back_button": i18n.back.button(),
+        }
+
+    context = await get_participant_dialog_context(
+        db=db,
+        participant_user_id=participant_user_id,
+        event_id=event_id,
+    )
+    if context is None or event_from_user.id != participant_user_id:
+        return {
+            "dialog_title": i18n.partner.event.dialog.inaccessible(),
+            "dialog_prompt": "",
+            "back_button": i18n.back.button(),
+        }
+
+    return {
+        "dialog_title": i18n.partner.event.dialog.compose.organizer(
+            event_name=context.event.name,
+        ),
+        "dialog_prompt": i18n.partner.event.dialog.prompt.organizer(),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_event_dialog(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    event_id, participant_user_id = sync_dialog_selection(
+        dialog_manager,
+        event_id=dialog_manager.dialog_data.get(DIALOG_EVENT_ID_KEY)
+        or dialog_manager.dialog_data.get("selected_pending_event_id")
+        or dialog_manager.dialog_data.get("selected_confirmed_event_id"),
+        participant_user_id=dialog_manager.dialog_data.get(
+            DIALOG_PARTICIPANT_USER_ID_KEY
+        )
+        or dialog_manager.dialog_data.get("selected_registration_user_id")
+        or dialog_manager.dialog_data.get("selected_confirmed_registration_user_id"),
+    )
+    if not isinstance(event_id, int) or not isinstance(participant_user_id, int):
+        return {
+            "dialog_title": i18n.partner.event.dialog.inaccessible(),
+            "dialog_prompt": "",
+            "back_button": i18n.back.button(),
+        }
+
+    context = await get_organizer_dialog_context(
+        db=db,
+        organizer_user_id=event_from_user.id,
+        event_id=event_id,
+        participant_user_id=participant_user_id,
+    )
+    if context is None:
+        return {
+            "dialog_title": i18n.partner.event.dialog.inaccessible(),
+            "dialog_prompt": "",
+            "back_button": i18n.back.button(),
+        }
+
+    participant_label = format_user_label(
+        user_id=participant_user_id,
+        username=context.participant_record.username if context.participant_record else None,
+    )
+    return {
+        "dialog_title": i18n.partner.event.dialog.compose.participant(
+            participant=participant_label,
+            event_name=context.event.name,
+        ),
+        "dialog_prompt": i18n.partner.event.dialog.prompt.participant(),
         "back_button": i18n.back.button(),
     }

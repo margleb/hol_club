@@ -8,10 +8,12 @@ from aiogram_dialog.widgets.kbd import (
     Start,
     Url,
 )
+from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
+    get_admin_event_dialog,
     get_admin_confirmed_event_registrations,
     get_admin_event_details,
     get_admin_event_registrations,
@@ -19,10 +21,13 @@ from app.bot.dialogs.start.getters import (
     get_admin_registration_confirmed_details,
     get_admin_registration_pending_details,
     get_hello,
+    get_user_event_dialog,
     get_user_event_details,
     get_user_events,
 )
 from app.bot.dialogs.start.handlers import (
+    back_from_admin_event_dialog,
+    back_from_user_event_dialog,
     approve_pending_registration,
     back_to_admin_registration_confirmed_list,
     back_to_admin_registration_pending_list,
@@ -33,14 +38,19 @@ from app.bot.dialogs.start.handlers import (
     show_admin_event_confirmed_registrations,
     show_next_user_events_page,
     show_prev_user_events_page,
+    show_admin_confirmed_registration_dialog,
     show_user_event_details,
+    show_user_event_dialog,
     show_user_events_list,
     show_admin_events_list,
     show_admin_event_details,
     show_admin_event_registrations,
     show_admin_event_registration_details,
+    show_admin_pending_registration_dialog,
     back_to_admin_events_list,
     back_to_admin_event_details,
+    on_admin_event_dialog_message,
+    on_user_event_dialog_message,
 )
 from app.bot.states.events import EventsSG
 from app.bot.states.start import StartSG
@@ -128,6 +138,12 @@ start_dialog = Dialog(
                 url=Format("{event_chat_url}"),
                 id="user_event_view_chat",
                 when="has_chat_url",
+            ),
+            Button(
+                text=Format("{event_dialog_button}"),
+                id="user_event_dialog",
+                on_click=show_user_event_dialog,
+                when="has_dialog_button",
             ),
         ),
         Row(
@@ -281,6 +297,12 @@ start_dialog = Dialog(
                 id="pending_reg_back",
                 on_click=back_to_admin_registration_pending_list,
             ),
+            Button(
+                text=Format("{dialog_button}"),
+                id="pending_reg_dialog",
+                on_click=show_admin_pending_registration_dialog,
+                when="has_dialog_button",
+            ),
         ),
         getter=get_admin_registration_pending_details,
         state=StartSG.admin_registration_pending_details,
@@ -289,6 +311,12 @@ start_dialog = Dialog(
         Format("{details_text}"),
         Row(
             Button(
+                text=Format("{dialog_button}"),
+                id="confirmed_reg_dialog",
+                on_click=show_admin_confirmed_registration_dialog,
+                when="has_dialog_button",
+            ),
+            Button(
                 text=Format("{back_button}"),
                 id="confirmed_reg_back",
                 on_click=back_to_admin_registration_confirmed_list,
@@ -296,5 +324,33 @@ start_dialog = Dialog(
         ),
         getter=get_admin_registration_confirmed_details,
         state=StartSG.admin_registration_confirmed_details,
+    ),
+    Window(
+        Format("{dialog_title}"),
+        Format("{dialog_prompt}"),
+        MessageInput(on_user_event_dialog_message, id="user_event_dialog_input"),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="user_event_dialog_back",
+                on_click=back_from_user_event_dialog,
+            ),
+        ),
+        getter=get_user_event_dialog,
+        state=StartSG.user_event_dialog,
+    ),
+    Window(
+        Format("{dialog_title}"),
+        Format("{dialog_prompt}"),
+        MessageInput(on_admin_event_dialog_message, id="admin_event_dialog_input"),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_event_dialog_back",
+                on_click=back_from_admin_event_dialog,
+            ),
+        ),
+        getter=get_admin_event_dialog,
+        state=StartSG.admin_event_dialog,
     ),
 )
