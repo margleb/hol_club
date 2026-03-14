@@ -13,7 +13,7 @@ from aiogram.fsm.storage.base import (
 from nats.aio.client import Client
 from nats.js import JetStreamContext
 from nats.js.api import KeyValueConfig
-from nats.js.errors import NotFoundError
+from nats.js.errors import BucketNotFoundError, NotFoundError
 from nats.js.kv import KeyValue
 
 
@@ -41,22 +41,27 @@ class NatsStorage(BaseStorage):
         return self
 
     async def _get_kv_states(self) -> KeyValue:
-        return await self.js.create_key_value(
-            config=KeyValueConfig(
-                bucket=self.fsm_states_bucket,
-                history=5,
-                storage='file'
-            )
+        return await self._get_or_create_bucket(
+            bucket=self.fsm_states_bucket,
+            history=5,
+            storage='file',
         )
-    
+
     async def _get_kv_data(self) -> KeyValue:
-        return await self.js.create_key_value(
-            config=KeyValueConfig(
-                bucket=self.fsm_data_bucket,
-                history=5,
-                storage='file'
-            )
+        return await self._get_or_create_bucket(
+            bucket=self.fsm_data_bucket,
+            history=5,
+            storage='file',
         )
+
+    async def _get_or_create_bucket(self, **config_kwargs) -> KeyValue:
+        bucket = config_kwargs["bucket"]
+        try:
+            return await self.js.key_value(bucket)
+        except BucketNotFoundError:
+            return await self.js.create_key_value(
+                config=KeyValueConfig(**config_kwargs)
+            )
 
     async def set_state(self, key: StorageKey, state: StateType = None) -> None:
         state = state.state if isinstance(state, State) else state
