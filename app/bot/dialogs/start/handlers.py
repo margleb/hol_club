@@ -16,7 +16,6 @@ from app.bot.dialogs.start.event_dialogs import (
     format_user_label,
 )
 from app.bot.enums.event_registrations import EventRegistrationStatus
-from app.bot.enums.roles import UserRole
 from app.bot.handlers.event_chats import approve_event_registration_payment
 from app.bot.states.start import StartSG
 from app.infrastructure.database.database.db import DB
@@ -379,15 +378,17 @@ async def approve_pending_registration(
         dialog_manager.middleware_data.get("event_private_chat_service")
     )
 
-    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
-    if admin_record is None or admin_record.role != UserRole.ADMIN:
-        await callback.answer(i18n.partner.event.prepay.admin.only())
-        return
-
     event_id = dialog_manager.dialog_data.get("selected_pending_event_id")
     user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
     if not isinstance(event_id, int) or not isinstance(user_id, int):
         await callback.answer(i18n.partner.event.registrations.pending.details.missing())
+        return
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await callback.answer(i18n.partner.event.registrations.pending.details.missing())
+        return
+    if callback.from_user.id != event.organizer_user_id:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
         return
 
     registration = await db.event_registrations.get_by_user_event(
@@ -426,15 +427,17 @@ async def decline_pending_registration(
     i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     bot = callback.bot
 
-    admin_record = await db.users.get_user_record(user_id=callback.from_user.id)
-    if admin_record is None or admin_record.role != UserRole.ADMIN:
-        await callback.answer(i18n.partner.event.prepay.admin.only())
-        return
-
     event_id = dialog_manager.dialog_data.get("selected_pending_event_id")
     user_id = dialog_manager.dialog_data.get("selected_registration_user_id")
     if not isinstance(event_id, int) or not isinstance(user_id, int):
         await callback.answer(i18n.partner.event.registrations.pending.details.missing())
+        return
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None:
+        await callback.answer(i18n.partner.event.registrations.pending.details.missing())
+        return
+    if callback.from_user.id != event.organizer_user_id:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
         return
 
     declined = await db.event_registrations.update_status_if_current(

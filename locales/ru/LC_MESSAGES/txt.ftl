@@ -207,7 +207,7 @@ partner-event-prepay-confirm-no = Нет
 partner-event-prepay-receipt-prompt = Отправьте чек об оплате (фото или документ).
 partner-event-prepay-receipt-invalid = Пожалуйста, отправьте чек в формате фото или документа.
 partner-event-prepay-receipt-required = Для подтверждения оплаты нужен отправленный чек.
-partner-event-prepay-sent = Спасибо! Ожидаем подтверждение оплаты от администратора.
+partner-event-prepay-sent = Спасибо! Ожидаем подтверждение оплаты от организатора.
 partner-event-prepay-contact-button = Уточнить статус оплаты
 partner-event-prepay-contact-partner-button = Написать организатору
 partner-event-prepay-contact-partner-prompt = Напишите сообщение организатору.
@@ -237,7 +237,7 @@ partner-event-dialog-notification-participant =
     <b>Мероприятие:</b> «{ $event_name }»
     { $text }
 partner-event-prepay-cancelled = Хорошо, подтвердите оплату, когда будете готовы.
-partner-event-prepay-waiting = Оплата уже ожидает подтверждения администратора.
+partner-event-prepay-waiting = Оплата уже ожидает подтверждения организатора.
 partner-event-prepay-notify =
     Требуется подтверждение оплаты мероприятия.
     Мероприятие: «{ $event_name }»
@@ -249,11 +249,11 @@ partner-event-prepay-approved-partner = Оплата подтверждена.
 partner-event-prepay-approved-partner-notify = Пользователь { $username } зарегистрирован на мероприятие «{ $event_name }».
 partner-event-ticket-approved = Покупка билета подтверждена. Вы зарегистрированы на мероприятие.
 partner-event-ticket-approved-partner-notify = Пользователь { $username } купил билет на мероприятие «{ $event_name }».
-partner-event-prepay-declined = Оплата отклонена администратором. Если есть вопросы — напишите в поддержку.
+partner-event-prepay-declined = Оплата отклонена организатором. Если есть вопросы — напишите в поддержку.
 partner-event-prepay-declined-partner = Оплата отклонена.
 partner-event-prepay-already-processed = Эта оплата уже обработана.
-partner-event-prepay-admin-only = Подтверждать или отклонять оплату может только администратор.
-partner-event-prepay-admin-missing = Сейчас нет администраторов для подтверждения оплаты. Напишите в поддержку.
+partner-event-prepay-admin-only = Подтверждать или отклонять оплату может только организатор мероприятия.
+partner-event-prepay-admin-missing = Не удалось доставить чек организатору мероприятия. Попробуйте позже или свяжитесь с поддержкой.
 
 partner-event-registrations-pending-button = Ожидают подтверждения
 partner-event-registrations-confirmed-button = Зарегистрированные

@@ -937,27 +937,6 @@ async def process_event_payment_proof(
             ],
         ]
     )
-    admin_ids = await db.users.get_admin_user_ids()
-    if not admin_ids:
-        logger.warning(
-            "No admins found for prepay confirmation of event %s",
-            event_id,
-        )
-        reverted = await db.event_registrations.update_status_if_current(
-            event_id=event_id,
-            user_id=user.id,
-            current_status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
-            new_status=EventRegistrationStatus.PENDING_PAYMENT,
-        )
-        if not reverted:
-            logger.warning(
-                "Failed to revert prepay status to pending_payment for event %s and user %s",
-                event_id,
-                user.id,
-            )
-        await state.clear()
-        await message.answer(i18n.partner.event.prepay.admin.missing())
-        return
     prepay_amount = _calc_prepay_amount(event)
     notify_text = i18n.partner.event.prepay.notify(
         username=payer_username,
@@ -975,43 +954,40 @@ async def process_event_payment_proof(
         caption=notify_text,
     )
 
-    successful_notifications = 0
-    for recipient_id in admin_ids:
-        try:
-            if payment_proof_type == PAYMENT_PROOF_TYPE_PHOTO:
-                await message.bot.send_photo(
-                    recipient_id,
-                    photo=payment_proof_file_id,
-                    caption=notify_text,
-                    reply_markup=keyboard,
-                )
-            elif payment_proof_type == PAYMENT_PROOF_TYPE_DOCUMENT:
-                await message.bot.send_document(
-                    recipient_id,
-                    document=payment_proof_file_id,
-                    caption=notify_text,
-                    reply_markup=keyboard,
-                )
-            else:
-                await message.bot.send_message(
-                    recipient_id,
-                    notify_text,
-                    reply_markup=keyboard,
-                )
-            successful_notifications += 1
-        except Exception as exc:
-            await apply_delivery_error_status(
-                db=db,
-                user_id=recipient_id,
-                error=exc,
+    organizer_user_id = event.organizer_user_id
+    try:
+        if payment_proof_type == PAYMENT_PROOF_TYPE_PHOTO:
+            await message.bot.send_photo(
+                organizer_user_id,
+                photo=payment_proof_file_id,
+                caption=notify_text,
+                reply_markup=keyboard,
             )
-            logger.warning(
-                "Failed to notify user %s about payment confirmation for event %s: %s",
-                recipient_id,
-                event_id,
-                exc,
+        elif payment_proof_type == PAYMENT_PROOF_TYPE_DOCUMENT:
+            await message.bot.send_document(
+                organizer_user_id,
+                document=payment_proof_file_id,
+                caption=notify_text,
+                reply_markup=keyboard,
             )
-    if not successful_notifications:
+        else:
+            await message.bot.send_message(
+                organizer_user_id,
+                notify_text,
+                reply_markup=keyboard,
+            )
+    except Exception as exc:
+        await apply_delivery_error_status(
+            db=db,
+            user_id=organizer_user_id,
+            error=exc,
+        )
+        logger.warning(
+            "Failed to notify organizer %s about payment confirmation for event %s: %s",
+            organizer_user_id,
+            event_id,
+            exc,
+        )
         reverted = await db.event_registrations.update_status_if_current(
             event_id=event_id,
             user_id=user.id,
@@ -1033,7 +1009,7 @@ async def process_event_payment_proof(
             [
                 InlineKeyboardButton(
                     text=i18n.partner.event.prepay.contact.button(),
-                    url=f"tg://user?id={admin_ids[0]}",
+                    url=f"tg://user?id={organizer_user_id}",
                 )
             ]
         ]
@@ -1073,14 +1049,12 @@ async def process_event_prepay_confirm(
     if not approver:
         return
 
-    approver_record = await db.users.get_user_record(user_id=approver.id)
-    if not approver_record or approver_record.role != UserRole.ADMIN:
-        await callback.answer(i18n.partner.event.prepay.admin.only())
-        return
-
     event = await db.events.get_event_by_id(event_id=event_id)
     if event is None:
         await callback.answer(i18n.partner.event.join.chat.missing())
+        return
+    if approver.id != event.organizer_user_id:
+        await callback.answer(i18n.partner.event.prepay.admin.only())
         return
 
     registration = await db.event_registrations.get_by_user_event(
