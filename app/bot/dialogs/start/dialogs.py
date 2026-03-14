@@ -1,12 +1,22 @@
 from aiogram_dialog import Dialog, StartMode, Window
-from aiogram_dialog.widgets.kbd import Button, Group, Row, ScrollingGroup, Select, Start, Url
+from aiogram_dialog.widgets.kbd import (
+    Button,
+    Group,
+    Row,
+    ScrollingGroup,
+    Select,
+    Start,
+    Url,
+)
 from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format
 
 from app.bot.dialogs.start.getters import (
+    get_admin_confirmed_event_registrations,
     get_admin_event_details,
     get_admin_event_registrations,
     get_admin_events,
+    get_admin_registration_confirmed_details,
     get_admin_registration_pending_details,
     get_hello,
     get_user_event_details,
@@ -14,10 +24,13 @@ from app.bot.dialogs.start.getters import (
 )
 from app.bot.dialogs.start.handlers import (
     approve_pending_registration,
+    back_to_admin_registration_confirmed_list,
     back_to_admin_registration_pending_list,
     back_to_start,
     back_to_user_events_list,
     decline_pending_registration,
+    show_admin_confirmed_registration_details,
+    show_admin_event_confirmed_registrations,
     show_next_user_events_page,
     show_prev_user_events_page,
     show_user_event_details,
@@ -124,9 +137,9 @@ start_dialog = Dialog(
                 on_click=back_to_user_events_list,
             ),
         ),
-    getter=get_user_event_details,
-    state=StartSG.user_event_details,
-),
+        getter=get_user_event_details,
+        state=StartSG.user_event_details,
+    ),
     Window(
         Format("{title}"),
         Format("{empty_text}", when="not has_items"),
@@ -177,6 +190,11 @@ start_dialog = Dialog(
                 id="admin_event_registrations",
                 on_click=show_admin_event_registrations,
             ),
+            Button(
+                text=Format("{confirmed_registrations_button}"),
+                id="admin_event_confirmed_registrations",
+                on_click=show_admin_event_confirmed_registrations,
+            ),
         ),
         Row(
             Button(
@@ -216,6 +234,33 @@ start_dialog = Dialog(
         state=StartSG.admin_event_registrations_list,
     ),
     Window(
+        Format("{title}"),
+        Format("{empty_text}", when="not has_items"),
+        ScrollingGroup(
+            Select(
+                Format("{item[0]}"),
+                id="admin_event_confirmed_registrations_select",
+                item_id_getter=lambda item: item[1],
+                items="items",
+                on_click=show_admin_confirmed_registration_details,
+            ),
+            id="admin_event_confirmed_registrations_scroll",
+            width=1,
+            height=5,
+            hide_on_single_page=True,
+            when="has_items",
+        ),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="admin_event_confirmed_registrations_back",
+                on_click=back_to_admin_event_details,
+            ),
+        ),
+        getter=get_admin_confirmed_event_registrations,
+        state=StartSG.admin_event_confirmed_registrations_list,
+    ),
+    Window(
         DynamicMedia("payment_proof_media", when="has_payment_proof_media"),
         Format("{details_text}"),
         Row(
@@ -239,5 +284,17 @@ start_dialog = Dialog(
         ),
         getter=get_admin_registration_pending_details,
         state=StartSG.admin_registration_pending_details,
+    ),
+    Window(
+        Format("{details_text}"),
+        Row(
+            Button(
+                text=Format("{back_button}"),
+                id="confirmed_reg_back",
+                on_click=back_to_admin_registration_confirmed_list,
+            ),
+        ),
+        getter=get_admin_registration_confirmed_details,
+        state=StartSG.admin_registration_confirmed_details,
     ),
 )

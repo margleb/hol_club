@@ -246,6 +246,14 @@ partner-event-registrations-pending-decline-button = Отклонить
 partner-event-registrations-confirmed-title = Зарегистрированные пользователи
 partner-event-registrations-confirmed-empty = Пока нет подтвержденных регистраций.
 partner-event-registrations-confirmed-item = { $username }
+partner-event-registrations-confirmed-details-missing = Не удалось найти участника.
+partner-event-registrations-confirmed-details-text =
+    Пользователь: { $username }
+    Мероприятие: { $event_name }
+    Стоимость: { $amount } ₽
+    Статус: { $status }
+partner-event-registrations-confirmed-status-confirmed = Оплата подтверждена
+partner-event-registrations-confirmed-status-attended = Участие подтверждено
 partner-event-reminder-text =
     Напоминаем, что вы зарегистрированы на мероприятие «{ $event_name }».
     Когда: { $datetime }

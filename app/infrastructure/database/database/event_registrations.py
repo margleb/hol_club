@@ -230,6 +230,30 @@ class _EventRegistrationsDB:
             for row in result.all()
         ]
 
+    async def list_by_event_and_statuses(
+        self,
+        *,
+        event_id: int,
+        statuses: list[EventRegistrationStatus],
+    ) -> list[tuple[int, str | None, EventRegistrationStatus, int | None]]:
+        stmt = (
+            select(
+                EventRegistrationsModel.user_id,
+                UsersModel.username,
+                EventRegistrationsModel.status,
+                EventRegistrationsModel.amount,
+            )
+            .join(UsersModel, UsersModel.user_id == EventRegistrationsModel.user_id)
+            .where(EventRegistrationsModel.event_id == event_id)
+            .where(EventRegistrationsModel.status.in_(statuses))
+            .order_by(EventRegistrationsModel.created.asc())
+        )
+        result = await self.session.execute(stmt)
+        return [
+            (row[0], row[1], row[2], row[3])
+            for row in result.all()
+        ]
+
     async def list_user_events(
         self,
         *,

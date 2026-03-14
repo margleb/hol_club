@@ -123,6 +123,22 @@ async def show_admin_event_registrations(
     await dialog_manager.switch_to(StartSG.admin_event_registrations_list)
 
 
+async def show_admin_event_confirmed_registrations(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    event_id = dialog_manager.dialog_data.get("selected_admin_event_id")
+    if not isinstance(event_id, int):
+        await callback.answer()
+        return
+    dialog_manager.dialog_data["selected_confirmed_event_id"] = event_id
+    await callback.answer()
+    await dialog_manager.switch_to(
+        StartSG.admin_event_confirmed_registrations_list
+    )
+
+
 async def back_to_admin_event_details(
     callback: CallbackQuery,
     widget: Button,
@@ -149,6 +165,27 @@ async def show_admin_event_registration_details(
     await dialog_manager.switch_to(StartSG.admin_registration_pending_details)
 
 
+async def show_admin_confirmed_registration_details(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    item_id: str,
+) -> None:
+    try:
+        event_raw, user_raw = item_id.split(":", 1)
+        dialog_manager.dialog_data["selected_confirmed_event_id"] = int(event_raw)
+        dialog_manager.dialog_data["selected_confirmed_registration_user_id"] = (
+            int(user_raw)
+        )
+    except (ValueError, AttributeError):
+        await callback.answer()
+        return
+    await callback.answer()
+    await dialog_manager.switch_to(
+        StartSG.admin_registration_confirmed_details
+    )
+
+
 async def back_to_admin_registration_pending_list(
     callback: CallbackQuery,
     widget: Button,
@@ -156,6 +193,17 @@ async def back_to_admin_registration_pending_list(
 ) -> None:
     await callback.answer()
     await dialog_manager.switch_to(StartSG.admin_event_registrations_list)
+
+
+async def back_to_admin_registration_confirmed_list(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    await callback.answer()
+    await dialog_manager.switch_to(
+        StartSG.admin_event_confirmed_registrations_list
+    )
 
 
 async def approve_pending_registration(

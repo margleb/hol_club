@@ -34,6 +34,22 @@ def _can_show_event_chat_link(event) -> bool:
     return True
 
 
+def _format_user_label(user_id: int, username: str | None) -> str:
+    return f"@{username}" if username else f"id:{user_id}"
+
+
+def _format_registration_status(
+    *,
+    i18n: TranslatorRunner,
+    status: EventRegistrationStatus,
+) -> str:
+    if status == EventRegistrationStatus.CONFIRMED:
+        return i18n.partner.event.registrations.confirmed.status.confirmed()
+    if status == EventRegistrationStatus.ATTENDED_CONFIRMED:
+        return i18n.partner.event.registrations.confirmed.status.attended()
+    return status.value
+
+
 async def get_hello(
     dialog_manager: DialogManager,
     i18n: TranslatorRunner,
@@ -263,6 +279,9 @@ async def get_admin_event_details(
             "event_chat_url": "",
             "has_chat_url": False,
             "registrations_button": i18n.partner.event.registrations.pending.button(),
+            "confirmed_registrations_button": (
+                i18n.partner.event.registrations.confirmed.button()
+            ),
         }
 
     event_id = dialog_manager.dialog_data.get("selected_admin_event_id")
@@ -278,6 +297,9 @@ async def get_admin_event_details(
             "event_chat_url": "",
             "has_chat_url": False,
             "registrations_button": i18n.partner.event.registrations.pending.button(),
+            "confirmed_registrations_button": (
+                i18n.partner.event.registrations.confirmed.button()
+            ),
         }
 
     event = await db.events.get_event_by_id(event_id=event_id)
@@ -293,6 +315,9 @@ async def get_admin_event_details(
             "event_chat_url": "",
             "has_chat_url": False,
             "registrations_button": i18n.partner.event.registrations.pending.button(),
+            "confirmed_registrations_button": (
+                i18n.partner.event.registrations.confirmed.button()
+            ),
         }
 
     event_text = build_event_text(
@@ -327,6 +352,9 @@ async def get_admin_event_details(
         "event_chat_url": chat_url,
         "has_chat_url": bool(chat_url),
         "registrations_button": i18n.partner.event.registrations.pending.button(),
+        "confirmed_registrations_button": (
+            i18n.partner.event.registrations.confirmed.button()
+        ),
     }
 
 
@@ -365,8 +393,8 @@ async def get_admin_event_registrations(
             status=EventRegistrationStatus.PAID_CONFIRM_PENDING,
         )
     items: list[tuple[str, str]] = []
-    for user_id, username, status, amount in rows:
-        user_label = f"@{username}" if username else f"id:{user_id}"
+    for user_id, username, _status, amount in rows:
+        user_label = _format_user_label(user_id, username)
         amount_label = amount if amount is not None else "-"
         label = i18n.start.admin.registrations.pending.item(
             username=user_label,
@@ -384,6 +412,131 @@ async def get_admin_event_registrations(
     }
 
 
+async def get_admin_confirmed_event_registrations(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    if not admin_record or admin_record.role != UserRole.ADMIN:
+        return {
+            "title": i18n.partner.event.registrations.confirmed.title(),
+            "empty_text": i18n.partner.event.registrations.confirmed.empty(),
+            "items": [],
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    event_id = dialog_manager.dialog_data.get("selected_confirmed_event_id")
+    if not isinstance(event_id, int):
+        return {
+            "title": i18n.partner.event.registrations.confirmed.title(),
+            "empty_text": i18n.partner.event.registrations.confirmed.empty(),
+            "items": [],
+            "has_items": False,
+            "back_button": i18n.back.button(),
+        }
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    rows = []
+    if event is not None:
+        rows = await db.event_registrations.list_by_event_and_statuses(
+            event_id=event_id,
+            statuses=[
+                EventRegistrationStatus.CONFIRMED,
+                EventRegistrationStatus.ATTENDED_CONFIRMED,
+            ],
+        )
+
+    items: list[tuple[str, str]] = []
+    for user_id, username, _status, _amount in rows:
+        user_label = _format_user_label(user_id, username)
+        label = i18n.partner.event.registrations.confirmed.item(
+            username=user_label,
+        )
+        items.append((label, f"{event_id}:{user_id}"))
+
+    return {
+        "title": i18n.partner.event.registrations.confirmed.title(),
+        "empty_text": i18n.partner.event.registrations.confirmed.empty(),
+        "items": items,
+        "has_items": bool(items),
+        "back_button": i18n.back.button(),
+    }
+
+
+async def get_admin_registration_confirmed_details(
+    dialog_manager: DialogManager,
+    i18n: TranslatorRunner,
+    event_from_user: User,
+    db: DB,
+    **kwargs,
+) -> dict[str, object]:
+    admin_record = await db.users.get_user_record(user_id=event_from_user.id)
+    is_admin = bool(admin_record and admin_record.role == UserRole.ADMIN)
+    if not is_admin:
+        return {
+            "details_text": (
+                i18n.partner.event.registrations.confirmed.details.missing()
+            ),
+            "back_button": i18n.back.button(),
+        }
+
+    event_id = dialog_manager.dialog_data.get("selected_confirmed_event_id")
+    user_id = dialog_manager.dialog_data.get(
+        "selected_confirmed_registration_user_id"
+    )
+    if not isinstance(event_id, int) or not isinstance(user_id, int):
+        return {
+            "details_text": (
+                i18n.partner.event.registrations.confirmed.details.missing()
+            ),
+            "back_button": i18n.back.button(),
+        }
+
+    event = await db.events.get_event_by_id(event_id=event_id)
+    reg = await db.event_registrations.get_by_user_event(
+        event_id=event_id,
+        user_id=user_id,
+    )
+    if event is None or reg is None:
+        return {
+            "details_text": (
+                i18n.partner.event.registrations.confirmed.details.missing()
+            ),
+            "back_button": i18n.back.button(),
+        }
+
+    if reg.status not in {
+        EventRegistrationStatus.CONFIRMED,
+        EventRegistrationStatus.ATTENDED_CONFIRMED,
+    }:
+        return {
+            "details_text": (
+                i18n.partner.event.registrations.confirmed.details.missing()
+            ),
+            "back_button": i18n.back.button(),
+        }
+
+    user = await db.users.get_user_record(user_id=user_id)
+    username = _format_user_label(user_id, user.username if user else None)
+    amount = reg.amount if reg.amount is not None else "-"
+    status_text = _format_registration_status(
+        i18n=i18n,
+        status=reg.status,
+    )
+
+    return {
+        "details_text": i18n.partner.event.registrations.confirmed.details.text(
+            username=username,
+            event_name=event.name,
+            amount=amount,
+            status=status_text,
+        ),
+        "back_button": i18n.back.button(),
+    }
 
 
 async def get_admin_registration_pending_details(
