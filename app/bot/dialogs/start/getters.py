@@ -502,6 +502,8 @@ async def get_admin_registration_confirmed_details(
             "details_text": (
                 i18n.partner.event.registrations.confirmed.details.missing()
             ),
+            "payment_proof_media": None,
+            "has_payment_proof_media": False,
             "back_button": i18n.back.button(),
             "dialog_button": i18n.partner.event.dialog.participant.button(),
             "has_dialog_button": False,
@@ -516,6 +518,8 @@ async def get_admin_registration_confirmed_details(
             "details_text": (
                 i18n.partner.event.registrations.confirmed.details.missing()
             ),
+            "payment_proof_media": None,
+            "has_payment_proof_media": False,
             "back_button": i18n.back.button(),
             "dialog_button": i18n.partner.event.dialog.participant.button(),
             "has_dialog_button": False,
@@ -531,6 +535,8 @@ async def get_admin_registration_confirmed_details(
             "details_text": (
                 i18n.partner.event.registrations.confirmed.details.missing()
             ),
+            "payment_proof_media": None,
+            "has_payment_proof_media": False,
             "back_button": i18n.back.button(),
             "dialog_button": i18n.partner.event.dialog.participant.button(),
             "has_dialog_button": False,
@@ -544,6 +550,8 @@ async def get_admin_registration_confirmed_details(
             "details_text": (
                 i18n.partner.event.registrations.confirmed.details.missing()
             ),
+            "payment_proof_media": None,
+            "has_payment_proof_media": False,
             "back_button": i18n.back.button(),
         }
 
@@ -554,6 +562,17 @@ async def get_admin_registration_confirmed_details(
         i18n=i18n,
         status=reg.status,
     )
+    payment_proof_media = None
+    if reg.payment_proof_file_id and reg.payment_proof_type in {"photo", "document"}:
+        media_type = (
+            ContentType.PHOTO
+            if reg.payment_proof_type == "photo"
+            else ContentType.DOCUMENT
+        )
+        payment_proof_media = MediaAttachment(
+            type=media_type,
+            file_id=MediaId(reg.payment_proof_file_id),
+        )
 
     return {
         "details_text": i18n.partner.event.registrations.confirmed.details.text(
@@ -562,6 +581,8 @@ async def get_admin_registration_confirmed_details(
             amount=amount,
             status=status_text,
         ),
+        "payment_proof_media": payment_proof_media,
+        "has_payment_proof_media": payment_proof_media is not None,
         "back_button": i18n.back.button(),
         "dialog_button": i18n.partner.event.dialog.participant.button(),
         "has_dialog_button": True,

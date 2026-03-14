@@ -308,6 +308,7 @@ start_dialog = Dialog(
         state=StartSG.admin_registration_pending_details,
     ),
     Window(
+        DynamicMedia("payment_proof_media", when="has_payment_proof_media"),
         Format("{details_text}"),
         Row(
             Button(
