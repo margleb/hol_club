@@ -9,6 +9,7 @@ from app.bot.enums.event_registrations import EventRegistrationStatus
 from app.infrastructure.database.database.db import DB
 from app.infrastructure.database.models.events import EventsModel
 from app.infrastructure.database.models.users import UsersModel
+from app.utils.datetime import is_event_past
 
 EVENT_DIALOG_OPEN_CALLBACK = "event_dialog_open"
 DIALOG_EVENT_ID_KEY = "selected_dialog_event_id"
@@ -128,6 +129,10 @@ async def has_participant_dialog_access(
     participant_user_id: int,
     event_id: int,
 ) -> bool:
+    event = await db.events.get_event_by_id(event_id=event_id)
+    if event is None or is_event_past(event.event_datetime):
+        return False
+
     registration = await db.event_registrations.get_by_user_event(
         event_id=event_id,
         user_id=participant_user_id,
@@ -166,7 +171,7 @@ async def get_participant_dialog_context(
     event_id: int,
 ) -> EventDialogContext | None:
     event = await db.events.get_event_by_id(event_id=event_id)
-    if event is None:
+    if event is None or is_event_past(event.event_datetime):
         return None
 
     registration = await db.event_registrations.get_by_user_event(
