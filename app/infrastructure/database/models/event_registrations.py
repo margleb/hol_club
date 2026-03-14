@@ -34,3 +34,4 @@ class EventRegistrationsModel(BaseModel):
     )
     paid_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attended_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

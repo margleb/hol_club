@@ -23,6 +23,7 @@ from app.infrastructure.storage.storage.nats_storage import NatsStorage
 from app.infrastructure.storage.storage.nats_key_builder import NatsKeyBuilder
 from app.infrastructure.storage.nats_connect import connect_to_nats
 from app.services.telegram.event_chat_cleanup import run_event_chat_cleanup_loop
+from app.services.telegram.event_reminders import run_event_reminders_loop
 from app.services.telegram.private_event_chats import EventPrivateChatService
 from config.config import settings
 
@@ -107,9 +108,17 @@ async def main():
     bg_factory = setup_dialogs(dp)
 
     cleanup_task: asyncio.Task | None = None
+    reminder_task: asyncio.Task | None = None
 
     # Launch polling
     try:
+        reminder_task = asyncio.create_task(
+            run_event_reminders_loop(
+                bot=bot,
+                session_maker=db_session_maker,
+                translator_hub=translator_hub,
+            )
+        )
         if private_chat_service_connected:
             cleanup_task = asyncio.create_task(
                 run_event_chat_cleanup_loop(
@@ -128,6 +137,12 @@ async def main():
     except Exception as e:
         logger.exception(e)
     finally:
+        if reminder_task is not None:
+            reminder_task.cancel()
+            try:
+                await reminder_task
+            except asyncio.CancelledError:
+                pass
         if cleanup_task is not None:
             cleanup_task.cancel()
             try:

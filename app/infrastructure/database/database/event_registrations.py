@@ -278,3 +278,60 @@ class _EventRegistrationsDB:
             (row[0], row[1], row[2], row[3], row[4])
             for row in result.all()
         ]
+
+    async def list_due_for_reminder(
+        self,
+        *,
+        now: datetime,
+        remind_before: datetime,
+        limit: int,
+    ) -> list[tuple[int, EventsModel]]:
+        stmt = (
+            select(
+                EventRegistrationsModel.user_id,
+                EventsModel,
+            )
+            .join(EventsModel, EventsModel.id == EventRegistrationsModel.event_id)
+            .join(UsersModel, UsersModel.user_id == EventRegistrationsModel.user_id)
+            .where(EventRegistrationsModel.status == EventRegistrationStatus.CONFIRMED)
+            .where(EventRegistrationsModel.reminder_sent_at.is_(None))
+            .where(EventsModel.event_datetime > now)
+            .where(EventsModel.event_datetime <= remind_before)
+            .where(UsersModel.is_alive.is_(True))
+            .where(UsersModel.is_blocked.is_(False))
+            .order_by(
+                EventsModel.event_datetime.asc(),
+                EventRegistrationsModel.created.asc(),
+            )
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return [
+            (row[0], row[1])
+            for row in result.all()
+        ]
+
+    async def mark_reminder_sent_if_pending(
+        self,
+        *,
+        event_id: int,
+        user_id: int,
+    ) -> bool:
+        stmt = (
+            update(EventRegistrationsModel)
+            .where(EventRegistrationsModel.event_id == event_id)
+            .where(EventRegistrationsModel.user_id == user_id)
+            .where(EventRegistrationsModel.status == EventRegistrationStatus.CONFIRMED)
+            .where(EventRegistrationsModel.reminder_sent_at.is_(None))
+            .values(reminder_sent_at=datetime.now(timezone.utc))
+        )
+        result = await self.session.execute(stmt)
+        updated = bool(result.rowcount)
+        if updated:
+            logger.info(
+                "Event registration reminder marked as sent. db='%s', event_id=%d, user_id=%d",
+                self.__tablename__,
+                event_id,
+                user_id,
+            )
+        return updated

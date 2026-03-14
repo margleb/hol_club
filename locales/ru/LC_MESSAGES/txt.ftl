@@ -246,6 +246,10 @@ partner-event-registrations-pending-decline-button = Отклонить
 partner-event-registrations-confirmed-title = Зарегистрированные пользователи
 partner-event-registrations-confirmed-empty = Пока нет подтвержденных регистраций.
 partner-event-registrations-confirmed-item = { $username }
+partner-event-reminder-text =
+    Напоминаем, что вы зарегистрированы на мероприятие «{ $event_name }».
+    Когда: { $datetime }
+    Адрес: { $address }
 partner-event-view-post-button = Смотреть пост
 partner-event-view-topic-button = Смотреть топик
 partner-event-view-chat-button = Смотреть чат
