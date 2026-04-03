@@ -1,5 +1,3 @@
-from urllib.parse import quote_plus
-
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.events.constants import EVENT_AGE_GROUP_ALL
@@ -10,12 +8,6 @@ def _escape_html(value: str) -> str:
     return (
         value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     )
-
-
-def _build_address_link(address: str) -> str:
-    query = quote_plus(address.strip())
-    return f"https://yandex.ru/maps/?text={query}"
-
 
 def _render_event_text(
     *,
@@ -28,9 +20,7 @@ def _render_event_text(
     i18n: TranslatorRunner,
 ) -> str:
     datetime_line = i18n.partner.event.label.datetime(value=date_time)
-    address_line = i18n.partner.event.label.address(
-        value=f'<a href="{_build_address_link(address)}">{address}</a>',
-    )
+    address_line = i18n.partner.event.label.address(value=address)
     participation_line = i18n.partner.event.label.participation(value=price)
     age_block = (
         f"{i18n.partner.event.label.age(value=age_group)}"
