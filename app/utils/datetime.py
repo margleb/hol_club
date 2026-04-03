@@ -3,6 +3,8 @@ from zoneinfo import ZoneInfo
 
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 EVENT_DATETIME_INPUT_FORMAT = "%Y.%m.%d %H:%M"
+EVENT_DATETIME_DISPLAY_FORMAT = "%d.%m.%Y %H:%M"
+EVENT_DATETIME_TOPIC_FORMAT = "%d.%m %H:%M"
 
 
 def now_utc() -> datetime:
@@ -44,7 +46,18 @@ def format_event_datetime(value: object) -> str:
     event_datetime = coerce_event_datetime(value)
     if event_datetime is None:
         return str(value or "")
-    return event_datetime.astimezone(MOSCOW_TZ).strftime(EVENT_DATETIME_INPUT_FORMAT)
+    localized = event_datetime.astimezone(MOSCOW_TZ)
+    return localized.strftime(EVENT_DATETIME_DISPLAY_FORMAT)
+
+
+def format_event_datetime_compact(value: object) -> str:
+    event_datetime = coerce_event_datetime(value)
+    if event_datetime is None:
+        return str(value or "")
+    localized = event_datetime.astimezone(MOSCOW_TZ)
+    if localized.year != now_moscow().year:
+        return localized.strftime(EVENT_DATETIME_DISPLAY_FORMAT)
+    return localized.strftime(EVENT_DATETIME_TOPIC_FORMAT)
 
 
 def is_event_past(value: object, *, reference: datetime | None = None) -> bool:
