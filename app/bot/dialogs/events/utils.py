@@ -3,7 +3,7 @@ from urllib.parse import quote_plus
 from fluentogram import TranslatorRunner
 
 from app.bot.dialogs.events.constants import EVENT_AGE_GROUP_ALL
-from app.utils.datetime import format_event_datetime
+from app.utils.datetime import format_event_datetime, format_event_datetime_compact
 
 
 def _escape_html(value: str) -> str:
@@ -80,7 +80,7 @@ def build_event_text(
 
 
 def build_event_topic_name(event_datetime: object, event_name: str) -> str:
-    date_value = format_event_datetime(event_datetime).strip()
+    date_value = format_event_datetime_compact(event_datetime).strip()
     name = (event_name or "").strip()
     if date_value and name:
         base = f"{date_value} - {name}"
