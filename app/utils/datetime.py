@@ -2,7 +2,14 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
-EVENT_DATETIME_INPUT_FORMAT = "%Y.%m.%d %H:%M"
+EVENT_DATETIME_INPUT_FORMATS = (
+    "%Y.%m.%d %H:%M",
+    "%d.%m.%Y %H:%M",
+    "%Y-%m-%d %H:%M",
+    "%d-%m-%Y %H:%M",
+    "%Y/%m/%d %H:%M",
+    "%d/%m/%Y %H:%M",
+)
 EVENT_DATETIME_DISPLAY_FORMAT = "%d.%m.%Y %H:%M"
 EVENT_DATETIME_TOPIC_FORMAT = "%d.%m %H:%M"
 
@@ -16,8 +23,14 @@ def now_moscow() -> datetime:
 
 
 def parse_event_datetime_input(value: str) -> datetime:
-    naive = datetime.strptime(value.strip(), EVENT_DATETIME_INPUT_FORMAT)
-    return naive.replace(tzinfo=MOSCOW_TZ)
+    raw_value = value.strip().replace("T", " ")
+    for date_format in EVENT_DATETIME_INPUT_FORMATS:
+        try:
+            naive = datetime.strptime(raw_value, date_format)
+        except ValueError:
+            continue
+        return naive.replace(tzinfo=MOSCOW_TZ)
+    raise ValueError(f"Unsupported event datetime format: {value}")
 
 
 def coerce_event_datetime(value: object) -> datetime | None:

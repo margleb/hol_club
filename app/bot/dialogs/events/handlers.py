@@ -27,7 +27,6 @@ from app.infrastructure.database.database.db import DB
 from config.config import settings
 from app.bot.dialogs.events.utils import build_event_text
 from app.services.telegram.delivery_status import apply_delivery_error_status
-from app.services.geocoders.geocoder import fetch_address_suggestions
 from app.utils.datetime import coerce_event_datetime, now_moscow, parse_event_datetime_input
 
 logger = logging.getLogger(__name__)
@@ -166,23 +165,18 @@ async def on_event_address_input(
     dialog_manager: DialogManager,
     data: str,
 ) -> None:
-    i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
     query = (data or "").strip()
-    if not any(char.isdigit() for char in query):
-        await message.answer(i18n.partner.event.address.house.missing())
+    if not query:
+        i18n: TranslatorRunner = dialog_manager.middleware_data.get("i18n")
+        await message.answer(i18n.partner.event.address.prompt())
         return
 
-    suggestions = await fetch_address_suggestions(
-        query,
-        message.from_user.language_code,
-        settings,
-    )
-    if not suggestions:
-        await message.answer(i18n.partner.event.address.empty())
+    dialog_manager.dialog_data["address"] = query
+    dialog_manager.dialog_data.pop("address_suggestions", None)
+    if _is_edit_mode(dialog_manager):
+        await _return_to_preview(dialog_manager)
         return
-
-    dialog_manager.dialog_data["address_suggestions"] = suggestions
-    await dialog_manager.switch_to(EventsSG.address_select)
+    await dialog_manager.switch_to(EventsSG.description)
 
 
 async def on_event_address_selected(
