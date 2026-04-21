@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import ExceptionTypeFilter
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_dialog import setup_dialogs
 from aiogram_dialog.api.exceptions import UnknownIntent, UnknownState
 from fluentogram import TranslatorHub
@@ -33,13 +34,20 @@ logger = logging.getLogger(__name__)
 async def main():
     logger.info("Starting bot")
 
-    nc, js = await connect_to_nats(servers=settings.nats.servers)
-
-    storage: NatsStorage = await NatsStorage(
-        nc=nc,
-        js=js,
-        key_builder=NatsKeyBuilder(with_destiny=True, separator="_")
-    ).create_storage()
+    nc = None
+    try:
+        nc, js = await connect_to_nats(servers=settings.nats.servers)
+        storage = await NatsStorage(
+            nc=nc,
+            js=js,
+            key_builder=NatsKeyBuilder(with_destiny=True, separator="_")
+        ).create_storage()
+        logger.info("Connected to NATS, using NATS FSM storage")
+    except Exception:
+        logger.exception(
+            "Failed to connect to NATS, falling back to in-memory FSM storage"
+        )
+        storage = MemoryStorage()
 
     bot = Bot(
         token=settings.bot_token,
@@ -47,15 +55,21 @@ async def main():
     )
     dp = Dispatcher(storage=storage)
 
+    cache_pool = None
     if settings.cache.use_cache:
-        cache_pool = await get_redis_pool(
-            db=settings.redis.database,
-            host=settings.redis.host,
-            port=settings.redis.port,
-            username=settings.redis_username,
-            password=settings.redis_password,
-        )
-        dp.workflow_data.update(_cache_pool=cache_pool)
+        try:
+            cache_pool = await get_redis_pool(
+                db=settings.redis.database,
+                host=settings.redis.host,
+                port=settings.redis.port,
+                username=settings.redis_username,
+                password=settings.redis_password,
+            )
+            dp.workflow_data.update(_cache_pool=cache_pool)
+        except Exception:
+            logger.exception(
+                "Failed to connect to Redis, continuing without cache"
+            )
 
     db_engine, db_session_maker = await get_pg_pool(
         db_name=settings.postgres.db,
@@ -149,11 +163,12 @@ async def main():
                 await cleanup_task
             except asyncio.CancelledError:
                 pass
-        await nc.close()
-        logger.info('Connection to NATS closed')
+        if nc is not None:
+            await nc.close()
+            logger.info('Connection to NATS closed')
         await db_engine.dispose()
         logger.info('Connection to Postgres closed')
         await event_private_chat_service.disconnect()
-        if dp.workflow_data.get('_cache_pool'):
+        if cache_pool is not None:
             await cache_pool.close()
             logger.info('Connection to Redis closed')
